@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { FeeType } from '../admin/dto/admin.dto';
 import { TransferDto, WalletDetailsResponse, TransferResponse } from './dto/wallet.dto';
-import { WalletTransactionType, TransactionStatus } from '../../generated/prisma';
+import { WalletTransactionType, TransactionStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import axios from 'axios';
 

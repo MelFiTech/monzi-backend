@@ -20,3 +20,12 @@ coverage/
 create-jwt.js
 generate-test-token.ts
 validate-jwt.js
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Temporary files
+env.example
+generate-jwt-secret.js

@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { RavenKycProvider } from '../providers/raven/raven-kyc.provider';
 import { GeminiAiProvider } from '../providers/ai/gemini.provider';
-import { KycStatus, AiApprovalType, AiApprovalStatus } from '../../generated/prisma';
+import { KycStatus, AiApprovalType, AiApprovalStatus } from '@prisma/client';
 import { 
   VerifyBvnDto, 
   BvnVerificationResponseDto, 
