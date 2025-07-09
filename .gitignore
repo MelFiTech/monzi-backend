@@ -7,3 +7,11 @@ node_modules
 # Ignore all markdown files and README files
 *.md
 README*
+
+# Ignore all test files and directories
+*.spec.ts
+*.test.ts
+test/
+coverage/
+*.spec.js
+*.test.js
