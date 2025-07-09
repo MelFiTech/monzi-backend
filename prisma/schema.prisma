@@ -207,57 +207,63 @@ model AiQuery {
 }
 
 model FeeConfiguration {
-  id          String   @id @default(cuid())
-  type        FeeType  // TRANSFER, WITHDRAWAL, etc.
-  percentage  Float?   // Percentage fee (e.g., 0.5 for 0.5%)
-  fixedAmount Float?   // Fixed fee amount
-  minAmount   Float?   // Minimum fee amount
-  maxAmount   Float?   // Maximum fee amount
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(cuid())
+  type              FeeType  @unique
+  percentage        Float?   // Fee percentage (e.g., 0.015 for 1.5%)
+  fixedAmount       Float?   // Fixed fee amount
+  minimumFee        Float?   // Minimum fee amount
+  maximumFee        Float?   // Maximum fee amount (optional)
+  isActive          Boolean  @default(true)
+  description       String?  // Description of the fee
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  @@unique([type])
   @@map("fee_configurations")
 }
 
 model AiApproval {
-  id             String            @id @default(cuid())
-  type           AiApprovalType    // BVN_VERIFICATION, SELFIE_VERIFICATION, etc.
-  status         AiApprovalStatus  @default(PENDING)
-  confidence     Float?            // AI confidence score (0-1)
-  aiDecision     String?           // AI's decision/reasoning
-  reviewedBy     String?           // Manual reviewer ID if reviewed
-  reviewedAt     DateTime?
-  metadata       Json?             // Additional data for the approval
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id             String              @id @default(cuid())
+  userId         String              
+  approvalType   AiApprovalType      // SELFIE_KYC, etc.
+  status         AiApprovalStatus    @default(APPROVED)
+  aiProvider     String              // gemini, openai, etc.
+  aiResponse     Json                // Full AI response for audit
+  confidence     Float               // AI confidence score (0-1)
+  
+  // Admin review
+  reviewedById   String?             // Admin who reviewed/rescinded
+  reviewedAt     DateTime?           // When admin reviewed
+  reviewComment  String?             // Admin comment
+  
+  // Metadata
+  imageUrl       String?             // Path to analyzed image
+  relatedData    Json?               // Additional context data
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   // Relations
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("ai_approvals")
 }
 
 enum KycStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  UNDER_REVIEW
+  PENDING      // Initial state
+  IN_PROGRESS  // BVN verification started
+  VERIFIED     // Fully verified (BVN + Selfie)
+  REJECTED     // KYC failed verification
 }
 
 enum AiApprovalType {
-  BVN_VERIFICATION
-  SELFIE_VERIFICATION
-  DOCUMENT_VERIFICATION
+  SELFIE_KYC   // Selfie verification for KYC
+  DOCUMENT_VERIFICATION // Document verification
+  IDENTITY_CHECK // Identity verification
 }
 
 enum AiApprovalStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  NEEDS_MANUAL_REVIEW
+  APPROVED     // AI approved, active
+  RESCINDED    // Admin rescinded the approval
+  UNDER_REVIEW // Admin is reviewing the approval
 }
 
 enum WalletTransactionType {
@@ -288,10 +294,11 @@ enum OcrStatus {
 }
 
 enum FeeType {
-  TRANSFER
-  WITHDRAWAL
-  FUNDING
-  INTERNATIONAL_TRANSFER
+  TRANSFER          // Wallet-to-bank transfer fee
+  WITHDRAWAL        // Wallet withdrawal fee
+  FUNDING           // Wallet funding fee
+  CURRENCY_EXCHANGE // Currency conversion fee
+  MONTHLY_MAINTENANCE // Monthly account maintenance
 }
 
 enum Gender {
