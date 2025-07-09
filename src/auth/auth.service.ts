@@ -255,7 +255,7 @@ export class AuthService {
     try {
       await smsService.send({
         to: phone,
-        message: `Your SnapNGo verification code is: ${otpCode}. Valid for 5 minutes.`,
+        message: `Your Monzi verification code is: ${otpCode}. Valid for 5 minutes.`,
       });
       console.log('✅ [SMS SERVICE] OTP sent successfully');
     } catch (error) {

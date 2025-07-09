@@ -17,10 +17,10 @@ async function bootstrap() {
   }));
 
   // Swagger configuration
-  const config = new DocumentBuilder()
-    .setTitle('SnapNGo Backend API')
+    const config = new DocumentBuilder()
+    .setTitle('Monzi Backend API')
     .setDescription(`
-    🚀 **SnapNGo Backend** - AI-Powered Financial Transaction API
+🚀 **Monzi Backend** - AI-Powered Financial Transaction API
 
     ## Features
     - 🔐 **Authentication**: PIN & Biometric authentication
@@ -51,7 +51,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
-    customSiteTitle: 'SnapNGo API Documentation',
+          customSiteTitle: 'Monzi API Documentation',
     customfavIcon: 'https://nestjs.com/img/logo_text.svg',
     customJs: [
       'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
@@ -65,7 +65,7 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
   
-  console.log(`🚀 SnapNGo Backend running on: http://localhost:${port}`);
+  console.log(`🚀 Monzi Backend running on: http://localhost:${port}`);
   console.log(`📚 API Documentation: http://localhost:${port}/api`);
 }
 
