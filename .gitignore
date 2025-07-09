@@ -15,3 +15,8 @@ test/
 coverage/
 *.spec.js
 *.test.js
+
+# JWT utility files (for local development only)
+create-jwt.js
+generate-test-token.ts
+validate-jwt.js
