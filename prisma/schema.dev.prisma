@@ -46,6 +46,7 @@ model User {
   ocrScans     OcrScan[]
   wallet       Wallet?
   aiApprovals  AiApproval[]
+  aiQueries    AiQuery[]
 
   @@map("users")
 }
@@ -196,19 +197,21 @@ model OcrScan {
 }
 
 model AiQuery {
-  id         String   @id @default(cuid())
-  prompt     String   // User's original prompt
-  response   String?  // AI response
-  structured Json?    // Structured query generated
-  model      String?  // AI model used (gpt-4, gemini, etc.)
-  tokens     Int?     // Tokens consumed
-  status     String   @default("pending")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id         String        @id @default(cuid())
+  prompt     String        // User's question/query
+  response   String?       // AI's response
+  model      String        @default("gemini-2.0-flash") // AI model used
+  status     AiQueryStatus @default(PROCESSING) // Query processing status
+  structured Json?         // Structured query data from AI parsing
+  tokens     Int?          // Number of tokens used
+  confidence Float?        // AI confidence score
+  category   String?       // Query category (financial, general, etc.)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
-  // Optional user association
+  // User who made the query
   userId String?
-  metadata Json?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("ai_queries")
 }
@@ -315,4 +318,10 @@ enum Gender {
   MALE
   FEMALE
   OTHER
+}
+
+enum AiQueryStatus {
+  PROCESSING   // Query is being processed
+  COMPLETED    // Query completed successfully
+  FAILED       // Query processing failed
 }

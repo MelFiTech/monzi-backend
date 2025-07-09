@@ -35,7 +35,7 @@ export class AiService {
       data: {
         prompt,
         model,
-        status: 'processing',
+        status: 'PROCESSING',
         userId,
       },
     });
@@ -56,7 +56,7 @@ export class AiService {
         data: {
           response,
           structured: { ...structuredQuery } as any,
-          status: 'completed',
+          status: 'COMPLETED',
         },
       });
 
@@ -75,7 +75,7 @@ export class AiService {
         where: { id: aiQuery.id },
         data: {
           response: `Error processing query: ${error.message}`,
-          status: 'failed',
+          status: 'FAILED',
         },
       });
       throw new BadRequestException(`Failed to process query: ${error.message}`);
