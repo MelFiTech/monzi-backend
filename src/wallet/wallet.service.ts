@@ -4,6 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { FeeType } from '../admin/dto/admin.dto';
 import { TransferDto, WalletDetailsResponse, TransferResponse } from './dto/wallet.dto';
 import { WalletTransactionType, TransactionStatus } from '@prisma/client';
+import { ProviderManagerService } from '../providers/provider-manager.service';
+import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
+import { WalletCreationData } from '../providers/base/wallet-provider.interface';
+import { BankTransferData } from '../providers/base/transfer-provider.interface';
 import * as bcrypt from 'bcrypt';
 import axios from 'axios';
 
@@ -12,9 +16,35 @@ export class WalletService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private providerManager: ProviderManagerService,
+    private transferProviderManager: TransferProviderManagerService,
   ) {}
 
-  async createWallet(userId: string, userFirstName: string, userLastName: string): Promise<any> {
+  /**
+   * Generate default narration from user's name
+   * Format: "FirstName LastInitial" (e.g., "John S" for "John Smith")
+   */
+  private generateDefaultNarration(firstName: string, lastName: string): string {
+    const firstNameTrimmed = firstName?.trim() || '';
+    const lastNameTrimmed = lastName?.trim() || '';
+    const lastInitial = lastNameTrimmed.charAt(0).toUpperCase();
+    
+    return lastInitial ? `${firstNameTrimmed} ${lastInitial}` : firstNameTrimmed;
+  }
+
+  async createWallet(
+    userId: string, 
+    userFirstName: string, 
+    userLastName: string,
+    userEmail: string,
+    userPhone: string,
+    userDateOfBirth: string,
+    userGender: 'M' | 'F',
+    userAddress?: string,
+    userCity?: string,
+    userState?: string,
+    userBvn?: string
+  ): Promise<any> {
     console.log('💳 [WALLET CREATE] Creating wallet for user:', userId);
     
     // Check if wallet already exists
@@ -27,25 +57,67 @@ export class WalletService {
       return existingWallet;
     }
 
-    // Generate virtual account number (10 digits starting with 903)
-    const virtualAccountNumber = '903' + Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
-    const providerAccountName = `${userFirstName} ${userLastName}`.trim();
-
     try {
+      // Get the active wallet provider
+      const walletProvider = await this.providerManager.getActiveWalletProvider();
+      const providerName = await this.providerManager.getCurrentProviderName();
+      
+      console.log(`🏦 [WALLET CREATE] Using provider: ${providerName}`);
+
+      // Prepare wallet creation data
+      const walletData: WalletCreationData = {
+        accountName: `${userFirstName} ${userLastName}`.trim(),
+        firstName: userFirstName,
+        lastName: userLastName,
+        email: userEmail,
+        phoneNumber: userPhone,
+        dateOfBirth: userDateOfBirth,
+        gender: userGender,
+        address: userAddress || 'Lagos, Nigeria',
+        city: userCity || 'Lagos',
+        state: userState || 'Lagos State',
+        country: 'Nigeria',
+        bvn: userBvn,
+      };
+
+      // Create wallet through provider
+      const providerResult = await walletProvider.createWallet(walletData);
+
+      if (!providerResult.success) {
+        console.error('❌ [WALLET CREATE] Provider wallet creation failed:', providerResult.error);
+        throw new BadRequestException(providerResult.error || 'Failed to create wallet');
+      }
+
+      // Save wallet to database
       const wallet = await this.prisma.wallet.create({
         data: {
           userId,
-          virtualAccountNumber,
-          providerAccountName,
-          providerId: `SNAP_${userId}_${Date.now()}`,
+          virtualAccountNumber: providerResult.data.accountNumber,
+          providerAccountName: providerResult.data.accountName,
+          providerId: providerResult.data.customerId,
+          provider: providerName,
+          bankName: providerResult.data.bankName,
+          currency: providerResult.data.currency || 'NGN',
         }
       });
 
-      console.log('✅ [WALLET CREATE] Wallet created with account number:', virtualAccountNumber);
-      return wallet;
+      console.log('✅ [WALLET CREATE] Wallet created successfully:', {
+        accountNumber: wallet.virtualAccountNumber,
+        provider: providerName,
+        customerId: wallet.providerId
+      });
+
+      return {
+        ...wallet,
+        provider: providerName,
+        bankName: providerResult.data.bankName,
+        bankCode: providerResult.data.bankCode,
+        status: providerResult.data.status,
+      };
+
     } catch (error) {
       console.error('❌ [WALLET CREATE] Error creating wallet:', error);
-      throw new BadRequestException('Failed to create wallet');
+      throw new BadRequestException('Failed to create wallet: ' + error.message);
     }
   }
 
@@ -111,6 +183,10 @@ export class WalletService {
       throw new NotFoundException('Wallet not found');
     }
 
+    // Use the provider that created this specific wallet (not current system provider)
+    const providerName = wallet.provider || 'UNKNOWN';
+    const bankName = wallet.bankName || 'Unknown Bank';
+
     console.log('✅ [WALLET DETAILS] Wallet details retrieved successfully');
 
     return {
@@ -119,6 +195,8 @@ export class WalletService {
       currency: wallet.currency,
       virtualAccountNumber: wallet.virtualAccountNumber,
       providerAccountName: wallet.providerAccountName,
+      providerName,
+      bankName,
       isActive: wallet.isActive,
       dailyLimit: wallet.dailyLimit,
       monthlyLimit: wallet.monthlyLimit,
@@ -230,23 +308,40 @@ export class WalletService {
     // Generate transaction reference
     const reference = `TXN_${Date.now()}_${Math.random().toString(36).substring(7).toUpperCase()}`;
 
+    // Generate default narration if not provided
+    const defaultNarration = this.generateDefaultNarration(wallet.user.firstName, wallet.user.lastName);
+
     try {
       // Get bank code for the transfer
       const bankCode = await this.getBankCode(transferDto.bankName);
 
-      // Send transfer request to provider (Smeplug)
-      const providerResponse = await this.sendTransferToProvider({
+      // Prepare transfer data for provider
+      const transferData: BankTransferData = {
         amount: transferDto.amount,
+        currency: 'NGN',
         accountNumber: transferDto.accountNumber,
         bankCode,
+        bankName: transferDto.bankName,
         accountName: transferDto.accountName,
+        narration: transferDto.description || defaultNarration,
         reference,
-        narration: transferDto.description || `Transfer from ${wallet.user.firstName} ${wallet.user.lastName}`,
         senderName: `${wallet.user.firstName} ${wallet.user.lastName}`,
         senderEmail: wallet.user.email,
-      });
+        metadata: {
+          userId: userId,
+          walletId: wallet.id,
+          fee: fee
+        }
+      };
+
+      // Send transfer request to active provider
+      const providerResponse = await this.transferProviderManager.transferToBank(transferData);
 
       console.log('🏦 [TRANSFER] Provider response:', providerResponse);
+
+      if (!providerResponse.success) {
+        throw new Error(providerResponse.message || 'Transfer failed');
+      }
 
       // Create wallet transaction record
       const transaction = await this.prisma.walletTransaction.create({
@@ -255,18 +350,20 @@ export class WalletService {
           type: WalletTransactionType.WITHDRAWAL,
           status: TransactionStatus.COMPLETED,
           reference,
-          description: transferDto.description || `Transfer to ${transferDto.accountName}`,
+          description: transferDto.description || defaultNarration,
           fee,
           senderWalletId: wallet.id,
           senderBalanceBefore: wallet.balance,
           senderBalanceAfter: wallet.balance - totalDeduction,
-          providerReference: providerResponse.reference,
-          providerResponse: providerResponse,
+          providerReference: providerResponse.data?.reference || reference,
+          providerResponse: JSON.parse(JSON.stringify(providerResponse)),
           metadata: {
             recipientBank: transferDto.bankName,
             recipientAccount: transferDto.accountNumber,
             recipientName: transferDto.accountName,
-            bankCode
+            bankCode,
+            providerStatus: providerResponse.data?.status,
+            providerFee: providerResponse.data?.fee
           }
         }
       });
@@ -305,7 +402,7 @@ export class WalletService {
           type: WalletTransactionType.WITHDRAWAL,
           status: TransactionStatus.FAILED,
           reference,
-          description: transferDto.description || `Failed transfer to ${transferDto.accountName}`,
+          description: transferDto.description || defaultNarration,
           fee,
           senderWalletId: wallet.id,
           senderBalanceBefore: wallet.balance,
@@ -324,133 +421,53 @@ export class WalletService {
   }
 
   private async getBankCode(bankName: string): Promise<string> {
-    // Bank name to code mapping (same as in accounts service)
-    const bankCodeMapping = {
-      'First Bank of Nigeria': '011',
-      'First Bank': '011',
-      'FirstBank': '011',
-      'GTBank': '058',
-      'GTBank Plc': '058',
-      'Guaranty Trust Bank': '058',
-      'Access Bank': '044',
-      'Access Bank Plc': '044',
-      'Zenith Bank': '057',
-      'Zenith Bank Plc': '057',
-      'UBA': '033',
-      'United Bank for Africa': '033',
-      'Union Bank': '032',
-      'Union Bank of Nigeria': '032',
-      'Sterling Bank': '232',
-      'Sterling Bank Plc': '232',
-      'Fidelity Bank': '070',
-      'Fidelity Bank Plc': '070',
-      'FCMB': '214',
-      'First City Monument Bank': '214',
-      'Wema Bank': '035',
-      'Wema Bank Plc': '035',
-      'Ecobank': '050',
-      'Ecobank Nigeria': '050',
-      'Keystone Bank': '082',
-      'Keystone Bank Limited': '082',
-      'Polaris Bank': '076',
-      'Polaris Bank Limited': '076',
-      'Stanbic IBTC Bank': '221',
-      'Stanbic IBTC': '221',
-      'Standard Chartered': '068',
-      'Standard Chartered Bank': '068',
-      'Providus Bank': '101',
-      'Providus Bank Limited': '101',
-      'Jaiz Bank': '301',
-      'Jaiz Bank Plc': '301',
-      'SunTrust Bank': '100',
-      'SunTrust Bank Nigeria Limited': '100',
-      'Kuda Bank': '50211', // Microfinance banks
-      'Kuda': '50211',
-      'VFD Microfinance Bank': '566',
-      'VFD': '566',
-      'Opay': '305',
-      'OPay Digital Services Limited': '305',
-      'PalmPay': '304',
-      'Palm Pay': '304',
-      'Moniepoint': '50515',
-      'Moniepoint Microfinance Bank': '50515',
-    };
-
-    const bankCode = bankCodeMapping[bankName];
-    if (!bankCode) {
-      throw new BadRequestException(`Bank code not found for: ${bankName}`);
-    }
-
-    return bankCode;
-  }
-
-  private async sendTransferToProvider(transferData: any): Promise<any> {
-    console.log('🏦 [PROVIDER] Sending transfer request to provider');
-    console.log('🏦 [PROVIDER] Transfer data:', transferData);
-
-    // Mock provider integration (replace with actual Smeplug API)
-    const providerEndpoint = this.configService.get('SMEPLUG_TRANSFER_ENDPOINT') || 'https://api.smeplug.ng/v1/transfer';
-    const apiKey = this.configService.get('SMEPLUG_API_KEY');
-
+    console.log('🏦 [BANK CODE] Looking up bank code for:', bankName);
+    
     try {
-      // Simulate provider call (replace with actual API call)
-      console.log('🏦 [PROVIDER] Simulating transfer to provider...');
+      // Get bank list from active transfer provider
+      const bankListResponse = await this.transferProviderManager.getBankList();
       
-      // Calculate fee for mock response
-      const mockFee = await this.calculateFee(FeeType.TRANSFER, transferData.amount);
-      
-      // Mock successful response
-      const mockResponse = {
-        status: 'success',
-        message: 'Transfer completed successfully',
-        reference: `SMEPLUG_${transferData.reference}`,
-        amount: transferData.amount,
-        fee: mockFee,
-        recipient: {
-          accountNumber: transferData.accountNumber,
-          accountName: transferData.accountName,
-          bankCode: transferData.bankCode
-        },
-        timestamp: new Date().toISOString()
-      };
+      if (!bankListResponse.success || !bankListResponse.data) {
+        throw new Error('Failed to retrieve bank list from provider');
+      }
 
-      console.log('✅ [PROVIDER] Transfer successful:', mockResponse);
-      return mockResponse;
+      const searchTerm = bankName.toLowerCase().trim();
+      console.log('🔤 [BANK CODE] Normalized search term:', searchTerm);
 
-      // Uncomment below for actual API integration
-      /*
-      const response = await axios.post(providerEndpoint, {
-        amount: transferData.amount,
-        account_number: transferData.accountNumber,
-        bank_code: transferData.bankCode,
-        account_name: transferData.accountName,
-        reference: transferData.reference,
-        narration: transferData.narration,
-        sender_name: transferData.senderName,
-        sender_email: transferData.senderEmail,
-      }, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 30000, // 30 seconds timeout
-      });
+      // First try exact match
+      let bank = bankListResponse.data.find(
+        (bank) => bank.bankName.toLowerCase() === searchTerm
+      );
 
-      return response.data;
-      */
+      // If not found, try partial match (bank name contains search term)
+      if (!bank) {
+        bank = bankListResponse.data.find(
+          (bank) => bank.bankName.toLowerCase().includes(searchTerm)
+        );
+      }
+
+      // If still not found, try reverse search (search term contains bank name)
+      if (!bank) {
+        bank = bankListResponse.data.find(
+          (bank) => searchTerm.includes(bank.bankName.toLowerCase())
+        );
+      }
+
+      if (!bank) {
+        console.log('❌ [BANK CODE] Bank not found:', bankName);
+        throw new BadRequestException(`Bank not found: ${bankName}. Please check the bank name and try again.`);
+      }
+
+      console.log('✅ [BANK CODE] Bank found:', bank.bankName, 'Code:', bank.bankCode);
+      return bank.bankCode;
 
     } catch (error) {
-      console.error('❌ [PROVIDER] Transfer failed:', error);
-      
-      if (error.response) {
-        throw new Error(`Provider error: ${error.response.data.message || error.response.statusText}`);
-      } else if (error.request) {
-        throw new Error('Provider timeout: Please try again later');
-      } else {
-        throw new Error(`Transfer failed: ${error.message}`);
-      }
+      console.error('❌ [BANK CODE] Error looking up bank code:', error);
+      throw new BadRequestException(`Failed to lookup bank code for: ${bankName}. ${error.message}`);
     }
   }
+
+
 
   async getWalletTransactions(userId: string, limit: number = 20, offset: number = 0) {
     console.log('📊 [TRANSACTIONS] Getting wallet transactions for user:', userId);

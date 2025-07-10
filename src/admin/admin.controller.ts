@@ -14,6 +14,7 @@ import {
   KycReviewResponse 
 } from './dto/admin.dto';
 
+
 @ApiTags('Admin')
 @Controller('admin')
 export class AdminController {
@@ -337,4 +338,395 @@ export class AdminController {
     
     return result;
   }
+
+  // ==================== PROVIDER MANAGEMENT ENDPOINTS ====================
+
+  @Get('providers')
+  @ApiOperation({ 
+    summary: 'Get available wallet providers',
+    description: 'Retrieve list of all available wallet providers and their current status'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Available providers retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        currentProvider: { type: 'string', example: 'SMEPLUG' },
+        providers: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', example: 'SME Plug' },
+              provider: { type: 'string', example: 'SMEPLUG' },
+              isActive: { type: 'boolean', example: true }
+            }
+          }
+        }
+      }
+    }
+  })
+  async getAvailableProviders(): Promise<{
+    success: boolean;
+    currentProvider: string;
+    providers: Array<{ name: string; provider: string; isActive: boolean }>;
+  }> {
+    console.log('🏦 [ADMIN API] GET /admin/providers - Retrieving available wallet providers');
+    
+    const result = await this.adminService.getAvailableProviders();
+    
+    console.log('✅ [ADMIN API] Available providers retrieved successfully');
+    console.log('📄 Current Provider:', result.currentProvider);
+    
+    return result;
+  }
+
+  @Post('providers/switch')
+  @ApiOperation({ 
+    summary: 'Switch wallet provider',
+    description: 'Switch the global wallet provider. All new wallet creations will use the selected provider.'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        provider: { 
+          type: 'string', 
+          enum: ['SMEPLUG', 'POLARIS', 'BUDPAY'],
+          example: 'BUDPAY',
+          description: 'Provider to switch to'
+        }
+      },
+      required: ['provider']
+    }
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Provider switched successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Wallet provider successfully switched to POLARIS' },
+        previousProvider: { type: 'string', example: 'SMEPLUG' },
+        newProvider: { type: 'string', example: 'POLARIS' }
+      }
+    }
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid provider or provider not available',
+  })
+  async switchWalletProvider(
+    @Body() body: { provider: string }
+  ): Promise<{
+    success: boolean;
+    message: string;
+    previousProvider: string;
+    newProvider: string;
+  }> {
+    console.log('🔄 [ADMIN API] POST /admin/providers/switch - Switching wallet provider');
+    console.log('🏦 New Provider:', body.provider);
+    
+    const result = await this.adminService.switchWalletProvider(body.provider);
+    
+    console.log('✅ [ADMIN API] Wallet provider switched successfully');
+    console.log('📄 Response:', result);
+    
+    return result;
+  }
+
+  @Get('providers/current')
+  @ApiOperation({ 
+    summary: 'Get current active provider',
+    description: 'Get the currently active wallet provider name'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Current provider retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        provider: { type: 'string', example: 'SMEPLUG' },
+        name: { type: 'string', example: 'SME Plug' }
+      }
+    }
+  })
+  async getCurrentProvider(): Promise<{
+    success: boolean;
+    provider: string;
+    name: string;
+  }> {
+    console.log('📊 [ADMIN API] GET /admin/providers/current - Getting current provider');
+    
+    const result = await this.adminService.getCurrentProvider();
+    
+    console.log('✅ [ADMIN API] Current provider retrieved successfully');
+    console.log('📄 Current Provider:', result.provider);
+    
+    return result;
+  }
+
+  // ==================== POLARIS API TEST ====================
+  
+  @Post('test-polaris-api')
+  @ApiOperation({ summary: 'Test Polaris Bank API account creation directly' })
+  async testPolarisApi(@Body() testData: any) {
+    console.log('🧪 [POLARIS TEST] Testing Polaris Bank API directly');
+    
+    try {
+      const result = await this.adminService.testPolarisAccountCreation(testData);
+      return result;
+    } catch (error) {
+      console.error('❌ [POLARIS TEST] Error:', error);
+      return {
+        success: false,
+        error: error.message,
+        details: error.response?.data || error.stack
+      };
+    }
+  }
+
+  // ==================== BUDPAY API TEST ====================
+  
+  @Post('test-budpay-api')
+  @ApiOperation({ summary: 'Test BudPay API wallet creation directly' })
+  async testBudPayApi(@Body() testData: any) {
+    console.log('🧪 [BUDPAY TEST] Testing BudPay API directly');
+    
+    try {
+      const result = await this.adminService.testBudPayWalletCreation(testData);
+      return result;
+    } catch (error) {
+      console.error('❌ [BUDPAY TEST] Error:', error);
+      return {
+        success: false,
+        error: error.message,
+        details: error.response?.data || error.stack
+      };
+    }
+  }
+
+  // ==================== TRANSFER PROVIDER MANAGEMENT ====================
+
+  @Get('transfer-providers')
+  @ApiOperation({ 
+    summary: 'Get available transfer providers',
+    description: 'Get list of available transfer providers and current active provider'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transfer providers retrieved successfully',
+  })
+  async getAvailableTransferProviders(): Promise<{
+    success: boolean;
+    currentProvider: string;
+    providers: string[];
+    isAdminConfigured: boolean;
+  }> {
+    console.log('📊 [ADMIN API] GET /admin/transfer-providers - Getting available transfer providers');
+    
+    const result = await this.adminService.getAvailableTransferProviders();
+    
+    console.log('✅ [ADMIN API] Transfer providers retrieved successfully');
+    console.log('📄 Response Data:', result);
+    
+    return result;
+  }
+
+  @Post('transfer-providers/switch')
+  @ApiOperation({ 
+    summary: 'Switch transfer provider',
+    description: 'Switch the active transfer provider for bank transfers, bank lists, and account verification'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        provider: {
+          type: 'string',
+          enum: ['BUDPAY', 'SMEPLUG'],
+          example: 'BUDPAY',
+          description: 'Transfer provider to switch to'
+        }
+      },
+      required: ['provider']
+    }
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transfer provider switched successfully',
+  })
+  async switchTransferProvider(
+    @Body() body: { provider: string }
+  ): Promise<{
+    success: boolean;
+    message: string;
+    previousProvider: string;
+    newProvider: string;
+  }> {
+    console.log('🔄 [ADMIN API] POST /admin/transfer-providers/switch - Switching transfer provider');
+    console.log('📝 Request Data:', body);
+    
+    const result = await this.adminService.switchTransferProvider(body.provider);
+    
+    console.log('✅ [ADMIN API] Transfer provider switched successfully');
+    console.log('📄 Response Data:', result);
+    
+    return result;
+  }
+
+  @Get('transfer-providers/current')
+  @ApiOperation({ 
+    summary: 'Get current transfer provider',
+    description: 'Get information about the currently active transfer provider'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Current transfer provider retrieved successfully',
+  })
+  async getCurrentTransferProvider(): Promise<{
+    success: boolean;
+    provider: string;
+    isAdminConfigured: boolean;
+  }> {
+    console.log('🔍 [ADMIN API] GET /admin/transfer-providers/current - Getting current transfer provider');
+    
+    const result = await this.adminService.getCurrentTransferProvider();
+    
+    console.log('✅ [ADMIN API] Current transfer provider retrieved successfully');
+    console.log('📄 Response Data:', result);
+    
+    return result;
+  }
+
+  // ==================== TRANSFER API TESTS ====================
+
+  @Get('test-bank-list')
+  @ApiOperation({ 
+    summary: 'Test bank list API',
+    description: 'Test bank list retrieval from the active transfer provider'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Bank list test completed',
+  })
+  async testBankList(): Promise<{
+    success: boolean;
+    provider: string;
+    bankCount: number;
+    banks: Array<{ bankName: string; bankCode: string }>;
+  }> {
+    console.log('🧪 [ADMIN API] GET /admin/test-bank-list - Testing bank list API');
+    
+    const result = await this.adminService.testBankList();
+    
+    console.log('✅ [ADMIN API] Bank list test completed');
+    return result;
+  }
+
+  @Post('test-account-verification')
+  @ApiOperation({ 
+    summary: 'Test account verification API',
+    description: 'Test account verification with the active transfer provider'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        accountNumber: {
+          type: 'string',
+          example: '0123456789',
+          description: 'Account number to verify'
+        },
+        bankCode: {
+          type: 'string',
+          example: '058',
+          description: 'Bank code for the account'
+        }
+      },
+      required: ['accountNumber', 'bankCode']
+    }
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Account verification test completed',
+  })
+  async testAccountVerification(@Body() testData: { accountNumber: string; bankCode: string }) {
+    console.log('🧪 [ADMIN API] POST /admin/test-account-verification - Testing account verification API');
+    console.log('📝 Request Data:', testData);
+    
+    const result = await this.adminService.testAccountVerification(testData);
+    
+    console.log('✅ [ADMIN API] Account verification test completed');
+    return result;
+  }
+
+  @Post('test-bank-transfer')
+  @ApiOperation({ 
+    summary: 'Test bank transfer API',
+    description: 'Test bank transfer with the active transfer provider (uses test data)'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        amount: {
+          type: 'number',
+          example: 1000,
+          description: 'Transfer amount'
+        },
+        accountNumber: {
+          type: 'string',
+          example: '0123456789',
+          description: 'Recipient account number'
+        },
+        bankCode: {
+          type: 'string',
+          example: '058',
+          description: 'Recipient bank code'
+        },
+        bankName: {
+          type: 'string',
+          example: 'GTBank',
+          description: 'Recipient bank name'
+        },
+        accountName: {
+          type: 'string',
+          example: 'John Doe',
+          description: 'Recipient account name'
+        },
+        narration: {
+          type: 'string',
+          example: 'Test transfer',
+          description: 'Transfer description (optional - defaults to sender name format)'
+        }
+      },
+      required: ['amount', 'accountNumber', 'bankCode', 'bankName', 'accountName']
+    }
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Bank transfer test completed',
+  })
+  async testBankTransfer(@Body() testData: {
+    amount: number;
+    accountNumber: string;
+    bankCode: string;
+    bankName: string;
+    accountName: string;
+    narration?: string;
+  }) {
+    console.log('🧪 [ADMIN API] POST /admin/test-bank-transfer - Testing bank transfer API');
+    console.log('📝 Request Data:', testData);
+    
+    const result = await this.adminService.testBankTransfer(testData);
+    
+    console.log('✅ [ADMIN API] Bank transfer test completed');
+    return result;
+  }
+
 } 

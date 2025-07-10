@@ -1,6 +1,10 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
+import { ProviderManagerService } from '../providers/provider-manager.service';
+import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
+import { WalletProvider } from '../providers/base/wallet-provider.interface';
+import { TransferProvider } from '../providers/base/transfer-provider.interface';
 import { 
   SetFeeDto, 
   FeeConfigurationResponse, 
@@ -21,6 +25,8 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private walletService: WalletService,
+    private providerManager: ProviderManagerService,
+    private transferProviderManager: TransferProviderManagerService,
   ) {}
 
   async setFee(setFeeDto: SetFeeDto): Promise<SetFeeResponse> {
@@ -431,6 +437,9 @@ export class AdminService {
           lastName: true,
           kycStatus: true,
           selfieUrl: true,
+          dateOfBirth: true,
+          gender: true,
+          bvn: true,
         }
       });
 
@@ -468,7 +477,15 @@ export class AdminService {
           const wallet = await this.walletService.createWallet(
             userId, 
             user.firstName || 'User', 
-            user.lastName || ''
+            user.lastName || 'Account',
+            user.email,
+            user.phone,
+            user.dateOfBirth?.toISOString().split('T')[0] || '1990-01-01', // Default DOB if not provided
+            (user.gender as 'M' | 'F') || 'M', // Default to Male if not provided
+            'Lagos, Nigeria', // Default address
+            'Lagos', // Default city
+            'Lagos State', // Default state
+            user.bvn || undefined
           );
           walletCreated = true;
           virtualAccountNumber = wallet.virtualAccountNumber;
@@ -570,6 +587,427 @@ export class AdminService {
     } catch (error) {
       console.error('❌ [ADMIN SERVICE] Error retrieving pending KYC submissions:', error);
       throw new BadRequestException('Failed to retrieve pending KYC submissions');
+    }
+  }
+
+  // ==================== PROVIDER MANAGEMENT METHODS ====================
+
+  async getAvailableProviders(): Promise<{
+    success: boolean;
+    currentProvider: string;
+    providers: Array<{ name: string; provider: string; isActive: boolean }>;
+  }> {
+    console.log('🏦 [ADMIN SERVICE] Retrieving available wallet providers');
+
+    try {
+      const providers = await this.providerManager.getAvailableProviders();
+      const currentProvider = await this.providerManager.getCurrentProviderName();
+
+      console.log('✅ [ADMIN SERVICE] Retrieved', providers.length, 'available providers');
+
+      return {
+        success: true,
+        currentProvider,
+        providers,
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error retrieving available providers:', error);
+      throw new BadRequestException('Failed to retrieve available providers');
+    }
+  }
+
+  async switchWalletProvider(provider: string): Promise<{
+    success: boolean;
+    message: string;
+    previousProvider: string;
+    newProvider: string;
+  }> {
+    console.log('🔄 [ADMIN SERVICE] Switching wallet provider to:', provider);
+
+    try {
+      // Get current provider before switching
+      const previousProvider = await this.providerManager.getCurrentProviderName();
+
+      // Validate provider
+      if (!Object.values(WalletProvider).includes(provider as WalletProvider)) {
+        throw new BadRequestException(`Invalid provider: ${provider}`);
+      }
+
+      // Switch provider
+      const result = await this.providerManager.switchWalletProvider(provider as WalletProvider);
+
+      console.log('✅ [ADMIN SERVICE] Wallet provider switched successfully');
+
+      return {
+        success: result.success,
+        message: result.message,
+        previousProvider,
+        newProvider: provider,
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error switching wallet provider:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to switch wallet provider');
+    }
+  }
+
+  async getCurrentProvider(): Promise<{
+    success: boolean;
+    provider: string;
+    name: string;
+  }> {
+    console.log('📊 [ADMIN SERVICE] Getting current wallet provider');
+
+    try {
+      const providerName = await this.providerManager.getCurrentProviderName();
+      const providers = await this.providerManager.getAvailableProviders();
+      const currentProvider = providers.find(p => p.name === providerName);
+
+      console.log('✅ [ADMIN SERVICE] Current provider retrieved:', providerName);
+
+      return {
+        success: true,
+        provider: currentProvider?.provider || 'SMEPLUG',
+        name: providerName,
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error getting current provider:', error);
+      throw new BadRequestException('Failed to get current provider');
+    }
+  }
+
+  // ==================== POLARIS API TEST METHOD ====================
+  
+  async testPolarisAccountCreation(testData: any) {
+    console.log('🧪 [ADMIN SERVICE] Testing Polaris account creation API');
+    
+    try {
+      // Get the Polaris provider directly
+      const polarisProvider = await this.providerManager.getWalletProvider(WalletProvider.POLARIS);
+      
+      const walletData = {
+        accountName: `${testData.firstName} ${testData.lastName}`,
+        firstName: testData.firstName,
+        lastName: testData.lastName,
+        email: testData.email,
+        phoneNumber: testData.phone,
+        dateOfBirth: this.convertDateFormat(testData.dateOfBirth), // Convert date format
+        gender: this.convertGender(testData.gender), // Convert gender format
+        address: testData.address || 'Lagos, Nigeria',
+        city: testData.city || 'Lagos',
+        state: testData.state || 'Lagos State',
+        country: 'Nigeria',
+        bvn: testData.bvn,
+      };
+
+      console.log('📋 [ADMIN SERVICE] Calling Polaris createWallet with data:', walletData);
+      
+      const result = await polarisProvider.createWallet(walletData);
+      
+      console.log('📄 [ADMIN SERVICE] Polaris API response:', result);
+      
+      return {
+        success: true,
+        message: 'Polaris API test completed',
+        apiResponse: result,
+        requestData: walletData
+      };
+      
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Polaris API test failed:', error);
+      throw error;
+    }
+  }
+
+  private convertDateFormat(dateString: string): string {
+    // Convert from various formats to YYYY-MM-DD
+    if (dateString.includes('-')) {
+      const parts = dateString.split('-');
+      if (parts.length === 3) {
+        // Check if it's DD-MM-YYYY format
+        if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+          return `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert to YYYY-MM-DD
+        }
+        // Already in YYYY-MM-DD format
+        if (parts[0].length === 4) {
+          return dateString;
+        }
+      }
+    }
+    return dateString; // Return as-is if format is unclear
+  }
+
+  private convertGender(gender: string): 'M' | 'F' {
+    // Convert gender to single letter format
+    const genderLower = gender.toLowerCase();
+    if (genderLower.includes('female') || genderLower === 'f') {
+      return 'F';
+    }
+    return 'M'; // Default to male
+  }
+
+  // ==================== BUDPAY API TEST METHOD ====================
+  
+  async testBudPayWalletCreation(testData: any) {
+    console.log('🧪 [ADMIN SERVICE] Testing BudPay wallet creation API');
+    
+    try {
+      // Get the BudPay provider directly
+      const budPayProvider = await this.providerManager.getWalletProvider(WalletProvider.BUDPAY);
+      
+      const walletData = {
+        accountName: `${testData.firstName} ${testData.lastName}`,
+        firstName: testData.firstName,
+        lastName: testData.lastName,
+        email: testData.email,
+        phoneNumber: testData.phone,
+        dateOfBirth: this.convertDateFormat(testData.dateOfBirth), // Convert date format
+        gender: this.convertGender(testData.gender), // Convert gender format
+        address: testData.address || 'Lagos, Nigeria',
+        city: testData.city || 'Lagos',
+        state: testData.state || 'Lagos State',
+        country: 'Nigeria',
+        bvn: testData.bvn,
+      };
+
+      console.log('📋 [ADMIN SERVICE] Calling BudPay createWallet with data:', walletData);
+      
+      const result = await budPayProvider.createWallet(walletData);
+      
+      console.log('📄 [ADMIN SERVICE] BudPay API response:', result);
+      
+      return {
+        success: true,
+        message: 'BudPay API test completed',
+        apiResponse: result,
+        requestData: walletData
+      };
+      
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] BudPay API test failed:', error);
+      throw error;
+    }
+  }
+
+  // ==================== TRANSFER PROVIDER MANAGEMENT ====================
+
+  async getAvailableTransferProviders(): Promise<{
+    success: boolean;
+    currentProvider: string;
+    providers: string[];
+    isAdminConfigured: boolean;
+  }> {
+    console.log('🚚 [ADMIN SERVICE] Retrieving available transfer providers');
+
+    try {
+      const providerInfo = await this.transferProviderManager.getProviderInfo();
+
+      console.log('✅ [ADMIN SERVICE] Retrieved transfer provider info');
+
+      return {
+        success: true,
+        currentProvider: providerInfo.currentProvider,
+        providers: providerInfo.availableProviders,
+        isAdminConfigured: providerInfo.isAdminConfigured,
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error retrieving transfer providers:', error);
+      throw new BadRequestException('Failed to retrieve transfer providers');
+    }
+  }
+
+  async switchTransferProvider(provider: string): Promise<{
+    success: boolean;
+    message: string;
+    previousProvider: string;
+    newProvider: string;
+  }> {
+    console.log('🔄 [ADMIN SERVICE] Switching transfer provider to:', provider);
+
+    try {
+      // Get current provider before switching
+      const previousProvider = await this.transferProviderManager.getCurrentProviderName();
+
+      // Validate provider
+      if (!Object.values(TransferProvider).includes(provider as TransferProvider)) {
+        throw new BadRequestException(`Invalid transfer provider: ${provider}`);
+      }
+
+      // Switch provider
+      const result = await this.transferProviderManager.switchTransferProvider(provider as TransferProvider);
+
+      console.log('✅ [ADMIN SERVICE] Transfer provider switched successfully');
+
+      return {
+        success: result.success,
+        message: result.message,
+        previousProvider,
+        newProvider: provider,
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error switching transfer provider:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to switch transfer provider');
+    }
+  }
+
+  async getCurrentTransferProvider(): Promise<{
+    success: boolean;
+    provider: string;
+    isAdminConfigured: boolean;
+  }> {
+    console.log('📊 [ADMIN SERVICE] Getting current transfer provider');
+
+    try {
+      const providerInfo = await this.transferProviderManager.getProviderInfo();
+
+      console.log('✅ [ADMIN SERVICE] Current transfer provider retrieved:', providerInfo.currentProvider);
+
+      return {
+        success: true,
+        provider: providerInfo.currentProvider,
+        isAdminConfigured: providerInfo.isAdminConfigured,
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error getting current transfer provider:', error);
+      throw new BadRequestException('Failed to get current transfer provider');
+    }
+  }
+
+  // ==================== TRANSFER API TESTS ====================
+
+  async testBankList(): Promise<{
+    success: boolean;
+    provider: string;
+    bankCount: number;
+    banks: Array<{ bankName: string; bankCode: string }>;
+  }> {
+    console.log('🧪 [ADMIN SERVICE] Testing bank list API');
+
+    try {
+      const currentProvider = await this.transferProviderManager.getCurrentProviderName();
+      const result = await this.transferProviderManager.getBankList();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Bank list test failed');
+      }
+
+      console.log('✅ [ADMIN SERVICE] Bank list test completed successfully');
+
+      return {
+        success: true,
+        provider: currentProvider,
+        bankCount: result.data?.length || 0,
+        banks: result.data || [],
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Bank list test failed:', error);
+      throw new BadRequestException(`Bank list test failed: ${error.message}`);
+    }
+  }
+
+  async testAccountVerification(testData: { accountNumber: string; bankCode: string }) {
+    console.log('🧪 [ADMIN SERVICE] Testing account verification API');
+    console.log('📋 [ADMIN SERVICE] Test data:', testData);
+
+    try {
+      const currentProvider = await this.transferProviderManager.getCurrentProviderName();
+      const result = await this.transferProviderManager.verifyAccount({
+        accountNumber: testData.accountNumber,
+        bankCode: testData.bankCode,
+      });
+
+      console.log('✅ [ADMIN SERVICE] Account verification test completed');
+
+      return {
+        success: result.success,
+        provider: currentProvider,
+        message: result.message,
+        data: result.data,
+        error: result.error,
+        testData,
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Account verification test failed:', error);
+      return {
+        success: false,
+        provider: await this.transferProviderManager.getCurrentProviderName(),
+        message: 'Account verification test failed',
+        error: error.message,
+        testData,
+      };
+    }
+  }
+
+  async testBankTransfer(testData: {
+    amount: number;
+    accountNumber: string;
+    bankCode: string;
+    bankName: string;
+    accountName: string;
+    narration?: string;
+  }) {
+    console.log('🧪 [ADMIN SERVICE] Testing bank transfer API');
+    console.log('📋 [ADMIN SERVICE] Test data:', testData);
+
+    try {
+      const currentProvider = await this.transferProviderManager.getCurrentProviderName();
+      
+      // Default narration following the new format: "FirstName LastInitial"
+      const defaultNarration = 'Admin T';
+      
+      // Create test transfer data
+      const transferData = {
+        amount: testData.amount,
+        currency: 'NGN',
+        accountNumber: testData.accountNumber,
+        bankCode: testData.bankCode,
+        bankName: testData.bankName,
+        accountName: testData.accountName,
+        narration: testData.narration || defaultNarration,
+        reference: `TEST_${Date.now()}_${Math.random().toString(36).substring(7).toUpperCase()}`,
+        senderName: 'Admin Test',
+        senderEmail: 'admin@test.com',
+        metadata: {
+          testMode: true,
+          adminTest: true,
+        },
+      };
+
+      const result = await this.transferProviderManager.transferToBank(transferData);
+
+      console.log('✅ [ADMIN SERVICE] Bank transfer test completed');
+
+      return {
+        success: result.success,
+        provider: currentProvider,
+        message: result.message,
+        data: result.data,
+        error: result.error,
+        testData: transferData,
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Bank transfer test failed:', error);
+      return {
+        success: false,
+        provider: await this.transferProviderManager.getCurrentProviderName(),
+        message: 'Bank transfer test failed',
+        error: error.message,
+        testData,
+      };
     }
   }
 } 

@@ -21,9 +21,9 @@ export class WalletController {
   @ApiResponse({ status: 404, description: 'Wallet not found' })
   async getWalletDetails(@Request() req): Promise<WalletDetailsResponse> {
     console.log('📊 [WALLET API] GET /wallet/details - Request received');
-    console.log('👤 [WALLET API] User ID:', req.user.userId);
+    console.log('👤 [WALLET API] User ID:', req.user.id);
 
-    const walletDetails = await this.walletService.getWalletDetails(req.user.userId);
+    const walletDetails = await this.walletService.getWalletDetails(req.user.id);
 
     console.log('✅ [WALLET API] Wallet details retrieved successfully');
     console.log('📄 Response Data:', {
@@ -52,9 +52,9 @@ export class WalletController {
   @ApiResponse({ status: 404, description: 'Wallet not found' })
   async setWalletPin(@Request() req, @Body() setPinDto: SetWalletPinDto) {
     console.log('🔐 [WALLET API] POST /wallet/set-pin - Request received');
-    console.log('👤 [WALLET API] User ID:', req.user.userId);
+    console.log('👤 [WALLET API] User ID:', req.user.id);
 
-    const result = await this.walletService.setWalletPin(req.user.userId, setPinDto.pin);
+    const result = await this.walletService.setWalletPin(req.user.id, setPinDto.pin);
 
     console.log('✅ [WALLET API] PIN set successfully');
     console.log('📄 Response Data:', result);
@@ -74,11 +74,11 @@ export class WalletController {
   @ApiResponse({ status: 404, description: 'Wallet not found' })
   async transferToBank(@Request() req, @Body() transferDto: TransferDto): Promise<TransferResponse> {
     console.log('💸 [WALLET API] POST /wallet/transfer - Request received');
-    console.log('👤 [WALLET API] User ID:', req.user.userId);
+    console.log('👤 [WALLET API] User ID:', req.user.id);
     console.log('💰 [WALLET API] Transfer amount:', transferDto.amount);
     console.log('🏦 [WALLET API] Recipient:', transferDto.accountName, '-', transferDto.accountNumber);
 
-    const transferResult = await this.walletService.transferToBank(req.user.userId, transferDto);
+    const transferResult = await this.walletService.transferToBank(req.user.id, transferDto);
 
     console.log('✅ [WALLET API] Transfer completed successfully');
     console.log('📄 Response Data:', {
@@ -137,11 +137,11 @@ export class WalletController {
     @Query('offset') offset?: number
   ) {
     console.log('📊 [WALLET API] GET /wallet/transactions - Request received');
-    console.log('👤 [WALLET API] User ID:', req.user.userId);
+    console.log('👤 [WALLET API] User ID:', req.user.id);
     console.log('📊 [WALLET API] Query params:', { limit, offset });
 
     const transactions = await this.walletService.getWalletTransactions(
-      req.user.userId,
+      req.user.id,
       limit ? Number(limit) : 20,
       offset ? Number(offset) : 0
     );
@@ -169,9 +169,9 @@ export class WalletController {
   @ApiResponse({ status: 404, description: 'Wallet not found' })
   async getBalance(@Request() req) {
     console.log('💰 [WALLET API] GET /wallet/balance - Request received');
-    console.log('👤 [WALLET API] User ID:', req.user.userId);
+    console.log('👤 [WALLET API] User ID:', req.user.id);
 
-    const walletDetails = await this.walletService.getWalletDetails(req.user.userId);
+    const walletDetails = await this.walletService.getWalletDetails(req.user.id);
 
     const balanceInfo = {
       balance: walletDetails.balance,

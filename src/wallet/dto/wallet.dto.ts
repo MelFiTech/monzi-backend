@@ -50,6 +50,12 @@ export class WalletDetailsResponse {
   @ApiProperty({ example: 'John Doe', description: 'Account name' })
   providerAccountName: string;
 
+  @ApiProperty({ example: 'BUDPAY', description: 'Wallet provider name' })
+  providerName: string;
+
+  @ApiProperty({ example: 'BudPay Bank', description: 'Bank name from provider' })
+  bankName: string;
+
   @ApiProperty({ example: true, description: 'Whether wallet is active' })
   isActive: boolean;
 

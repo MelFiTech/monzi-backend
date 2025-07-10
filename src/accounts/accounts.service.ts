@@ -1,48 +1,45 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ResolveAccountDto, BanksListResponseDto, ResolveAccountResponseDto } from './dto/accounts.dto';
+import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
 
 @Injectable()
 export class AccountsService {
-  private readonly smeplugBaseUrl: string;
-  private readonly smeplugApiKey: string;
-
-  constructor(private readonly configService: ConfigService) {
-    this.smeplugBaseUrl = this.configService.get<string>('SMEPLUG_BASE_URL');
-    this.smeplugApiKey = this.configService.get<string>('SMEPLUG_API_KEY');
-  }
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly transferProviderManager: TransferProviderManagerService,
+  ) {}
 
   /**
-   * Get list of all banks from Smeplug
+   * Get list of all banks from active transfer provider
    */
   async getBanks(): Promise<BanksListResponseDto> {
     try {
-      console.log('🌐 [SMEPLUG API] Calling GET /transfer/banks...');
-      console.log('🔗 URL:', `${this.smeplugBaseUrl}/transfer/banks`);
+      console.log('🌐 [TRANSFER PROVIDER] Fetching banks from active provider...');
       
-      const response = await fetch(`${this.smeplugBaseUrl}/transfer/banks`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.smeplugApiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('📡 [SMEPLUG API] Response status:', response.status, response.statusText);
-
-      if (!response.ok) {
-        console.log('❌ [SMEPLUG API] Failed to fetch banks:', response.status);
+      const response = await this.transferProviderManager.getBankList();
+      
+      if (!response.success) {
+        console.log('❌ [TRANSFER PROVIDER] Failed to fetch banks:', response.message);
         throw new HttpException(
-          'Failed to fetch banks from payment provider',
+          response.message || 'Failed to fetch banks from payment provider',
           HttpStatus.BAD_GATEWAY
         );
       }
 
-      const data = await response.json();
-      console.log('✅ [SMEPLUG API] Banks fetched successfully - Count:', data.banks?.length || 0);
-      return data;
+      // Convert provider response to expected format
+      const bankList = {
+        status: true,
+        banks: response.data.map(bank => ({
+          name: bank.bankName,
+          code: bank.bankCode
+        }))
+      };
+
+      console.log('✅ [TRANSFER PROVIDER] Banks fetched successfully - Count:', bankList.banks.length);
+      return bankList;
     } catch (error) {
-      console.log('🚨 [SMEPLUG API] Error fetching banks:', error.message);
+      console.log('🚨 [TRANSFER PROVIDER] Error fetching banks:', error.message);
       if (error instanceof HttpException) {
         throw error;
       }
@@ -72,40 +69,27 @@ export class AccountsService {
       }
 
       console.log('✅ [BANK SEARCH] Bank found:', JSON.stringify(bank, null, 2));
-      console.log('🌐 [SMEPLUG API] Calling POST /transfer/resolveaccount...');
+      console.log('🌐 [TRANSFER PROVIDER] Verifying account with active provider...');
       
-      const requestBody = {
-        bank_code: bank.code,
-        account_number: resolveAccountDto.account_number,
-      };
-      console.log('📤 [SMEPLUG API] Request body:', JSON.stringify(requestBody, null, 2));
-
       // Now resolve the account using the found bank code
-      const response = await fetch(`${this.smeplugBaseUrl}/transfer/resolveaccount`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.smeplugApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+      const response = await this.transferProviderManager.verifyAccount({
+        accountNumber: resolveAccountDto.account_number,
+        bankCode: bank.code,
       });
 
-      console.log('📡 [SMEPLUG API] Response status:', response.status, response.statusText);
+      console.log('📥 [TRANSFER PROVIDER] Account verification response:', JSON.stringify(response, null, 2));
 
-      const data = await response.json();
-      console.log('📥 [SMEPLUG API] Raw response:', JSON.stringify(data, null, 2));
-
-      if (!response.ok) {
-        console.log('❌ [SMEPLUG API] Account resolution failed:', data.message || 'Unknown error');
+      if (!response.success) {
+        console.log('❌ [TRANSFER PROVIDER] Account resolution failed:', response.message || 'Unknown error');
         throw new HttpException(
-          data.message || 'Failed to resolve account',
+          response.message || 'Failed to resolve account',
           HttpStatus.BAD_REQUEST
         );
       }
 
       const result = {
-        status: data.status,
-        account_name: data.name, // Smeplug returns 'name' field, not 'account_name'
+        status: true,
+        account_name: response.data.accountName,
         account_number: resolveAccountDto.account_number,
         bank_name: bank.name, // Return the exact bank name from our search
         bank_code: bank.code, // Include the bank code for reference
@@ -160,28 +144,142 @@ export class AccountsService {
         );
       }
 
-      // Handle common variations
+      // Handle common variations and abbreviations
       if (!bank) {
-        console.log('🎭 [BANK MATCHER] Trying common variations...');
+        console.log('🎭 [BANK MATCHER] Trying common variations and abbreviations...');
         const variations = {
+          // Traditional Banks
           'first bank': 'First Bank of Nigeria',
           'firstbank': 'First Bank of Nigeria',
-          'gtbank': 'GTBank Plc',
-          'gtb': 'GTBank Plc',
+          'fbn': 'First Bank of Nigeria',
+          'gtbank': 'Guaranty Trust Bank',
+          'gtb': 'Guaranty Trust Bank',
+          'guaranty trust': 'Guaranty Trust Bank',
           'access': 'Access Bank',
-          'zenith': 'ZENITH BANK PLC',
+          'access bank': 'Access Bank',
+          'zenith': 'Zenith Bank',
+          'zenith bank': 'Zenith Bank PLC',
           'uba': 'United Bank for Africa',
+          'united bank for africa': 'United Bank for Africa',
           'union': 'Union Bank',
+          'union bank': 'Union Bank',
           'unity': 'Unity Bank',
+          'unity bank': 'Unity Bank',
           'fcmb': 'FCMB',
+          'first city monument bank': 'FCMB',
           'fidelity': 'Fidelity Bank',
+          'fidelity bank': 'Fidelity Bank',
           'sterling': 'Sterling Bank',
+          'sterling bank': 'Sterling Bank',
           'wema': 'Wema Bank',
-          'polaris': 'POLARIS BANK',
-          'kuda': 'Kuda.',
-          'opay': 'Opay Digital Services Limited',
-          'moniepoint': 'Moniepoint',
-          'palmpay': 'PALMPAY'
+          'wema bank': 'Wema Bank',
+          'polaris': 'Polaris Bank',
+          'polaris bank': 'Polaris Bank',
+          'ecobank': 'Ecobank Bank',
+          'eco bank': 'Ecobank Bank',
+          'heritage': 'Heritage Bank',
+          'heritage bank': 'Heritage Bank',
+          'keystone': 'Keystone Bank',
+          'keystone bank': 'Keystone Bank',
+          'stanbic': 'StanbicIBTC Bank',
+          'stanbic ibtc': 'StanbicIBTC Bank',
+          'standard chartered': 'StandardChartered',
+          'citi': 'Citi Bank',
+          'citibank': 'Citi Bank',
+          'providus': 'Providus Bank',
+          'providus bank': 'Providus Bank',
+          'suntrust': 'Suntrust Bank',
+          'suntrust bank': 'Suntrust Bank',
+          'titan': 'Titan Trust Bank',
+          'titan trust': 'Titan Trust Bank',
+          'globus': 'Globus Bank',
+          'globus bank': 'Globus Bank',
+          'lotus': 'Lotus Bank',
+          'lotus bank': 'Lotus Bank',
+          'taj': 'Taj Bank',
+          'taj bank': 'Taj Bank',
+          'jaiz': 'Jaiz Bank',
+          'jaiz bank': 'Jaiz Bank',
+          
+          // Digital Banks & Fintech
+          'kuda': 'Kuda Microfinance Bank',
+          'kuda bank': 'Kuda Microfinance Bank',
+          'opay': 'OPAY',
+          'o-pay': 'OPAY',
+          'opay digital': 'OPAY',
+          'moniepoint': 'Moniepoint Microfinance Bank',
+          'monie point': 'Moniepoint Microfinance Bank',
+          'palmpay': 'PALMPAY',
+          'palm pay': 'PALMPAY',
+          'palmPay': 'PALMPAY',
+          'carbon': 'CARBON',
+          'fairmoney': 'FAIRMONEY',
+          'fair money': 'FAIRMONEY',
+          'vfd': 'VFD MFB',
+          'v bank': 'VFD MFB',
+          'paga': 'PAGA',
+          'eyowo': 'Eyowo Microfinance Bank',
+          'sparkle': 'Sparkle Microfinance Bank',
+          'renmoney': 'Renmoney Microfinance Bank',
+          'ren money': 'Renmoney Microfinance Bank',
+          'mintyn': 'Mint Microfinance Bank',
+          'mint': 'Mint Microfinance Bank',
+          'rubies': 'Rubies MFB',
+          'rubies bank': 'Rubies MFB',
+          'quickfund': 'Quickfund Microfinance Bank',
+          'quick fund': 'Quickfund Microfinance Bank',
+          'onebank': 'ONE FINANCE',
+          'one bank': 'ONE FINANCE',
+          'one finance': 'ONE FINANCE',
+          'mkudi': 'MKUDI',
+          'korapay': 'Koraypay',
+          'kora pay': 'Koraypay',
+          'flutterwave': 'Flutterwave',
+          'flutter wave': 'Flutterwave',
+          'paystack': 'TITAN-PAYSTACK MICROFINANCE BANK',
+          'pay stack': 'TITAN-PAYSTACK MICROFINANCE BANK',
+          'momo': 'MoMo PSB',
+          'mtn momo': 'MoMo PSB',
+          'smartcash': 'SmartCash Payment Service bank',
+          'smart cash': 'SmartCash Payment Service bank',
+          'hope': 'HopePSB',
+          'hope psb': 'HopePSB',
+          'hopepsb': 'HopePSB',
+          'tagpay': 'TAGPAY',
+          'tag pay': 'TAGPAY',
+          'pocketapp': 'POCKETAPP',
+          'pocket app': 'POCKETAPP',
+          'cellulant': 'CELLULANT',
+          'gomoney': 'GOMONEY',
+          'go money': 'GOMONEY',
+          
+          // Mortgage Banks
+          'abbey mortgage': 'Abbey Mortgage Bank',
+          'gateway mortgage': 'Gateway Mortgage Bank',
+          'infinity mortgage': 'Infinity Trust Mortgage Bank',
+          'brent mortgage': 'Brent Mortgage Bank',
+          'first generation mortgage': 'First Generation Mortgage Bank',
+          'ag mortgage': 'AG Mortgage Bank PLC',
+          'haggai mortgage': 'Haggai Mortgage Bank',
+          'platinum mortgage': 'Platinum Mortgage Bank',
+          'refuge mortgage': 'Refuge Mortgage Bank',
+          
+          // Common Misspellings & Variations
+          'gauranty trust': 'Guaranty Trust Bank',
+          'guarantee trust': 'Guaranty Trust Bank',
+          'first bank nigeria': 'First Bank of Nigeria',
+          'united bank africa': 'United Bank for Africa',
+          'zenith plc': 'Zenith Bank PLC',
+          'fidelity nigeria': 'Fidelity Bank',
+          'sterling nigeria': 'Sterling Bank',
+          'wema nigeria': 'Wema Bank',
+          'access nigeria': 'Access Bank',
+          'union nigeria': 'Union Bank',
+          'unity nigeria': 'Unity Bank',
+          'heritage nigeria': 'Heritage Bank',
+          'polaris nigeria': 'Polaris Bank',
+          'keystone nigeria': 'Keystone Bank',
+          'ecobank nigeria': 'Ecobank Bank',
         };
 
         const variation = variations[searchTerm];
@@ -193,10 +291,30 @@ export class AccountsService {
         }
       }
 
+      // Advanced fuzzy matching for close spellings
+      if (!bank) {
+        console.log('🔍 [BANK MATCHER] Trying fuzzy matching...');
+        
+        // Remove common words and try matching
+        const cleanedSearch = searchTerm
+          .replace(/\b(bank|microfinance|mfb|plc|limited|ltd|psb|nigeria)\b/g, '')
+          .trim();
+          
+        if (cleanedSearch && cleanedSearch.length > 2) {
+          bank = banksResponse.banks.find((bank) => {
+            const cleanedBankName = bank.name.toLowerCase()
+              .replace(/\b(bank|microfinance|mfb|plc|limited|ltd|psb|nigeria)\b/g, '')
+              .trim();
+            return cleanedBankName.includes(cleanedSearch) || cleanedSearch.includes(cleanedBankName);
+          });
+        }
+      }
+
       if (bank) {
         console.log('✅ [BANK MATCHER] Match found:', JSON.stringify(bank, null, 2));
       } else {
         console.log('❌ [BANK MATCHER] No match found for:', bankName);
+        console.log('💡 [BANK MATCHER] Suggestion: Try using full bank name or common abbreviations like GTB, UBA, Kuda, OPay, etc.');
       }
 
       return bank || null;

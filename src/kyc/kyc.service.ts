@@ -195,8 +195,12 @@ export class KycService {
             id: true,
             firstName: true,
             lastName: true,
+            email: true,
+            phone: true,
             gender: true,
+            dateOfBirth: true,
             kycStatus: true,
+            bvn: true,
             bvnProviderResponse: true,
             bvnVerifiedAt: true
           }
@@ -338,7 +342,15 @@ export class KycService {
             await this.walletService.createWallet(
               userId,
               user.firstName || bvnData?.firstName || 'User',
-              user.lastName || bvnData?.lastName || 'Account'
+              user.lastName || bvnData?.lastName || 'Account',
+              user.email,
+              user.phone,
+              user.dateOfBirth?.toISOString().split('T')[0] || '1990-01-01', // Default DOB if not provided
+              (user.gender as 'M' | 'F') || 'M', // Default to Male if not provided
+              'Lagos, Nigeria', // Default address
+              'Lagos', // Default city
+              'Lagos State', // Default state
+              user.bvn || undefined
             );
             walletCreated = true;
             statusMessage = 'KYC completed successfully! Your wallet has been created and is ready to use.';
