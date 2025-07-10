@@ -127,7 +127,7 @@ export class WalletService {
     
     try {
       const feeConfig = await this.prisma.feeConfiguration.findUnique({
-        where: { type: feeType, isActive: true }
+        where: { feeType: feeType, isActive: true }
       });
 
       if (!feeConfig) {
@@ -149,13 +149,13 @@ export class WalletService {
       }
 
       // Apply minimum fee
-      if (feeConfig.minimumFee && calculatedFee < feeConfig.minimumFee) {
-        calculatedFee = feeConfig.minimumFee;
+      if (feeConfig.minAmount && calculatedFee < feeConfig.minAmount) {
+        calculatedFee = feeConfig.minAmount;
       }
 
       // Apply maximum fee
-      if (feeConfig.maximumFee && calculatedFee > feeConfig.maximumFee) {
-        calculatedFee = feeConfig.maximumFee;
+      if (feeConfig.maxAmount && calculatedFee > feeConfig.maxAmount) {
+        calculatedFee = feeConfig.maxAmount;
       }
 
       console.log('✅ [FEE CALCULATION] Fee calculated:', calculatedFee);

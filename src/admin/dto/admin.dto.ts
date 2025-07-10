@@ -5,8 +5,7 @@ export enum FeeType {
   TRANSFER = 'TRANSFER',
   WITHDRAWAL = 'WITHDRAWAL',
   FUNDING = 'FUNDING',
-  CURRENCY_EXCHANGE = 'CURRENCY_EXCHANGE',
-  MONTHLY_MAINTENANCE = 'MONTHLY_MAINTENANCE',
+  INTERNATIONAL_TRANSFER = 'INTERNATIONAL_TRANSFER',
 }
 
 export enum KycDecision {
@@ -55,7 +54,7 @@ export class SetFeeDto {
   @IsOptional()
   @IsNumber()
   @Min(0, { message: 'Minimum fee must be non-negative' })
-  minimumFee?: number;
+  minAmount?: number;
 
   @ApiProperty({ 
     example: 5000.00, 
@@ -65,7 +64,7 @@ export class SetFeeDto {
   @IsOptional()
   @IsNumber()
   @Min(0, { message: 'Maximum fee must be non-negative' })
-  maximumFee?: number;
+  maxAmount?: number;
 
   @ApiProperty({ 
     example: true, 
@@ -75,15 +74,6 @@ export class SetFeeDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @ApiProperty({ 
-    example: 'Transfer fee for wallet-to-bank transfers', 
-    description: 'Description of the fee',
-    required: false 
-  })
-  @IsOptional()
-  @IsString()
-  description?: string;
 }
 
 export class FeeConfigurationResponse {
@@ -91,7 +81,7 @@ export class FeeConfigurationResponse {
   id: string;
 
   @ApiProperty({ enum: FeeType, example: 'TRANSFER', description: 'Fee type' })
-  type: FeeType;
+  feeType: FeeType;
 
   @ApiProperty({ example: 0.015, description: 'Fee percentage' })
   percentage?: number;
@@ -100,16 +90,13 @@ export class FeeConfigurationResponse {
   fixedAmount?: number;
 
   @ApiProperty({ example: 25.00, description: 'Minimum fee amount' })
-  minimumFee?: number;
+  minAmount?: number;
 
   @ApiProperty({ example: 5000.00, description: 'Maximum fee amount' })
-  maximumFee?: number;
+  maxAmount?: number;
 
   @ApiProperty({ example: true, description: 'Whether fee is active' })
   isActive: boolean;
-
-  @ApiProperty({ example: 'Transfer fee for wallet-to-bank transfers', description: 'Fee description' })
-  description?: string;
 
   @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Creation timestamp' })
   createdAt: string;

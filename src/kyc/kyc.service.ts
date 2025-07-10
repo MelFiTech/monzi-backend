@@ -50,7 +50,7 @@ export class KycService {
       }
 
       // Check if user already has verified KYC
-      if (user.kycStatus === 'VERIFIED') {
+      if (user.kycStatus === 'APPROVED') {
         return {
           success: false,
           message: 'KYC already completed for this user',
@@ -110,7 +110,7 @@ export class KycService {
       }
 
       // Determine verification status
-      let kycStatus: 'IN_PROGRESS' | 'REJECTED' = 'IN_PROGRESS';
+      let kycStatus: 'UNDER_REVIEW' | 'REJECTED' = 'UNDER_REVIEW';
       let statusMessage = '';
       let walletCreated = false;
 
@@ -130,7 +130,7 @@ export class KycService {
         data: {
           bvn: verifyBvnDto.bvn,
           kycStatus,
-          bvnVerifiedAt: kycStatus === 'IN_PROGRESS' ? new Date() : null,
+          bvnVerifiedAt: kycStatus === 'UNDER_REVIEW' ? new Date() : null,
           // Update user info from BVN data
           firstName: bvnVerificationResult.data.firstName,
           lastName: bvnVerificationResult.data.lastName,
@@ -161,7 +161,7 @@ export class KycService {
       });
 
       return {
-        success: kycStatus === 'IN_PROGRESS',
+        success: kycStatus === 'UNDER_REVIEW',
         message: statusMessage,
         bvnData: bvnVerificationResult.data,
         kycStatus,
@@ -280,20 +280,12 @@ export class KycService {
         const aiApproval = await this.prisma.aiApproval.create({
           data: {
             userId,
-            approvalType: AiApprovalType.SELFIE_KYC,
-            status: AiApprovalStatus.UNDER_REVIEW,
-            aiProvider: 'gemini',
-            aiResponse: JSON.parse(JSON.stringify(aiVerification)),
+            type: AiApprovalType.KYC_VERIFICATION,
+            entityId: userId, // The user ID is the entity being approved
+            status: AiApprovalStatus.MANUAL_REVIEW_REQUIRED,
             confidence: aiVerification.confidence,
-            imageUrl: selfieUrl,
-            relatedData: {
-              bvnData,
-              fileInfo: {
-                originalName: file.originalname,
-                size: file.size,
-                mimetype: file.mimetype
-              }
-            }
+            reasoning: aiVerification.message,
+            // Note: Remove non-schema fields like aiProvider, aiResponse, imageUrl, relatedData
           }
         });
 
@@ -314,20 +306,12 @@ export class KycService {
         const aiApproval = await this.prisma.aiApproval.create({
           data: {
             userId,
-            approvalType: AiApprovalType.SELFIE_KYC,
+            type: AiApprovalType.KYC_VERIFICATION,
+            entityId: userId, // The user ID is the entity being approved
             status: AiApprovalStatus.APPROVED,
-            aiProvider: 'gemini',
-            aiResponse: JSON.parse(JSON.stringify(aiVerification)), // Convert to plain JSON object
             confidence: aiVerification.confidence,
-            imageUrl: selfieUrl,
-            relatedData: {
-              bvnData,
-              fileInfo: {
-                originalName: file.originalname,
-                size: file.size,
-                mimetype: file.mimetype
-              }
-            }
+            reasoning: aiVerification.message,
+            // Note: Remove non-schema fields like aiProvider, aiResponse, imageUrl, relatedData
           }
         });
 
@@ -337,7 +321,7 @@ export class KycService {
         let walletCreated = false;
         let statusMessage = '';
 
-        if (user.kycStatus !== KycStatus.VERIFIED) {
+        if (user.kycStatus !== KycStatus.APPROVED) {
           try {
             await this.walletService.createWallet(
               userId,
@@ -360,12 +344,12 @@ export class KycService {
             statusMessage = 'KYC completed successfully! Please contact support for wallet activation.';
           }
 
-          // Update user status to VERIFIED
+          // Update user status to APPROVED
           await this.prisma.user.update({
             where: { id: userId },
             data: {
               selfieUrl,
-              kycStatus: KycStatus.VERIFIED,
+              kycStatus: KycStatus.APPROVED,
               kycVerifiedAt: new Date()
             }
           });
@@ -422,7 +406,7 @@ export class KycService {
 
       return {
         kycStatus: user.kycStatus,
-        isVerified: user.kycStatus === 'VERIFIED',
+        isVerified: user.kycStatus === 'APPROVED',
         verifiedAt: user.kycVerifiedAt,
         bvnVerified: !!user.bvnVerifiedAt,
         selfieVerified: !!user.selfieUrl,
@@ -463,9 +447,9 @@ export class KycService {
     switch (kycStatus) {
       case 'PENDING':
         return 'Please verify your BVN to start KYC process';
-      case 'IN_PROGRESS':
+      case 'UNDER_REVIEW':
         return 'BVN verified. Please upload your selfie to complete KYC verification.';
-      case 'VERIFIED':
+      case 'APPROVED':
         return 'KYC completed successfully. Your wallet is ready!';
       case 'REJECTED':
         return 'KYC verification failed due to data mismatch. Please contact support to update your information.';

@@ -76,7 +76,7 @@ export class TransferProviderManagerService {
   private async getAdminConfiguredProvider(): Promise<TransferProvider | null> {
     try {
       const config = await this.prismaService.systemConfiguration.findUnique({
-        where: { key: 'ACTIVE_TRANSFER_PROVIDER' }
+        where: { key: 'DEFAULT_TRANSFER_PROVIDER' }
       });
       
       if (config && config.value) {
@@ -114,14 +114,14 @@ export class TransferProviderManagerService {
     try {
       // Store in database for persistence
       await this.prismaService.systemConfiguration.upsert({
-        where: { key: 'ACTIVE_TRANSFER_PROVIDER' },
+        where: { key: 'DEFAULT_TRANSFER_PROVIDER' },
         update: { 
           value: newProvider,
           description: `Active transfer provider set by admin`,
           updatedAt: new Date()
         },
         create: {
-          key: 'ACTIVE_TRANSFER_PROVIDER',
+          key: 'DEFAULT_TRANSFER_PROVIDER',
           value: newProvider,
           description: `Active transfer provider set by admin`
         }

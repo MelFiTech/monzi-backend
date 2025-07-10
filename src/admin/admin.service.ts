@@ -34,8 +34,8 @@ export class AdminService {
     console.log('📋 [ADMIN SERVICE] Fee data:', setFeeDto);
 
     // Validate that at least one fee parameter is provided
-    if (!setFeeDto.percentage && !setFeeDto.fixedAmount && !setFeeDto.minimumFee) {
-      throw new BadRequestException('At least one fee parameter (percentage, fixedAmount, or minimumFee) must be provided');
+    if (!setFeeDto.percentage && !setFeeDto.fixedAmount && !setFeeDto.minAmount) {
+      throw new BadRequestException('At least one fee parameter (percentage, fixedAmount, or minAmount) must be provided');
     }
 
     // Validate percentage and fixed amount combination
@@ -44,14 +44,14 @@ export class AdminService {
     }
 
     // Validate min/max fee logic
-    if (setFeeDto.minimumFee && setFeeDto.maximumFee && setFeeDto.minimumFee > setFeeDto.maximumFee) {
+    if (setFeeDto.minAmount && setFeeDto.maxAmount && setFeeDto.minAmount > setFeeDto.maxAmount) {
       throw new BadRequestException('Minimum fee cannot be greater than maximum fee');
     }
 
     try {
       // Check if fee configuration already exists
       const existingFee = await this.prisma.feeConfiguration.findUnique({
-        where: { type: setFeeDto.type }
+        where: { feeType: setFeeDto.type }
       });
 
       let feeConfiguration;
@@ -60,14 +60,13 @@ export class AdminService {
         // Update existing configuration
         console.log('🔄 [ADMIN SERVICE] Updating existing fee configuration');
         feeConfiguration = await this.prisma.feeConfiguration.update({
-          where: { type: setFeeDto.type },
+          where: { feeType: setFeeDto.type },
           data: {
             percentage: setFeeDto.percentage,
             fixedAmount: setFeeDto.fixedAmount,
-            minimumFee: setFeeDto.minimumFee,
-            maximumFee: setFeeDto.maximumFee,
+            minAmount: setFeeDto.minAmount,
+            maxAmount: setFeeDto.maxAmount,
             isActive: setFeeDto.isActive ?? true,
-            description: setFeeDto.description,
           }
         });
       } else {
@@ -75,13 +74,12 @@ export class AdminService {
         console.log('➕ [ADMIN SERVICE] Creating new fee configuration');
         feeConfiguration = await this.prisma.feeConfiguration.create({
           data: {
-            type: setFeeDto.type,
+            feeType: setFeeDto.type,
             percentage: setFeeDto.percentage,
             fixedAmount: setFeeDto.fixedAmount,
-            minimumFee: setFeeDto.minimumFee,
-            maximumFee: setFeeDto.maximumFee,
+            minAmount: setFeeDto.minAmount,
+            maxAmount: setFeeDto.maxAmount,
             isActive: setFeeDto.isActive ?? true,
-            description: setFeeDto.description,
           }
         });
       }
@@ -93,13 +91,12 @@ export class AdminService {
         message: existingFee ? 'Fee configuration updated successfully' : 'Fee configuration created successfully',
         feeConfiguration: {
           id: feeConfiguration.id,
-          type: feeConfiguration.type as FeeType,
+          feeType: feeConfiguration.feeType as FeeType,
           percentage: feeConfiguration.percentage,
           fixedAmount: feeConfiguration.fixedAmount,
-          minimumFee: feeConfiguration.minimumFee,
-          maximumFee: feeConfiguration.maximumFee,
+          minAmount: feeConfiguration.minAmount,
+          maxAmount: feeConfiguration.maxAmount,
           isActive: feeConfiguration.isActive,
-          description: feeConfiguration.description,
           createdAt: feeConfiguration.createdAt.toISOString(),
           updatedAt: feeConfiguration.updatedAt.toISOString(),
         }
@@ -116,20 +113,19 @@ export class AdminService {
 
     try {
       const feeConfigurations = await this.prisma.feeConfiguration.findMany({
-        orderBy: { type: 'asc' }
+        orderBy: { feeType: 'asc' }
       });
 
       console.log('✅ [ADMIN SERVICE] Retrieved', feeConfigurations.length, 'fee configurations');
 
       const fees: FeeConfigurationResponse[] = feeConfigurations.map(fee => ({
         id: fee.id,
-        type: fee.type as FeeType,
+        feeType: fee.feeType as FeeType,
         percentage: fee.percentage,
         fixedAmount: fee.fixedAmount,
-        minimumFee: fee.minimumFee,
-        maximumFee: fee.maximumFee,
+        minAmount: fee.minAmount,
+        maxAmount: fee.maxAmount,
         isActive: fee.isActive,
-        description: fee.description,
         createdAt: fee.createdAt.toISOString(),
         updatedAt: fee.updatedAt.toISOString(),
       }));
@@ -151,7 +147,7 @@ export class AdminService {
 
     try {
       const feeConfiguration = await this.prisma.feeConfiguration.findUnique({
-        where: { type }
+        where: { feeType: type }
       });
 
       if (!feeConfiguration) {
@@ -163,13 +159,12 @@ export class AdminService {
 
       return {
         id: feeConfiguration.id,
-        type: feeConfiguration.type as FeeType,
+        feeType: feeConfiguration.feeType as FeeType,
         percentage: feeConfiguration.percentage,
         fixedAmount: feeConfiguration.fixedAmount,
-        minimumFee: feeConfiguration.minimumFee,
-        maximumFee: feeConfiguration.maximumFee,
+        minAmount: feeConfiguration.minAmount,
+        maxAmount: feeConfiguration.maxAmount,
         isActive: feeConfiguration.isActive,
-        description: feeConfiguration.description,
         createdAt: feeConfiguration.createdAt.toISOString(),
         updatedAt: feeConfiguration.updatedAt.toISOString(),
       };
@@ -185,7 +180,7 @@ export class AdminService {
 
     try {
       const existingFee = await this.prisma.feeConfiguration.findUnique({
-        where: { type }
+        where: { feeType: type }
       });
 
       if (!existingFee) {
@@ -193,7 +188,7 @@ export class AdminService {
       }
 
       await this.prisma.feeConfiguration.delete({
-        where: { type }
+        where: { feeType: type }
       });
 
       console.log('✅ [ADMIN SERVICE] Fee configuration deleted successfully');
@@ -233,13 +228,13 @@ export class AdminService {
     }
 
     // Apply minimum fee if configured
-    if (feeConfig.minimumFee && calculatedFee < feeConfig.minimumFee) {
-      calculatedFee = feeConfig.minimumFee;
+    if (feeConfig.minAmount && calculatedFee < feeConfig.minAmount) {
+      calculatedFee = feeConfig.minAmount;
     }
 
     // Apply maximum fee if configured
-    if (feeConfig.maximumFee && calculatedFee > feeConfig.maximumFee) {
-      calculatedFee = feeConfig.maximumFee;
+    if (feeConfig.maxAmount && calculatedFee > feeConfig.maxAmount) {
+      calculatedFee = feeConfig.maxAmount;
     }
 
     return Math.round(calculatedFee * 100) / 100; // Round to 2 decimal places
@@ -253,36 +248,40 @@ export class AdminService {
       {
         type: FeeType.TRANSFER,
         percentage: 0.015, // 1.5%
-        minimumFee: 25.00,
-        maximumFee: 5000.00,
+        minAmount: 25.00,
+        maxAmount: 5000.00,
         isActive: true,
-        description: 'Transfer fee for wallet-to-bank transfers'
       },
       {
         type: FeeType.WITHDRAWAL,
         fixedAmount: 10.00,
         isActive: true,
-        description: 'Fixed withdrawal fee'
       },
       {
         type: FeeType.FUNDING,
         percentage: 0.005, // 0.5%
-        minimumFee: 0,
-        maximumFee: 100.00,
+        minAmount: 0,
+        maxAmount: 100.00,
         isActive: false, // Funding usually free
-        description: 'Funding fee for wallet deposits'
       }
     ];
 
     for (const feeData of defaultFees) {
       try {
         const existingFee = await this.prisma.feeConfiguration.findUnique({
-          where: { type: feeData.type }
+          where: { feeType: feeData.type }
         });
 
         if (!existingFee) {
           await this.prisma.feeConfiguration.create({
-            data: feeData
+            data: { 
+              feeType: feeData.type, 
+              percentage: feeData.percentage,
+              fixedAmount: feeData.fixedAmount,
+              minAmount: feeData.minAmount,
+              maxAmount: feeData.maxAmount,
+              isActive: feeData.isActive
+            }
           });
           console.log('✅ [ADMIN SERVICE] Created default fee for:', feeData.type);
         } else {
@@ -305,8 +304,8 @@ export class AdminService {
       const users = await this.prisma.user.findMany({
         where: {
           OR: [
-            { kycStatus: 'IN_PROGRESS' },
-            { kycStatus: 'VERIFIED' },
+            { kycStatus: 'UNDER_REVIEW' },
+            { kycStatus: 'APPROVED' },
             { kycStatus: 'REJECTED' }
           ]
         },
@@ -340,8 +339,8 @@ export class AdminService {
       }));
 
       // Count submissions by status
-      const pending = submissions.filter(s => s.kycStatus === 'IN_PROGRESS').length;
-      const verified = submissions.filter(s => s.kycStatus === 'VERIFIED').length;
+      const pending = submissions.filter(s => s.kycStatus === 'UNDER_REVIEW').length;
+      const verified = submissions.filter(s => s.kycStatus === 'APPROVED').length;
       const rejected = submissions.filter(s => s.kycStatus === 'REJECTED').length;
 
       console.log('✅ [ADMIN SERVICE] Retrieved', submissions.length, 'KYC submissions');
@@ -447,7 +446,7 @@ export class AdminService {
         throw new NotFoundException('User not found');
       }
 
-      if (user.kycStatus !== 'IN_PROGRESS') {
+      if (user.kycStatus !== 'UNDER_REVIEW') {
         throw new BadRequestException(`Cannot review KYC submission. Current status: ${user.kycStatus}`);
       }
 
@@ -467,7 +466,7 @@ export class AdminService {
         await this.prisma.user.update({
           where: { id: userId },
           data: {
-            kycStatus: 'VERIFIED',
+            kycStatus: 'APPROVED',
             kycVerifiedAt: new Date(),
           }
         });
@@ -542,7 +541,7 @@ export class AdminService {
     try {
       const users = await this.prisma.user.findMany({
         where: {
-          kycStatus: 'IN_PROGRESS'
+          kycStatus: 'UNDER_REVIEW'
         },
         select: {
           id: true,
