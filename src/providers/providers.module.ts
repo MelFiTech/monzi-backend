@@ -9,12 +9,7 @@ import { PolarisModule } from './polaris/polaris.module';
 
 @Global()
 @Module({
-  imports: [
-    ConfigModule,
-    BudPayModule,
-    SmePlugModule,
-    PolarisModule,
-  ],
+  imports: [ConfigModule, BudPayModule, SmePlugModule, PolarisModule],
   providers: [
     PrismaService,
     TransferProviderManagerService,
@@ -26,4 +21,4 @@ import { PolarisModule } from './polaris/polaris.module';
     ProviderManagerService,
   ],
 })
-export class ProvidersModule {} 
+export class ProvidersModule {}

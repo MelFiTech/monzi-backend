@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsNumber, IsString, IsOptional, Min } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  IsOptional,
+  Min,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class TransferDto {
@@ -8,12 +14,18 @@ export class TransferDto {
   @Min(1, { message: 'Amount must be greater than 0' })
   amount: number;
 
-  @ApiProperty({ example: '0123456789', description: 'Recipient account number' })
+  @ApiProperty({
+    example: '0123456789',
+    description: 'Recipient account number',
+  })
   @IsNotEmpty()
   @IsString()
   accountNumber: string;
 
-  @ApiProperty({ example: 'First Bank of Nigeria', description: 'Recipient bank name' })
+  @ApiProperty({
+    example: 'First Bank of Nigeria',
+    description: 'Recipient bank name',
+  })
   @IsNotEmpty()
   @IsString()
   bankName: string;
@@ -23,7 +35,11 @@ export class TransferDto {
   @IsString()
   accountName: string;
 
-  @ApiProperty({ example: 'Payment for services', description: 'Transfer description', required: false })
+  @ApiProperty({
+    example: 'Payment for services',
+    description: 'Transfer description',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -38,7 +54,7 @@ export class WalletDetailsResponse {
   @ApiProperty({ example: 'cuid123', description: 'Wallet ID' })
   id: string;
 
-  @ApiProperty({ example: 5000.00, description: 'Current wallet balance' })
+  @ApiProperty({ example: 5000.0, description: 'Current wallet balance' })
   balance: number;
 
   @ApiProperty({ example: 'NGN', description: 'Wallet currency' })
@@ -53,7 +69,10 @@ export class WalletDetailsResponse {
   @ApiProperty({ example: 'BUDPAY', description: 'Wallet provider name' })
   providerName: string;
 
-  @ApiProperty({ example: 'BudPay Bank', description: 'Bank name from provider' })
+  @ApiProperty({
+    example: 'BudPay Bank',
+    description: 'Bank name from provider',
+  })
   bankName: string;
 
   @ApiProperty({ example: true, description: 'Whether wallet is active' })
@@ -65,10 +84,16 @@ export class WalletDetailsResponse {
   @ApiProperty({ example: 1000000, description: 'Monthly spending limit' })
   monthlyLimit: number;
 
-  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Last transaction timestamp' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Last transaction timestamp',
+  })
   lastTransactionAt: string;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Wallet creation date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'Wallet creation date',
+  })
   createdAt: string;
 }
 
@@ -76,28 +101,40 @@ export class TransferResponse {
   @ApiProperty({ example: true, description: 'Transfer success status' })
   success: boolean;
 
-  @ApiProperty({ example: 'Transfer completed successfully', description: 'Response message' })
+  @ApiProperty({
+    example: 'Transfer completed successfully',
+    description: 'Response message',
+  })
   message: string;
 
-  @ApiProperty({ example: 'TXN_1234567890', description: 'Transaction reference' })
+  @ApiProperty({
+    example: 'TXN_1234567890',
+    description: 'Transaction reference',
+  })
   reference: string;
 
-  @ApiProperty({ example: 1000.00, description: 'Transfer amount' })
+  @ApiProperty({ example: 1000.0, description: 'Transfer amount' })
   amount: number;
 
-  @ApiProperty({ example: 50.00, description: 'Transfer fee' })
+  @ApiProperty({ example: 50.0, description: 'Transfer fee' })
   fee: number;
 
-  @ApiProperty({ example: 4000.00, description: 'New wallet balance' })
+  @ApiProperty({ example: 4000.0, description: 'New wallet balance' })
   newBalance: number;
 
   @ApiProperty({ example: 'John Doe', description: 'Recipient name' })
   recipientName: string;
 
-  @ApiProperty({ example: '0123456789', description: 'Recipient account number' })
+  @ApiProperty({
+    example: '0123456789',
+    description: 'Recipient account number',
+  })
   recipientAccount: string;
 
-  @ApiProperty({ example: 'First Bank of Nigeria', description: 'Recipient bank' })
+  @ApiProperty({
+    example: 'First Bank of Nigeria',
+    description: 'Recipient bank',
+  })
   recipientBank: string;
 }
 
@@ -106,4 +143,4 @@ export class SetWalletPinDto {
   @IsNotEmpty()
   @IsString()
   pin: string;
-} 
+}

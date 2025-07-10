@@ -8,4 +8,4 @@ import { SmePlugTransferProvider } from './smeplug-transfer.provider';
   providers: [SmePlugWalletProvider, SmePlugTransferProvider],
   exports: [SmePlugWalletProvider, SmePlugTransferProvider],
 })
-export class SmePlugModule {} 
+export class SmePlugModule {}

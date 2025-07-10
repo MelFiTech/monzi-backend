@@ -9,4 +9,4 @@ import { BudPayTransferProvider } from './budpay-transfer.provider';
   providers: [BudPayWalletProvider, BudPayTransferProvider],
   exports: [BudPayWalletProvider, BudPayTransferProvider],
 })
-export class BudPayModule {} 
+export class BudPayModule {}

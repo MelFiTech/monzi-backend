@@ -16,9 +16,7 @@ import { BudPayModule } from '../providers/budpay/budpay.module';
     BudPayModule,
   ],
   controllers: [WalletController],
-  providers: [
-    WalletService, 
-  ],
+  providers: [WalletService],
   exports: [WalletService],
 })
-export class WalletModule {} 
+export class WalletModule {}

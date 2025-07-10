@@ -9,15 +9,9 @@ import { RavenModule } from '../providers/raven/raven.module';
 import { GeminiModule } from '../providers/ai/gemini.module';
 
 @Module({
-  imports: [
-    ConfigModule, 
-    RavenModule, 
-    GeminiModule,
-    WalletModule,
-    AdminModule
-  ],
+  imports: [ConfigModule, RavenModule, GeminiModule, WalletModule, AdminModule],
   controllers: [KycController],
   providers: [KycService, PrismaService],
   exports: [KycService],
 })
-export class KycModule {} 
+export class KycModule {}

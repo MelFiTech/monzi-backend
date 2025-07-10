@@ -43,10 +43,10 @@ export class AiService {
     try {
       // Generate structured query using AI
       const structuredQuery = await this.generateStructuredQuery(prompt, model);
-      
+
       // Execute the query against the database
       const transactions = await this.executeQuery(structuredQuery, userId);
-      
+
       // Generate a natural language response
       const response = await this.generateResponse(prompt, transactions, model);
 
@@ -78,11 +78,16 @@ export class AiService {
           status: 'FAILED',
         },
       });
-      throw new BadRequestException(`Failed to process query: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to process query: ${error.message}`,
+      );
     }
   }
 
-  private async generateStructuredQuery(prompt: string, model: AiModel): Promise<StructuredQueryDto> {
+  private async generateStructuredQuery(
+    prompt: string,
+    model: AiModel,
+  ): Promise<StructuredQueryDto> {
     const systemPrompt = `
 You are a financial transaction query parser. Convert natural language queries into structured database filters.
 Return ONLY a valid JSON object with these possible fields:
@@ -118,11 +123,15 @@ Examples:
           structuredQuery = JSON.parse(content);
         }
       } else if (this.gemini) {
-        const model_instance = this.gemini.getGenerativeModel({ model: 'gemini-pro' });
-        const result = await model_instance.generateContent(`${systemPrompt}\n\nUser query: ${prompt}`);
+        const model_instance = this.gemini.getGenerativeModel({
+          model: 'gemini-pro',
+        });
+        const result = await model_instance.generateContent(
+          `${systemPrompt}\n\nUser query: ${prompt}`,
+        );
         const response = await result.response;
         const content = response.text();
-        
+
         // Extract JSON from response
         const jsonMatch = content.match(/\{.*\}/s);
         if (jsonMatch) {
@@ -149,8 +158,15 @@ Examples:
     if (limitMatch) query.limit = parseInt(limitMatch[1]);
 
     // Extract bank
-    const banks = ['gtbank', 'zenith', 'first bank', 'uba', 'access', 'fidelity'];
-    banks.forEach(bank => {
+    const banks = [
+      'gtbank',
+      'zenith',
+      'first bank',
+      'uba',
+      'access',
+      'fidelity',
+    ];
+    banks.forEach((bank) => {
       if (lowerPrompt.includes(bank)) {
         query.bank = bank.replace(/bank$/, '').trim();
       }
@@ -160,7 +176,8 @@ Examples:
     if (lowerPrompt.includes('transfer')) query.transactionType = 'TRANSFER';
     else if (lowerPrompt.includes('payment')) query.transactionType = 'PAYMENT';
     else if (lowerPrompt.includes('deposit')) query.transactionType = 'DEPOSIT';
-    else if (lowerPrompt.includes('withdrawal')) query.transactionType = 'WITHDRAWAL';
+    else if (lowerPrompt.includes('withdrawal'))
+      query.transactionType = 'WITHDRAWAL';
 
     // Extract amount
     const amountMatch = prompt.match(/(?:over|above|more than)\s+(\d+)/i);
@@ -169,7 +186,10 @@ Examples:
     return query;
   }
 
-  private async executeQuery(structuredQuery: StructuredQueryDto, userId?: string) {
+  private async executeQuery(
+    structuredQuery: StructuredQueryDto,
+    userId?: string,
+  ) {
     const where: any = {};
 
     if (userId) where.userId = userId;
@@ -188,22 +208,39 @@ Examples:
     }
 
     if (structuredQuery.startDate) {
-      where.createdAt = { ...where.createdAt, gte: new Date(structuredQuery.startDate) };
+      where.createdAt = {
+        ...where.createdAt,
+        gte: new Date(structuredQuery.startDate),
+      };
     }
 
     if (structuredQuery.endDate) {
-      where.createdAt = { ...where.createdAt, lte: new Date(structuredQuery.endDate) };
+      where.createdAt = {
+        ...where.createdAt,
+        lte: new Date(structuredQuery.endDate),
+      };
     }
 
     if (structuredQuery.bank) {
       where.OR = [
-        { fromAccount: { bankName: { contains: structuredQuery.bank, mode: 'insensitive' } } },
-        { toAccount: { bankName: { contains: structuredQuery.bank, mode: 'insensitive' } } },
+        {
+          fromAccount: {
+            bankName: { contains: structuredQuery.bank, mode: 'insensitive' },
+          },
+        },
+        {
+          toAccount: {
+            bankName: { contains: structuredQuery.bank, mode: 'insensitive' },
+          },
+        },
       ];
     }
 
     if (structuredQuery.recipient) {
-      where.description = { contains: structuredQuery.recipient, mode: 'insensitive' };
+      where.description = {
+        contains: structuredQuery.recipient,
+        mode: 'insensitive',
+      };
     }
 
     return this.prisma.transaction.findMany({
@@ -217,17 +254,26 @@ Examples:
     });
   }
 
-  private async generateResponse(prompt: string, transactions: any[], model: AiModel): Promise<string> {
+  private async generateResponse(
+    prompt: string,
+    transactions: any[],
+    model: AiModel,
+  ): Promise<string> {
     if (transactions.length === 0) {
       return "I couldn't find any transactions matching your criteria.";
     }
 
     const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
-    
-    const basicResponse = `Found ${transactions.length} transaction(s) totaling ₦${totalAmount.toLocaleString()}. ` +
-      transactions.slice(0, 3).map(t => 
-        `₦${t.amount.toLocaleString()} ${t.type.toLowerCase()} on ${new Date(t.createdAt).toDateString()}`
-      ).join(', ');
+
+    const basicResponse =
+      `Found ${transactions.length} transaction(s) totaling ₦${totalAmount.toLocaleString()}. ` +
+      transactions
+        .slice(0, 3)
+        .map(
+          (t) =>
+            `₦${t.amount.toLocaleString()} ${t.type.toLowerCase()} on ${new Date(t.createdAt).toDateString()}`,
+        )
+        .join(', ');
 
     try {
       if (model.includes('gpt') && this.openai) {
@@ -236,7 +282,8 @@ Examples:
           messages: [
             {
               role: 'system',
-              content: 'You are a helpful financial assistant. Provide a natural, conversational summary of transaction data.',
+              content:
+                'You are a helpful financial assistant. Provide a natural, conversational summary of transaction data.',
             },
             {
               role: 'user',
@@ -249,9 +296,11 @@ Examples:
 
         return response.choices[0]?.message?.content || basicResponse;
       } else if (this.gemini) {
-        const model_instance = this.gemini.getGenerativeModel({ model: 'gemini-pro' });
+        const model_instance = this.gemini.getGenerativeModel({
+          model: 'gemini-pro',
+        });
         const result = await model_instance.generateContent(
-          `User asked: "${prompt}". Provide a natural summary of these transactions: ${JSON.stringify(transactions.slice(0, 5))}`
+          `User asked: "${prompt}". Provide a natural summary of these transactions: ${JSON.stringify(transactions.slice(0, 5))}`,
         );
         const response = await result.response;
         return response.text() || basicResponse;

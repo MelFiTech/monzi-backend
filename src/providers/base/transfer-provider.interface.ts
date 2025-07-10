@@ -2,10 +2,12 @@
 export interface TransferProviderInterface {
   // Transfer Methods
   transferToBank(data: BankTransferData): Promise<BankTransferResult>;
-  
+
   // Bank Information Methods
   getBankList(): Promise<BankListResult>;
-  verifyAccount(data: AccountVerificationData): Promise<AccountVerificationResult>;
+  verifyAccount(
+    data: AccountVerificationData,
+  ): Promise<AccountVerificationResult>;
 }
 
 // Transfer Data Types
@@ -78,5 +80,5 @@ export interface AccountVerificationResult {
 export enum TransferProvider {
   BUDPAY = 'BUDPAY',
   SMEPLUG = 'SMEPLUG',
-  POLARIS = 'POLARIS'
-} 
+  POLARIS = 'POLARIS',
+}

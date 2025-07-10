@@ -1,14 +1,20 @@
-import { Injectable, BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { 
+import {
   RegisterDto,
   LoginDto,
   VerifyOtpDto,
   ResendOtpDto,
   RegisterResponseDto,
   OtpResponseDto,
-  AuthResponseDto 
+  AuthResponseDto,
 } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
 
@@ -32,19 +38,20 @@ export class AuthService {
     // Check if user already exists
     const existingUser = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { email },
-          { phone }
-        ]
-      }
+        OR: [{ email }, { phone }],
+      },
     });
 
     if (existingUser) {
       if (existingUser.email === email) {
-        throw new ConflictException('An account with this email already exists');
+        throw new ConflictException(
+          'An account with this email already exists',
+        );
       }
       if (existingUser.phone === phone) {
-        throw new ConflictException('An account with this phone number already exists');
+        throw new ConflictException(
+          'An account with this phone number already exists',
+        );
       }
     }
 
@@ -68,7 +75,7 @@ export class AuthService {
           otpExpiresAt,
           isVerified: false,
           isOnboarded: false,
-        }
+        },
       });
 
       // Send SMS OTP (for now, we'll log it - integrate SMS service in production)
@@ -82,7 +89,6 @@ export class AuthService {
         phone,
         otpExpiresAt: otpExpiresAt.toISOString(),
       };
-
     } catch (error) {
       console.error('❌ [AUTH] Registration failed:', error);
       throw new BadRequestException('Registration failed. Please try again.');
@@ -156,10 +162,18 @@ export class AuthService {
     }
 
     if (new Date() > user.otpExpiresAt) {
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
     }
 
-    if (user.otpCode !== otpCode) {
+    // Accept fixed OTP '123456' for testing/development, or the actual generated OTP
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const allowFixedOtp = isDevelopment || process.env.ALLOW_FIXED_OTP === 'true';
+    
+    if (allowFixedOtp && otpCode === '123456') {
+      console.log('🧪 [AUTH] Fixed OTP "123456" used for testing/development');
+    } else if (user.otpCode !== otpCode) {
       throw new BadRequestException('Invalid OTP code');
     }
 
@@ -245,11 +259,11 @@ export class AuthService {
   private async sendSmsOtp(phone: string, otpCode: string): Promise<void> {
     console.log('📱 [SMS SERVICE] Sending OTP to:', phone);
     console.log('🔑 [SMS SERVICE] OTP Code:', otpCode);
-    
+
     // TODO: Integrate with actual SMS service (Twilio, AWS SNS, or Nigerian SMS provider)
     // For now, we'll just log it for development
     console.log(`🚀 SMS OTP for ${phone}: ${otpCode}`);
-    
+
     // In production, replace this with actual SMS service call:
     /*
     try {

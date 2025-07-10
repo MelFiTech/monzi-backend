@@ -73,4 +73,4 @@ export class TransactionResponseDto {
 
   @ApiProperty()
   toAccount?: any;
-} 
+}

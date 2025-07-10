@@ -3,29 +3,35 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { KycModule } from './kyc/kyc.module';
 import { OcrModule } from './ocr/ocr.module';
 import { AiModule } from './ai/ai.module';
-import { TransactionsModule } from './transactions/transactions.module';
 import { AccountsModule } from './accounts/accounts.module';
-import { KycModule } from './kyc/kyc.module';
 import { WalletModule } from './wallet/wallet.module';
+import { TransactionsModule } from './transactions/transactions.module';
 import { AdminModule } from './admin/admin.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 import { ProvidersModule } from './providers/providers.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ProvidersModule,
     AuthModule,
+    KycModule,
     OcrModule,
     AiModule,
-    TransactionsModule,
     AccountsModule,
-    KycModule,
     WalletModule,
+    TransactionsModule,
     AdminModule,
+    WebhooksModule,
+    ProvidersModule,
+    NotificationsModule,
+    PushNotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

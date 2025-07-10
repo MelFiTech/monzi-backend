@@ -10,16 +10,19 @@ async function bootstrap() {
   app.enableCors();
 
   // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    whitelist: true,
-    forbidNonWhitelisted: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   // Swagger configuration
-    const config = new DocumentBuilder()
+  const config = new DocumentBuilder()
     .setTitle('Monzi Backend API')
-    .setDescription(`
+    .setDescription(
+      `
 🚀 **Monzi Backend** - AI-Powered Financial Transaction API
 
     ## Features
@@ -39,7 +42,8 @@ async function bootstrap() {
     2. Login with \`/auth/login\` to get your access token
     3. Use the token in the "Authorize" button above
     4. Try OCR with \`/ocr/extract\` or AI queries with \`/ai/query\`
-    `)
+    `,
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .addTag('Authentication', 'User registration, login, and PIN verification')
@@ -51,7 +55,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
-          customSiteTitle: 'Monzi API Documentation',
+    customSiteTitle: 'Monzi API Documentation',
     customfavIcon: 'https://nestjs.com/img/logo_text.svg',
     customJs: [
       'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
@@ -64,7 +68,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  
+
   console.log(`🚀 Monzi Backend running on: http://localhost:${port}`);
   console.log(`📚 API Documentation: http://localhost:${port}/api`);
 }

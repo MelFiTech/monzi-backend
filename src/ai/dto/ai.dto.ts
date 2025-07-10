@@ -103,4 +103,4 @@ export class TransactionSummaryDto {
 
   @ApiProperty()
   summary: string;
-} 
+}

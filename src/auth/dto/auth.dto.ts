@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, IsDateString, IsEnum, Matches, Length } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  IsDateString,
+  IsEnum,
+  Matches,
+  Length,
+} from 'class-validator';
 
 // Gender enum for validation
 export enum Gender {
@@ -10,41 +17,45 @@ export enum Gender {
 
 // Step 1: Register new account
 export class RegisterDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'user@example.com',
-    description: 'User email address'
+    description: 'User email address',
   })
   @IsEmail({}, { message: 'Please provide a valid email address' })
   email: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: '+2348123456789',
-    description: 'Nigerian phone number in format +234XXXXXXXXXX'
+    description: 'Nigerian phone number in format +234XXXXXXXXXX',
   })
   @IsString()
-  @Matches(/^\+234[789][01]\d{8}$/, { 
-    message: 'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits' 
+  @Matches(/^\+234[789][01]\d{8}$/, {
+    message:
+      'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits',
   })
   phone: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     enum: Gender,
     example: 'MALE',
-    description: 'User gender'
+    description: 'User gender',
   })
   @IsEnum(Gender, { message: 'Gender must be MALE, FEMALE, or OTHER' })
   gender: Gender;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: '1990-01-15',
-    description: 'Date of birth in YYYY-MM-DD format'
+    description: 'Date of birth in YYYY-MM-DD format',
   })
-  @IsDateString({}, { message: 'Date of birth must be a valid date in YYYY-MM-DD format' })
+  @IsDateString(
+    {},
+    { message: 'Date of birth must be a valid date in YYYY-MM-DD format' },
+  )
   dateOfBirth: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: '123456',
-    description: '6-digit numeric passcode'
+    description: '6-digit numeric passcode',
   })
   @IsString()
   @Length(6, 6, { message: 'Passcode must be exactly 6 digits' })
@@ -54,16 +65,16 @@ export class RegisterDto {
 
 // Step 2: Login for existing users
 export class LoginDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'user@example.com',
-    description: 'User email address'
+    description: 'User email address',
   })
   @IsEmail({}, { message: 'Please provide a valid email address' })
   email: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: '123456',
-    description: '6-digit numeric passcode'
+    description: '6-digit numeric passcode',
   })
   @IsString()
   @Length(6, 6, { message: 'Passcode must be exactly 6 digits' })
@@ -73,19 +84,20 @@ export class LoginDto {
 
 // Step 3: Verify SMS OTP
 export class VerifyOtpDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: '+2348123456789',
-    description: 'Phone number where OTP was sent'
+    description: 'Phone number where OTP was sent',
   })
   @IsString()
-  @Matches(/^\+234[789][01]\d{8}$/, { 
-    message: 'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits' 
+  @Matches(/^\+234[789][01]\d{8}$/, {
+    message:
+      'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits',
   })
   phone: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: '123456',
-    description: '6-digit OTP code received via SMS'
+    description: '6-digit OTP code received via SMS',
   })
   @IsString()
   @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
@@ -95,13 +107,14 @@ export class VerifyOtpDto {
 
 // Resend OTP
 export class ResendOtpDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: '+2348123456789',
-    description: 'Phone number to resend OTP to'
+    description: 'Phone number to resend OTP to',
   })
   @IsString()
-  @Matches(/^\+234[789][01]\d{8}$/, { 
-    message: 'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits' 
+  @Matches(/^\+234[789][01]\d{8}$/, {
+    message:
+      'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits',
   })
   phone: string;
 }
@@ -111,13 +124,22 @@ export class RegisterResponseDto {
   @ApiProperty({ example: true, description: 'Registration success status' })
   success: boolean;
 
-  @ApiProperty({ example: 'Registration successful. SMS OTP sent to your phone.', description: 'Response message' })
+  @ApiProperty({
+    example: 'Registration successful. SMS OTP sent to your phone.',
+    description: 'Response message',
+  })
   message: string;
 
-  @ApiProperty({ example: '+2348123456789', description: 'Phone number where OTP was sent' })
+  @ApiProperty({
+    example: '+2348123456789',
+    description: 'Phone number where OTP was sent',
+  })
   phone: string;
 
-  @ApiProperty({ example: '2024-01-01T12:05:00Z', description: 'OTP expiration time' })
+  @ApiProperty({
+    example: '2024-01-01T12:05:00Z',
+    description: 'OTP expiration time',
+  })
   otpExpiresAt: string;
 }
 
@@ -125,15 +147,24 @@ export class OtpResponseDto {
   @ApiProperty({ example: true, description: 'Operation success status' })
   success: boolean;
 
-  @ApiProperty({ example: 'SMS OTP sent successfully', description: 'Response message' })
+  @ApiProperty({
+    example: 'SMS OTP sent successfully',
+    description: 'Response message',
+  })
   message: string;
 
-  @ApiProperty({ example: '2024-01-01T12:05:00Z', description: 'OTP expiration time' })
+  @ApiProperty({
+    example: '2024-01-01T12:05:00Z',
+    description: 'OTP expiration time',
+  })
   expiresAt: string;
 }
 
 export class AuthResponseDto {
-  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', description: 'JWT access token' })
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'JWT access token',
+  })
   access_token: string;
 
   @ApiProperty({
@@ -147,7 +178,7 @@ export class AuthResponseDto {
       dateOfBirth: { type: 'string', example: '1990-01-15T00:00:00Z' },
       isVerified: { type: 'boolean', example: true },
       isOnboarded: { type: 'boolean', example: true },
-    }
+    },
   })
   user: {
     id: string;
@@ -173,7 +204,10 @@ export class UserProfileDto {
   @ApiProperty({ example: 'MALE', description: 'Gender' })
   gender: string;
 
-  @ApiProperty({ example: '1990-01-15T00:00:00Z', description: 'Date of birth' })
+  @ApiProperty({
+    example: '1990-01-15T00:00:00Z',
+    description: 'Date of birth',
+  })
   dateOfBirth: string;
 
   @ApiProperty({ example: 'John', description: 'First name (optional)' })
@@ -185,12 +219,21 @@ export class UserProfileDto {
   @ApiProperty({ example: true, description: 'Email verification status' })
   isVerified: boolean;
 
-  @ApiProperty({ example: true, description: 'Account setup completion status' })
+  @ApiProperty({
+    example: true,
+    description: 'Account setup completion status',
+  })
   isOnboarded: boolean;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Account creation date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'Account creation date',
+  })
   createdAt: string;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Last update date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'Last update date',
+  })
   updatedAt: string;
-} 
+}

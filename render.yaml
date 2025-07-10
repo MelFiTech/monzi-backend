@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: monzi-backend
+    env: node
+    plan: starter
+    buildCommand: npm run build:prod
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: APP_URL
+        value: https://monzi-backend.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: monzi-backend-db
+          property: connectionString
+      - key: JWT_SECRET
+        value: 9cl4nCRgv0dz3QAKtQe8NempfhWkY99154tpfDoy68k=
+      - key: JWT_EXPIRATION
+        value: 7d
+      - key: EXPO_ACCESS_TOKEN
+        value: wzQnEctygxQ3g5Ci5a23wdhattwbEMgmKwiAv3tt
+
+databases:
+  - name: monzi-backend-db
+    plan: starter 

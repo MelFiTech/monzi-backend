@@ -3,9 +3,9 @@ import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
 
 // BVN Verification DTO
 export class VerifyBvnDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: '22234567890',
-    description: 'Bank Verification Number (11 digits)'
+    description: 'Bank Verification Number (11 digits)',
   })
   @IsString()
   @IsNotEmpty()
@@ -14,27 +14,27 @@ export class VerifyBvnDto {
 
 // Selfie Upload DTO
 export class UploadSelfieDto {
-  @ApiProperty({ 
-    type: 'string', 
+  @ApiProperty({
+    type: 'string',
     format: 'binary',
-    description: 'User selfie image file (jpg, png)'
+    description: 'User selfie image file (jpg, png)',
   })
   selfie: any;
 }
 
 // Complete KYC DTO (if needed for final step)
 export class CompleteKycDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: '22234567890',
-    description: 'Verified BVN'
+    description: 'Verified BVN',
   })
   @IsString()
   @IsNotEmpty()
   bvn: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'path/to/selfie.jpg',
-    description: 'Uploaded selfie URL'
+    description: 'Uploaded selfie URL',
   })
   @IsString()
   @IsNotEmpty()
@@ -138,4 +138,4 @@ export class CompleteKycResponseDto {
 
   @ApiProperty({ required: false })
   error?: string;
-} 
+}

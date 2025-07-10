@@ -7,4 +7,4 @@ import { RavenKycProvider } from './raven-kyc.provider';
   providers: [RavenKycProvider],
   exports: [RavenKycProvider],
 })
-export class RavenModule {} 
+export class RavenModule {}

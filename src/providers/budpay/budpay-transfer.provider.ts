@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { 
-  TransferProviderInterface, 
-  BankTransferData, 
+import {
+  TransferProviderInterface,
+  BankTransferData,
   BankTransferResult,
   BankListResult,
   AccountVerificationData,
-  AccountVerificationResult
+  AccountVerificationResult,
 } from '../base/transfer-provider.interface';
 import * as crypto from 'crypto';
 
@@ -18,14 +18,18 @@ export class BudPayTransferProvider implements TransferProviderInterface {
   private readonly publicKey: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.baseUrl = this.configService.get<string>('BUDPAY_BASE_URL') || 'https://api.budpay.com/api/v2';
+    this.baseUrl =
+      this.configService.get<string>('BUDPAY_BASE_URL') ||
+      'https://api.budpay.com/api/v2';
     this.secretKey = this.configService.get<string>('BUDPAY_SECRET_KEY');
     this.publicKey = this.configService.get<string>('BUDPAY_PUBLIC_KEY');
-    
+
     if (!this.secretKey || !this.publicKey) {
-      this.logger.warn('BudPay configuration incomplete - some features may not work');
+      this.logger.warn(
+        'BudPay configuration incomplete - some features may not work',
+      );
     }
-    
+
     this.logger.log('BudPay Transfer Provider initialized');
   }
 
@@ -33,18 +37,22 @@ export class BudPayTransferProvider implements TransferProviderInterface {
    * Transfer money to bank account
    */
   async transferToBank(data: BankTransferData): Promise<BankTransferResult> {
-    this.logger.log(`Initiating BudPay bank transfer: ${data.amount} ${data.currency} to ${data.accountNumber}`);
-    
+    this.logger.log(
+      `Initiating BudPay bank transfer: ${data.amount} ${data.currency} to ${data.accountNumber}`,
+    );
+
     // Check if public key is available
     if (!this.publicKey) {
-      this.logger.error('BudPay public key not configured - cannot process transfers');
+      this.logger.error(
+        'BudPay public key not configured - cannot process transfers',
+      );
       return {
         success: false,
         message: 'BudPay public key not configured',
-        error: 'PUBLIC_KEY_MISSING'
+        error: 'PUBLIC_KEY_MISSING',
       };
     }
-    
+
     try {
       // Create payload with alphabetical ordering as required by BudPay
       const transferPayload = {
@@ -55,7 +63,7 @@ export class BudPayTransferProvider implements TransferProviderInterface {
         currency: data.currency,
         meta_data: data.metadata || {},
         narration: data.narration,
-        reference: data.reference
+        reference: data.reference,
       };
 
       // Create HMAC signature for security using public key
@@ -64,11 +72,11 @@ export class BudPayTransferProvider implements TransferProviderInterface {
       const response = await fetch(`${this.baseUrl}/bank_transfer`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.secretKey}`,
+          Authorization: `Bearer ${this.secretKey}`,
           'Content-Type': 'application/json',
-          'Encryption': signature
+          Encryption: signature,
         },
-        body: JSON.stringify(transferPayload)
+        body: JSON.stringify(transferPayload),
       });
 
       const result = await response.json();
@@ -78,12 +86,12 @@ export class BudPayTransferProvider implements TransferProviderInterface {
         return {
           success: false,
           message: result.message || 'Transfer failed',
-          error: result.error || 'TRANSFER_FAILED'
+          error: result.error || 'TRANSFER_FAILED',
         };
       }
 
       this.logger.log(`BudPay transfer successful: ${result.data?.reference}`);
-      
+
       return {
         success: true,
         message: result.message,
@@ -102,17 +110,16 @@ export class BudPayTransferProvider implements TransferProviderInterface {
           metadata: {
             domain: result.data.domain,
             createdAt: result.data.created_at,
-            updatedAt: result.data.updated_at
-          }
-        }
+            updatedAt: result.data.updated_at,
+          },
+        },
       };
-
     } catch (error) {
       this.logger.error(`BudPay transfer error: ${error.message}`);
       return {
         success: false,
         message: 'Transfer failed',
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -122,14 +129,14 @@ export class BudPayTransferProvider implements TransferProviderInterface {
    */
   async getBankList(): Promise<BankListResult> {
     this.logger.log('Fetching BudPay bank list');
-    
+
     try {
       const response = await fetch(`${this.baseUrl}/bank_list`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.secretKey}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${this.secretKey}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       const result = await response.json();
@@ -140,29 +147,30 @@ export class BudPayTransferProvider implements TransferProviderInterface {
           success: false,
           message: result.message || 'Failed to fetch bank list',
           currency: 'NGN',
-          error: result.error || 'BANK_LIST_FAILED'
+          error: result.error || 'BANK_LIST_FAILED',
         };
       }
 
-      this.logger.log(`BudPay bank list retrieved: ${result.data?.length || 0} banks`);
-      
+      this.logger.log(
+        `BudPay bank list retrieved: ${result.data?.length || 0} banks`,
+      );
+
       return {
         success: true,
         message: result.message,
         currency: result.currency,
-        data: result.data.map(bank => ({
+        data: result.data.map((bank) => ({
           bankName: bank.bank_name,
-          bankCode: bank.bank_code
-        }))
+          bankCode: bank.bank_code,
+        })),
       };
-
     } catch (error) {
       this.logger.error(`BudPay bank list error: ${error.message}`);
       return {
         success: false,
         message: 'Failed to fetch bank list',
         currency: 'NGN',
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -170,38 +178,44 @@ export class BudPayTransferProvider implements TransferProviderInterface {
   /**
    * Verify account name
    */
-  async verifyAccount(data: AccountVerificationData): Promise<AccountVerificationResult> {
-    this.logger.log(`Verifying BudPay account: ${data.accountNumber} at bank ${data.bankCode}`);
-    
+  async verifyAccount(
+    data: AccountVerificationData,
+  ): Promise<AccountVerificationResult> {
+    this.logger.log(
+      `Verifying BudPay account: ${data.accountNumber} at bank ${data.bankCode}`,
+    );
+
     try {
       const verifyPayload = {
         bank_code: data.bankCode,
         account_number: data.accountNumber,
-        currency: data.currency || 'NGN'
+        currency: data.currency || 'NGN',
       };
 
       const response = await fetch(`${this.baseUrl}/account_name_verify`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.secretKey}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${this.secretKey}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(verifyPayload)
+        body: JSON.stringify(verifyPayload),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        this.logger.error(`BudPay account verification failed: ${result.message}`);
+        this.logger.error(
+          `BudPay account verification failed: ${result.message}`,
+        );
         return {
           success: false,
           message: result.message || 'Account verification failed',
-          error: result.error || 'ACCOUNT_VERIFY_FAILED'
+          error: result.error || 'ACCOUNT_VERIFY_FAILED',
         };
       }
 
       this.logger.log(`BudPay account verified: ${result.data}`);
-      
+
       return {
         success: true,
         message: result.message,
@@ -209,16 +223,15 @@ export class BudPayTransferProvider implements TransferProviderInterface {
           accountName: result.data,
           accountNumber: data.accountNumber,
           bankName: '', // BudPay doesn't return bank name in verification
-          bankCode: data.bankCode
-        }
+          bankCode: data.bankCode,
+        },
       };
-
     } catch (error) {
       this.logger.error(`BudPay account verification error: ${error.message}`);
       return {
         success: false,
         message: 'Account verification failed',
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -230,10 +243,10 @@ export class BudPayTransferProvider implements TransferProviderInterface {
     if (!this.publicKey) {
       throw new Error('Public key not configured');
     }
-    
+
     return crypto
       .createHmac('sha512', this.publicKey)
       .update(payload)
       .digest('hex');
   }
-} 
+}

@@ -6,12 +6,8 @@ import { BudPayModule } from '../providers/budpay/budpay.module';
 import { SmePlugModule } from '../providers/smeplug/smeplug.module';
 
 @Module({
-  imports: [
-    ConfigModule,
-    BudPayModule,
-    SmePlugModule,
-  ],
+  imports: [ConfigModule, BudPayModule, SmePlugModule],
   providers: [AccountsService],
-  controllers: [AccountsController]
+  controllers: [AccountsController],
 })
 export class AccountsModule {}

@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
-import { IKycProvider, BvnVerificationResult } from '../base/provider.interface';
+import {
+  IKycProvider,
+  BvnVerificationResult,
+} from '../base/provider.interface';
 
 interface RavenBvnResponse {
   status: string;
@@ -42,9 +45,9 @@ export class RavenKycProvider implements IKycProvider {
       baseURL: this.baseUrl,
       timeout: 30000,
       headers: {
-        'Authorization': `Bearer ${this.secretKey}`,
+        Authorization: `Bearer ${this.secretKey}`,
         'Content-Type': 'application/json',
-        'accept': 'application/json',
+        accept: 'application/json',
       },
     });
 
@@ -60,24 +63,28 @@ export class RavenKycProvider implements IKycProvider {
         return {
           success: false,
           message: 'Invalid BVN format. BVN must be 11 digits.',
-          error: 'INVALID_BVN_FORMAT'
+          error: 'INVALID_BVN_FORMAT',
         };
       }
 
       // Prepare request data as JSON
       const requestData = {
-        bvn: bvn
+        bvn: bvn,
       };
 
-      this.logger.log(`📤 [RAVEN KYC] Sending BVN verification request to Raven API`);
+      this.logger.log(
+        `📤 [RAVEN KYC] Sending BVN verification request to Raven API`,
+      );
 
       const response = await this.axiosInstance.post<RavenBvnResponse>(
         '/bvn/verify',
-        requestData
+        requestData,
       );
 
       this.logger.log(`📥 [RAVEN KYC] Response received from Raven API`);
-      this.logger.log(`📊 [RAVEN KYC] Response status: ${response.data.status}`);
+      this.logger.log(
+        `📊 [RAVEN KYC] Response status: ${response.data.status}`,
+      );
 
       if (response.data.status === 'success') {
         const { data } = response.data;
@@ -94,35 +101,41 @@ export class RavenKycProvider implements IKycProvider {
             lgaOfOrigin: data.lgaOfOrigin,
             residentialAddress: data.residentialAddress,
             stateOfOrigin: data.stateOfOrigin || data.state_of_origin,
-          }
+          },
         };
 
-        this.logger.log(`✅ [RAVEN KYC] BVN verification successful for: ${data.firstname} ${data.lastname}`);
-        this.logger.log(`📱 [RAVEN KYC] Phone: ${data.phone_number}, DOB: ${data.date_of_birth}, Gender: ${data.gender}`);
+        this.logger.log(
+          `✅ [RAVEN KYC] BVN verification successful for: ${data.firstname} ${data.lastname}`,
+        );
+        this.logger.log(
+          `📱 [RAVEN KYC] Phone: ${data.phone_number}, DOB: ${data.date_of_birth}, Gender: ${data.gender}`,
+        );
         return result;
       } else {
-        this.logger.warn(`⚠️ [RAVEN KYC] BVN verification failed: ${response.data.message}`);
+        this.logger.warn(
+          `⚠️ [RAVEN KYC] BVN verification failed: ${response.data.message}`,
+        );
         return {
           success: false,
           message: response.data.message,
-          error: 'BVN_VERIFICATION_FAILED'
+          error: 'BVN_VERIFICATION_FAILED',
         };
       }
-
     } catch (error) {
       this.logger.error(`❌ [RAVEN KYC] Error during BVN verification:`, error);
 
       if (error.response) {
         // HTTP error response
         const status = error.response.status;
-        const message = error.response.data?.message || 'BVN verification failed';
-        
+        const message =
+          error.response.data?.message || 'BVN verification failed';
+
         this.logger.error(`🚨 [RAVEN KYC] HTTP Error ${status}: ${message}`);
-        
+
         return {
           success: false,
           message: `BVN verification failed: ${message}`,
-          error: `HTTP_${status}`
+          error: `HTTP_${status}`,
         };
       } else if (error.request) {
         // Network error
@@ -130,7 +143,7 @@ export class RavenKycProvider implements IKycProvider {
         return {
           success: false,
           message: 'Network error occurred during BVN verification',
-          error: 'NETWORK_ERROR'
+          error: 'NETWORK_ERROR',
         };
       } else {
         // Other error
@@ -138,9 +151,9 @@ export class RavenKycProvider implements IKycProvider {
         return {
           success: false,
           message: 'An unexpected error occurred during BVN verification',
-          error: 'UNEXPECTED_ERROR'
+          error: 'UNEXPECTED_ERROR',
         };
       }
     }
   }
-} 
+}

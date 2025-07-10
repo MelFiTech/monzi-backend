@@ -76,4 +76,4 @@ export class ProcessedOcrDataDto {
 
   @ApiProperty()
   transactionType?: string;
-} 
+}

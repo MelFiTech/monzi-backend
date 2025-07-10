@@ -3,17 +3,17 @@ import { IsString, IsNotEmpty } from 'class-validator';
 
 // Request DTO for account resolution
 export class ResolveAccountDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: '3089415578',
-    description: 'Bank account number to resolve'
+    description: 'Bank account number to resolve',
   })
   @IsString()
   @IsNotEmpty()
   account_number: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'First Bank of Nigeria',
-    description: 'Bank name to resolve the account with'
+    description: 'Bank name to resolve the account with',
   })
   @IsString()
   @IsNotEmpty()
@@ -60,4 +60,4 @@ export class ResolveAccountResponseDto {
 
   @ApiProperty({ required: false })
   error?: string;
-} 
+}

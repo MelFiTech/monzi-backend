@@ -79,7 +79,9 @@ export interface IWalletProvider {
   /**
    * Process wallet transaction
    */
-  processTransaction(data: WalletTransactionData): Promise<WalletTransactionResult>;
+  processTransaction(
+    data: WalletTransactionData,
+  ): Promise<WalletTransactionResult>;
 
   /**
    * Get provider name
@@ -91,4 +93,4 @@ export enum WalletProvider {
   SMEPLUG = 'SMEPLUG',
   POLARIS = 'POLARIS',
   BUDPAY = 'BUDPAY',
-} 
+}

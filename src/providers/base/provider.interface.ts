@@ -60,7 +60,10 @@ export interface IKycProvider {
 
 export interface IAccountProvider {
   getBankList(): Promise<BankData[]>;
-  resolveAccount(accountNumber: string, bankCode: string): Promise<AccountResolutionResult>;
+  resolveAccount(
+    accountNumber: string,
+    bankCode: string,
+  ): Promise<AccountResolutionResult>;
 }
 
 export interface ITransferProvider {
@@ -69,4 +72,4 @@ export interface ITransferProvider {
 
 export interface IPaymentProvider extends IAccountProvider, ITransferProvider {
   // Combined interface for providers that support both account resolution and transfers
-} 
+}

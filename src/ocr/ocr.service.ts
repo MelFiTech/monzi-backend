@@ -18,7 +18,8 @@ export class OcrService {
 
     const ocrScan = await this.prisma.ocrScan.create({
       data: {
-        originalText: 'Simulated OCR text - Transfer to John Doe Account: 1234567890 Amount: 50000 Bank: GTBank',
+        originalText:
+          'Simulated OCR text - Transfer to John Doe Account: 1234567890 Amount: 50000 Bank: GTBank',
         imageUrl: `uploads/${file.filename}`, // In real app, this would be cloud storage URL
         confidence: 0.95,
         status: 'PROCESSING',
@@ -48,7 +49,7 @@ export class OcrService {
 
     // Process the text to extract structured data
     const processedData = this.extractStructuredData(rawText);
-    
+
     const updatedScan = await this.prisma.ocrScan.update({
       where: { id: ocrScan.id },
       data: {
@@ -69,7 +70,7 @@ export class OcrService {
     if (!scan) return;
 
     const processedData = this.extractStructuredData(scan.originalText);
-    
+
     await this.prisma.ocrScan.update({
       where: { id: scanId },
       data: {
@@ -104,7 +105,9 @@ export class OcrService {
     }
 
     // Extract amount
-    const amountMatch = text.match(/(?:amount|amt|₦|#)[\s:]*([0-9,]+(?:\.\d{2})?)/i);
+    const amountMatch = text.match(
+      /(?:amount|amt|₦|#)[\s:]*([0-9,]+(?:\.\d{2})?)/i,
+    );
     if (amountMatch) {
       data.amount = parseFloat(amountMatch[1].replace(/,/g, ''));
       data.currency = 'NGN';
@@ -122,7 +125,9 @@ export class OcrService {
     }
 
     // Extract recipient name
-    const recipientMatch = text.match(/(?:to|recipient|beneficiary)[\s:]*([a-zA-Z\s]+)/i);
+    const recipientMatch = text.match(
+      /(?:to|recipient|beneficiary)[\s:]*([a-zA-Z\s]+)/i,
+    );
     if (recipientMatch) {
       data.recipient = recipientMatch[1].trim();
     }

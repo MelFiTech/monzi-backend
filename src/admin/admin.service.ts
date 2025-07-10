@@ -1,24 +1,32 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { ProviderManagerService } from '../providers/provider-manager.service';
 import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
 import { WalletProvider } from '../providers/base/wallet-provider.interface';
 import { TransferProvider } from '../providers/base/transfer-provider.interface';
-import { 
-  SetFeeDto, 
-  FeeConfigurationResponse, 
-  SetFeeResponse, 
-  GetFeesResponse, 
-  DeleteFeeResponse, 
+import {
+  SetFeeDto,
+  FeeConfigurationResponse,
+  SetFeeResponse,
+  GetFeesResponse,
+  DeleteFeeResponse,
   FeeType,
   KycSubmissionDto,
   GetKycSubmissionsResponse,
   KycReviewDto,
   KycReviewResponse,
   KycSubmissionDetailResponse,
-  KycDecision 
+  KycDecision,
+  CreateFeeConfigurationDto,
+  UpdateFeeConfigurationDto,
 } from './dto/admin.dto';
+import { KycStatus, Prisma, FeeType as PrismaFeeType } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
@@ -27,6 +35,7 @@ export class AdminService {
     private walletService: WalletService,
     private providerManager: ProviderManagerService,
     private transferProviderManager: TransferProviderManagerService,
+    private configService: ConfigService,
   ) {}
 
   async setFee(setFeeDto: SetFeeDto): Promise<SetFeeResponse> {
@@ -34,24 +43,38 @@ export class AdminService {
     console.log('📋 [ADMIN SERVICE] Fee data:', setFeeDto);
 
     // Validate that at least one fee parameter is provided
-    if (!setFeeDto.percentage && !setFeeDto.fixedAmount && !setFeeDto.minAmount) {
-      throw new BadRequestException('At least one fee parameter (percentage, fixedAmount, or minAmount) must be provided');
+    if (
+      !setFeeDto.percentage &&
+      !setFeeDto.fixedAmount &&
+      !setFeeDto.minAmount
+    ) {
+      throw new BadRequestException(
+        'At least one fee parameter (percentage, fixedAmount, or minAmount) must be provided',
+      );
     }
 
     // Validate percentage and fixed amount combination
     if (setFeeDto.percentage && setFeeDto.fixedAmount) {
-      throw new BadRequestException('Cannot set both percentage and fixed amount for the same fee');
+      throw new BadRequestException(
+        'Cannot set both percentage and fixed amount for the same fee',
+      );
     }
 
     // Validate min/max fee logic
-    if (setFeeDto.minAmount && setFeeDto.maxAmount && setFeeDto.minAmount > setFeeDto.maxAmount) {
-      throw new BadRequestException('Minimum fee cannot be greater than maximum fee');
+    if (
+      setFeeDto.minAmount &&
+      setFeeDto.maxAmount &&
+      setFeeDto.minAmount > setFeeDto.maxAmount
+    ) {
+      throw new BadRequestException(
+        'Minimum fee cannot be greater than maximum fee',
+      );
     }
 
     try {
       // Check if fee configuration already exists
       const existingFee = await this.prisma.feeConfiguration.findUnique({
-        where: { feeType: setFeeDto.type }
+        where: { feeType: setFeeDto.type },
       });
 
       let feeConfiguration;
@@ -67,7 +90,7 @@ export class AdminService {
             minAmount: setFeeDto.minAmount,
             maxAmount: setFeeDto.maxAmount,
             isActive: setFeeDto.isActive ?? true,
-          }
+          },
         });
       } else {
         // Create new configuration
@@ -80,7 +103,7 @@ export class AdminService {
             minAmount: setFeeDto.minAmount,
             maxAmount: setFeeDto.maxAmount,
             isActive: setFeeDto.isActive ?? true,
-          }
+          },
         });
       }
 
@@ -88,7 +111,9 @@ export class AdminService {
 
       return {
         success: true,
-        message: existingFee ? 'Fee configuration updated successfully' : 'Fee configuration created successfully',
+        message: existingFee
+          ? 'Fee configuration updated successfully'
+          : 'Fee configuration created successfully',
         feeConfiguration: {
           id: feeConfiguration.id,
           feeType: feeConfiguration.feeType as FeeType,
@@ -99,11 +124,13 @@ export class AdminService {
           isActive: feeConfiguration.isActive,
           createdAt: feeConfiguration.createdAt.toISOString(),
           updatedAt: feeConfiguration.updatedAt.toISOString(),
-        }
+        },
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error setting fee configuration:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error setting fee configuration:',
+        error,
+      );
       throw new BadRequestException('Failed to set fee configuration');
     }
   }
@@ -113,12 +140,16 @@ export class AdminService {
 
     try {
       const feeConfigurations = await this.prisma.feeConfiguration.findMany({
-        orderBy: { feeType: 'asc' }
+        orderBy: { feeType: 'asc' },
       });
 
-      console.log('✅ [ADMIN SERVICE] Retrieved', feeConfigurations.length, 'fee configurations');
+      console.log(
+        '✅ [ADMIN SERVICE] Retrieved',
+        feeConfigurations.length,
+        'fee configurations',
+      );
 
-      const fees: FeeConfigurationResponse[] = feeConfigurations.map(fee => ({
+      const fees: FeeConfigurationResponse[] = feeConfigurations.map((fee) => ({
         id: fee.id,
         feeType: fee.feeType as FeeType,
         percentage: fee.percentage,
@@ -133,25 +164,33 @@ export class AdminService {
       return {
         success: true,
         fees,
-        total: fees.length
+        total: fees.length,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error retrieving fee configurations:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving fee configurations:',
+        error,
+      );
       throw new BadRequestException('Failed to retrieve fee configurations');
     }
   }
 
   async getFeeByType(type: FeeType): Promise<FeeConfigurationResponse | null> {
-    console.log('🔍 [ADMIN SERVICE] Retrieving fee configuration for type:', type);
+    console.log(
+      '🔍 [ADMIN SERVICE] Retrieving fee configuration for type:',
+      type,
+    );
 
     try {
       const feeConfiguration = await this.prisma.feeConfiguration.findUnique({
-        where: { feeType: type }
+        where: { feeType: type },
       });
 
       if (!feeConfiguration) {
-        console.log('⚠️ [ADMIN SERVICE] No fee configuration found for type:', type);
+        console.log(
+          '⚠️ [ADMIN SERVICE] No fee configuration found for type:',
+          type,
+        );
         return null;
       }
 
@@ -168,27 +207,34 @@ export class AdminService {
         createdAt: feeConfiguration.createdAt.toISOString(),
         updatedAt: feeConfiguration.updatedAt.toISOString(),
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error retrieving fee configuration:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving fee configuration:',
+        error,
+      );
       throw new BadRequestException('Failed to retrieve fee configuration');
     }
   }
 
   async deleteFee(type: FeeType): Promise<DeleteFeeResponse> {
-    console.log('🗑️ [ADMIN SERVICE] Deleting fee configuration for type:', type);
+    console.log(
+      '🗑️ [ADMIN SERVICE] Deleting fee configuration for type:',
+      type,
+    );
 
     try {
       const existingFee = await this.prisma.feeConfiguration.findUnique({
-        where: { feeType: type }
+        where: { feeType: type },
       });
 
       if (!existingFee) {
-        throw new NotFoundException(`Fee configuration for type '${type}' not found`);
+        throw new NotFoundException(
+          `Fee configuration for type '${type}' not found`,
+        );
       }
 
       await this.prisma.feeConfiguration.delete({
-        where: { feeType: type }
+        where: { feeType: type },
       });
 
       console.log('✅ [ADMIN SERVICE] Fee configuration deleted successfully');
@@ -196,11 +242,13 @@ export class AdminService {
       return {
         success: true,
         message: 'Fee configuration deleted successfully',
-        deletedType: type
+        deletedType: type,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error deleting fee configuration:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error deleting fee configuration:',
+        error,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       }
@@ -248,47 +296,58 @@ export class AdminService {
       {
         type: FeeType.TRANSFER,
         percentage: 0.015, // 1.5%
-        minAmount: 25.00,
-        maxAmount: 5000.00,
+        minAmount: 25.0,
+        maxAmount: 5000.0,
         isActive: true,
       },
       {
         type: FeeType.WITHDRAWAL,
-        fixedAmount: 10.00,
+        fixedAmount: 10.0,
         isActive: true,
       },
       {
         type: FeeType.FUNDING,
         percentage: 0.005, // 0.5%
         minAmount: 0,
-        maxAmount: 100.00,
+        maxAmount: 100.0,
         isActive: false, // Funding usually free
-      }
+      },
     ];
 
     for (const feeData of defaultFees) {
       try {
         const existingFee = await this.prisma.feeConfiguration.findUnique({
-          where: { feeType: feeData.type }
+          where: { feeType: feeData.type },
         });
 
         if (!existingFee) {
           await this.prisma.feeConfiguration.create({
-            data: { 
-              feeType: feeData.type, 
+            data: {
+              feeType: feeData.type,
               percentage: feeData.percentage,
               fixedAmount: feeData.fixedAmount,
               minAmount: feeData.minAmount,
               maxAmount: feeData.maxAmount,
-              isActive: feeData.isActive
-            }
+              isActive: feeData.isActive,
+            },
           });
-          console.log('✅ [ADMIN SERVICE] Created default fee for:', feeData.type);
+          console.log(
+            '✅ [ADMIN SERVICE] Created default fee for:',
+            feeData.type,
+          );
         } else {
-          console.log('⚠️ [ADMIN SERVICE] Fee already exists for:', feeData.type);
+          console.log(
+            '⚠️ [ADMIN SERVICE] Fee already exists for:',
+            feeData.type,
+          );
         }
       } catch (error) {
-        console.error('❌ [ADMIN SERVICE] Error creating default fee for', feeData.type, ':', error);
+        console.error(
+          '❌ [ADMIN SERVICE] Error creating default fee for',
+          feeData.type,
+          ':',
+          error,
+        );
       }
     }
 
@@ -306,8 +365,8 @@ export class AdminService {
           OR: [
             { kycStatus: 'UNDER_REVIEW' },
             { kycStatus: 'APPROVED' },
-            { kycStatus: 'REJECTED' }
-          ]
+            { kycStatus: 'REJECTED' },
+          ],
         },
         select: {
           id: true,
@@ -322,14 +381,17 @@ export class AdminService {
           createdAt: true,
           updatedAt: true,
         },
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { updatedAt: 'desc' },
       });
 
-      const submissions: KycSubmissionDto[] = users.map(user => ({
+      const submissions: KycSubmissionDto[] = users.map((user) => ({
         userId: user.id,
         email: user.email,
         phone: user.phone,
-        fullName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined,
+        fullName:
+          user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : undefined,
         kycStatus: user.kycStatus,
         bvn: user.bvn,
         bvnVerifiedAt: user.bvnVerifiedAt?.toISOString(),
@@ -339,12 +401,29 @@ export class AdminService {
       }));
 
       // Count submissions by status
-      const pending = submissions.filter(s => s.kycStatus === 'UNDER_REVIEW').length;
-      const verified = submissions.filter(s => s.kycStatus === 'APPROVED').length;
-      const rejected = submissions.filter(s => s.kycStatus === 'REJECTED').length;
+      const pending = submissions.filter(
+        (s) => s.kycStatus === 'UNDER_REVIEW',
+      ).length;
+      const verified = submissions.filter(
+        (s) => s.kycStatus === 'APPROVED',
+      ).length;
+      const rejected = submissions.filter(
+        (s) => s.kycStatus === 'REJECTED',
+      ).length;
 
-      console.log('✅ [ADMIN SERVICE] Retrieved', submissions.length, 'KYC submissions');
-      console.log('📊 [ADMIN SERVICE] Stats - Pending:', pending, 'Verified:', verified, 'Rejected:', rejected);
+      console.log(
+        '✅ [ADMIN SERVICE] Retrieved',
+        submissions.length,
+        'KYC submissions',
+      );
+      console.log(
+        '📊 [ADMIN SERVICE] Stats - Pending:',
+        pending,
+        'Verified:',
+        verified,
+        'Rejected:',
+        rejected,
+      );
 
       return {
         success: true,
@@ -354,15 +433,22 @@ export class AdminService {
         verified,
         rejected,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error retrieving KYC submissions:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving KYC submissions:',
+        error,
+      );
       throw new BadRequestException('Failed to retrieve KYC submissions');
     }
   }
 
-  async getKycSubmissionDetails(userId: string): Promise<KycSubmissionDetailResponse> {
-    console.log('🔍 [ADMIN SERVICE] Retrieving KYC submission details for user:', userId);
+  async getKycSubmissionDetails(
+    userId: string,
+  ): Promise<KycSubmissionDetailResponse> {
+    console.log(
+      '🔍 [ADMIN SERVICE] Retrieving KYC submission details for user:',
+      userId,
+    );
 
     try {
       const user = await this.prisma.user.findUnique({
@@ -379,7 +465,7 @@ export class AdminService {
           selfieUrl: true,
           createdAt: true,
           updatedAt: true,
-        }
+        },
       });
 
       if (!user) {
@@ -390,7 +476,10 @@ export class AdminService {
         userId: user.id,
         email: user.email,
         phone: user.phone,
-        fullName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined,
+        fullName:
+          user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : undefined,
         kycStatus: user.kycStatus,
         bvn: user.bvn,
         bvnVerifiedAt: user.bvnVerifiedAt?.toISOString(),
@@ -400,8 +489,10 @@ export class AdminService {
       };
 
       // Generate full image URL if selfie exists
-      const selfieImageUrl = user.selfieUrl ? 
-        `http://localhost:3000${user.selfieUrl}` : undefined;
+      const baseUrl = this.configService?.get<string>('APP_URL') || 'http://localhost:3000';
+      const selfieImageUrl = user.selfieUrl
+        ? `${baseUrl}${user.selfieUrl}`
+        : undefined;
 
       console.log('✅ [ADMIN SERVICE] KYC submission details retrieved');
 
@@ -410,18 +501,28 @@ export class AdminService {
         submission,
         selfieImageUrl,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error retrieving KYC submission details:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving KYC submission details:',
+        error,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       }
-      throw new BadRequestException('Failed to retrieve KYC submission details');
+      throw new BadRequestException(
+        'Failed to retrieve KYC submission details',
+      );
     }
   }
 
-  async reviewKycSubmission(userId: string, reviewDto: KycReviewDto): Promise<KycReviewResponse> {
-    console.log('⚖️ [ADMIN SERVICE] Reviewing KYC submission for user:', userId);
+  async reviewKycSubmission(
+    userId: string,
+    reviewDto: KycReviewDto,
+  ): Promise<KycReviewResponse> {
+    console.log(
+      '⚖️ [ADMIN SERVICE] Reviewing KYC submission for user:',
+      userId,
+    );
     console.log('📋 [ADMIN SERVICE] Review decision:', reviewDto.decision);
     console.log('💬 [ADMIN SERVICE] Comment:', reviewDto.comment);
 
@@ -439,7 +540,7 @@ export class AdminService {
           dateOfBirth: true,
           gender: true,
           bvn: true,
-        }
+        },
       });
 
       if (!user) {
@@ -447,7 +548,9 @@ export class AdminService {
       }
 
       if (user.kycStatus !== 'UNDER_REVIEW') {
-        throw new BadRequestException(`Cannot review KYC submission. Current status: ${user.kycStatus}`);
+        throw new BadRequestException(
+          `Cannot review KYC submission. Current status: ${user.kycStatus}`,
+        );
       }
 
       if (!user.selfieUrl) {
@@ -461,21 +564,21 @@ export class AdminService {
       if (reviewDto.decision === KycDecision.APPROVE) {
         // Approve KYC
         newStatus = 'VERIFIED';
-        
+
         // Update user status
         await this.prisma.user.update({
           where: { id: userId },
           data: {
             kycStatus: 'APPROVED',
             kycVerifiedAt: new Date(),
-          }
+          },
         });
 
         // Create wallet for approved user
         try {
           const wallet = await this.walletService.createWallet(
-            userId, 
-            user.firstName || 'User', 
+            userId,
+            user.firstName || 'User',
             user.lastName || 'Account',
             user.email,
             user.phone,
@@ -484,22 +587,27 @@ export class AdminService {
             'Lagos, Nigeria', // Default address
             'Lagos', // Default city
             'Lagos State', // Default state
-            user.bvn || undefined
+            user.bvn || undefined,
           );
           walletCreated = true;
           virtualAccountNumber = wallet.virtualAccountNumber;
-          console.log('💳 [ADMIN SERVICE] Wallet created for approved user:', virtualAccountNumber);
+          console.log(
+            '💳 [ADMIN SERVICE] Wallet created for approved user:',
+            virtualAccountNumber,
+          );
         } catch (walletError) {
-          console.error('❌ [ADMIN SERVICE] Error creating wallet:', walletError);
+          console.error(
+            '❌ [ADMIN SERVICE] Error creating wallet:',
+            walletError,
+          );
           // Don't fail the approval if wallet creation fails, but log it
         }
 
         console.log('✅ [ADMIN SERVICE] KYC approved for user:', userId);
-
       } else {
         // Reject KYC
         newStatus = 'REJECTED';
-        
+
         // Update user status (allow them to restart process)
         await this.prisma.user.update({
           where: { id: userId },
@@ -507,15 +615,16 @@ export class AdminService {
             kycStatus: 'REJECTED',
             // Clear selfie to allow re-upload
             selfieUrl: null,
-          }
+          },
         });
 
         console.log('❌ [ADMIN SERVICE] KYC rejected for user:', userId);
       }
 
-      const message = reviewDto.decision === KycDecision.APPROVE 
-        ? 'KYC submission approved successfully'
-        : 'KYC submission rejected';
+      const message =
+        reviewDto.decision === KycDecision.APPROVE
+          ? 'KYC submission approved successfully'
+          : 'KYC submission rejected';
 
       return {
         success: true,
@@ -525,10 +634,15 @@ export class AdminService {
         virtualAccountNumber,
         userId,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error reviewing KYC submission:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      console.error(
+        '❌ [ADMIN SERVICE] Error reviewing KYC submission:',
+        error,
+      );
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to review KYC submission');
@@ -541,7 +655,7 @@ export class AdminService {
     try {
       const users = await this.prisma.user.findMany({
         where: {
-          kycStatus: 'UNDER_REVIEW'
+          kycStatus: 'UNDER_REVIEW',
         },
         select: {
           id: true,
@@ -556,14 +670,17 @@ export class AdminService {
           createdAt: true,
           updatedAt: true,
         },
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { updatedAt: 'desc' },
       });
 
-      const submissions: KycSubmissionDto[] = users.map(user => ({
+      const submissions: KycSubmissionDto[] = users.map((user) => ({
         userId: user.id,
         email: user.email,
         phone: user.phone,
-        fullName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined,
+        fullName:
+          user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : undefined,
         kycStatus: user.kycStatus,
         bvn: user.bvn,
         bvnVerifiedAt: user.bvnVerifiedAt?.toISOString(),
@@ -572,7 +689,11 @@ export class AdminService {
         createdAt: user.createdAt.toISOString(),
       }));
 
-      console.log('✅ [ADMIN SERVICE] Retrieved', submissions.length, 'pending KYC submissions');
+      console.log(
+        '✅ [ADMIN SERVICE] Retrieved',
+        submissions.length,
+        'pending KYC submissions',
+      );
 
       return {
         success: true,
@@ -582,10 +703,14 @@ export class AdminService {
         verified: 0,
         rejected: 0,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error retrieving pending KYC submissions:', error);
-      throw new BadRequestException('Failed to retrieve pending KYC submissions');
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving pending KYC submissions:',
+        error,
+      );
+      throw new BadRequestException(
+        'Failed to retrieve pending KYC submissions',
+      );
     }
   }
 
@@ -600,18 +725,25 @@ export class AdminService {
 
     try {
       const providers = await this.providerManager.getAvailableProviders();
-      const currentProvider = await this.providerManager.getCurrentProviderName();
+      const currentProvider =
+        await this.providerManager.getCurrentProviderName();
 
-      console.log('✅ [ADMIN SERVICE] Retrieved', providers.length, 'available providers');
+      console.log(
+        '✅ [ADMIN SERVICE] Retrieved',
+        providers.length,
+        'available providers',
+      );
 
       return {
         success: true,
         currentProvider,
         providers,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error retrieving available providers:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving available providers:',
+        error,
+      );
       throw new BadRequestException('Failed to retrieve available providers');
     }
   }
@@ -626,7 +758,8 @@ export class AdminService {
 
     try {
       // Get current provider before switching
-      const previousProvider = await this.providerManager.getCurrentProviderName();
+      const previousProvider =
+        await this.providerManager.getCurrentProviderName();
 
       // Validate provider
       if (!Object.values(WalletProvider).includes(provider as WalletProvider)) {
@@ -634,7 +767,9 @@ export class AdminService {
       }
 
       // Switch provider
-      const result = await this.providerManager.switchWalletProvider(provider as WalletProvider);
+      const result = await this.providerManager.switchWalletProvider(
+        provider as WalletProvider,
+      );
 
       console.log('✅ [ADMIN SERVICE] Wallet provider switched successfully');
 
@@ -644,9 +779,11 @@ export class AdminService {
         previousProvider,
         newProvider: provider,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error switching wallet provider:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error switching wallet provider:',
+        error,
+      );
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -664,31 +801,38 @@ export class AdminService {
     try {
       const providerName = await this.providerManager.getCurrentProviderName();
       const providers = await this.providerManager.getAvailableProviders();
-      const currentProvider = providers.find(p => p.name === providerName);
+      const currentProvider = providers.find((p) => p.name === providerName);
 
-      console.log('✅ [ADMIN SERVICE] Current provider retrieved:', providerName);
+      console.log(
+        '✅ [ADMIN SERVICE] Current provider retrieved:',
+        providerName,
+      );
 
       return {
         success: true,
         provider: currentProvider?.provider || 'SMEPLUG',
         name: providerName,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error getting current provider:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error getting current provider:',
+        error,
+      );
       throw new BadRequestException('Failed to get current provider');
     }
   }
 
   // ==================== POLARIS API TEST METHOD ====================
-  
+
   async testPolarisAccountCreation(testData: any) {
     console.log('🧪 [ADMIN SERVICE] Testing Polaris account creation API');
-    
+
     try {
       // Get the Polaris provider directly
-      const polarisProvider = await this.providerManager.getWalletProvider(WalletProvider.POLARIS);
-      
+      const polarisProvider = await this.providerManager.getWalletProvider(
+        WalletProvider.POLARIS,
+      );
+
       const walletData = {
         accountName: `${testData.firstName} ${testData.lastName}`,
         firstName: testData.firstName,
@@ -704,19 +848,21 @@ export class AdminService {
         bvn: testData.bvn,
       };
 
-      console.log('📋 [ADMIN SERVICE] Calling Polaris createWallet with data:', walletData);
-      
+      console.log(
+        '📋 [ADMIN SERVICE] Calling Polaris createWallet with data:',
+        walletData,
+      );
+
       const result = await polarisProvider.createWallet(walletData);
-      
+
       console.log('📄 [ADMIN SERVICE] Polaris API response:', result);
-      
+
       return {
         success: true,
         message: 'Polaris API test completed',
         apiResponse: result,
-        requestData: walletData
+        requestData: walletData,
       };
-      
     } catch (error) {
       console.error('❌ [ADMIN SERVICE] Polaris API test failed:', error);
       throw error;
@@ -729,7 +875,11 @@ export class AdminService {
       const parts = dateString.split('-');
       if (parts.length === 3) {
         // Check if it's DD-MM-YYYY format
-        if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+        if (
+          parts[0].length === 2 &&
+          parts[1].length === 2 &&
+          parts[2].length === 4
+        ) {
           return `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert to YYYY-MM-DD
         }
         // Already in YYYY-MM-DD format
@@ -751,14 +901,16 @@ export class AdminService {
   }
 
   // ==================== BUDPAY API TEST METHOD ====================
-  
+
   async testBudPayWalletCreation(testData: any) {
     console.log('🧪 [ADMIN SERVICE] Testing BudPay wallet creation API');
-    
+
     try {
       // Get the BudPay provider directly
-      const budPayProvider = await this.providerManager.getWalletProvider(WalletProvider.BUDPAY);
-      
+      const budPayProvider = await this.providerManager.getWalletProvider(
+        WalletProvider.BUDPAY,
+      );
+
       const walletData = {
         accountName: `${testData.firstName} ${testData.lastName}`,
         firstName: testData.firstName,
@@ -774,19 +926,21 @@ export class AdminService {
         bvn: testData.bvn,
       };
 
-      console.log('📋 [ADMIN SERVICE] Calling BudPay createWallet with data:', walletData);
-      
+      console.log(
+        '📋 [ADMIN SERVICE] Calling BudPay createWallet with data:',
+        walletData,
+      );
+
       const result = await budPayProvider.createWallet(walletData);
-      
+
       console.log('📄 [ADMIN SERVICE] BudPay API response:', result);
-      
+
       return {
         success: true,
         message: 'BudPay API test completed',
         apiResponse: result,
-        requestData: walletData
+        requestData: walletData,
       };
-      
     } catch (error) {
       console.error('❌ [ADMIN SERVICE] BudPay API test failed:', error);
       throw error;
@@ -814,9 +968,11 @@ export class AdminService {
         providers: providerInfo.availableProviders,
         isAdminConfigured: providerInfo.isAdminConfigured,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error retrieving transfer providers:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving transfer providers:',
+        error,
+      );
       throw new BadRequestException('Failed to retrieve transfer providers');
     }
   }
@@ -831,15 +987,20 @@ export class AdminService {
 
     try {
       // Get current provider before switching
-      const previousProvider = await this.transferProviderManager.getCurrentProviderName();
+      const previousProvider =
+        await this.transferProviderManager.getCurrentProviderName();
 
       // Validate provider
-      if (!Object.values(TransferProvider).includes(provider as TransferProvider)) {
+      if (
+        !Object.values(TransferProvider).includes(provider as TransferProvider)
+      ) {
         throw new BadRequestException(`Invalid transfer provider: ${provider}`);
       }
 
       // Switch provider
-      const result = await this.transferProviderManager.switchTransferProvider(provider as TransferProvider);
+      const result = await this.transferProviderManager.switchTransferProvider(
+        provider as TransferProvider,
+      );
 
       console.log('✅ [ADMIN SERVICE] Transfer provider switched successfully');
 
@@ -849,9 +1010,11 @@ export class AdminService {
         previousProvider,
         newProvider: provider,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error switching transfer provider:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error switching transfer provider:',
+        error,
+      );
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -869,16 +1032,21 @@ export class AdminService {
     try {
       const providerInfo = await this.transferProviderManager.getProviderInfo();
 
-      console.log('✅ [ADMIN SERVICE] Current transfer provider retrieved:', providerInfo.currentProvider);
+      console.log(
+        '✅ [ADMIN SERVICE] Current transfer provider retrieved:',
+        providerInfo.currentProvider,
+      );
 
       return {
         success: true,
         provider: providerInfo.currentProvider,
         isAdminConfigured: providerInfo.isAdminConfigured,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error getting current transfer provider:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error getting current transfer provider:',
+        error,
+      );
       throw new BadRequestException('Failed to get current transfer provider');
     }
   }
@@ -894,7 +1062,8 @@ export class AdminService {
     console.log('🧪 [ADMIN SERVICE] Testing bank list API');
 
     try {
-      const currentProvider = await this.transferProviderManager.getCurrentProviderName();
+      const currentProvider =
+        await this.transferProviderManager.getCurrentProviderName();
       const result = await this.transferProviderManager.getBankList();
 
       if (!result.success) {
@@ -909,19 +1078,22 @@ export class AdminService {
         bankCount: result.data?.length || 0,
         banks: result.data || [],
       };
-
     } catch (error) {
       console.error('❌ [ADMIN SERVICE] Bank list test failed:', error);
       throw new BadRequestException(`Bank list test failed: ${error.message}`);
     }
   }
 
-  async testAccountVerification(testData: { accountNumber: string; bankCode: string }) {
+  async testAccountVerification(testData: {
+    accountNumber: string;
+    bankCode: string;
+  }) {
     console.log('🧪 [ADMIN SERVICE] Testing account verification API');
     console.log('📋 [ADMIN SERVICE] Test data:', testData);
 
     try {
-      const currentProvider = await this.transferProviderManager.getCurrentProviderName();
+      const currentProvider =
+        await this.transferProviderManager.getCurrentProviderName();
       const result = await this.transferProviderManager.verifyAccount({
         accountNumber: testData.accountNumber,
         bankCode: testData.bankCode,
@@ -937,9 +1109,11 @@ export class AdminService {
         error: result.error,
         testData,
       };
-
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Account verification test failed:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Account verification test failed:',
+        error,
+      );
       return {
         success: false,
         provider: await this.transferProviderManager.getCurrentProviderName(),
@@ -962,11 +1136,12 @@ export class AdminService {
     console.log('📋 [ADMIN SERVICE] Test data:', testData);
 
     try {
-      const currentProvider = await this.transferProviderManager.getCurrentProviderName();
-      
+      const currentProvider =
+        await this.transferProviderManager.getCurrentProviderName();
+
       // Default narration following the new format: "FirstName LastInitial"
       const defaultNarration = 'Admin T';
-      
+
       // Create test transfer data
       const transferData = {
         amount: testData.amount,
@@ -985,7 +1160,8 @@ export class AdminService {
         },
       };
 
-      const result = await this.transferProviderManager.transferToBank(transferData);
+      const result =
+        await this.transferProviderManager.transferToBank(transferData);
 
       console.log('✅ [ADMIN SERVICE] Bank transfer test completed');
 
@@ -997,7 +1173,6 @@ export class AdminService {
         error: result.error,
         testData: transferData,
       };
-
     } catch (error) {
       console.error('❌ [ADMIN SERVICE] Bank transfer test failed:', error);
       return {
@@ -1009,4 +1184,403 @@ export class AdminService {
       };
     }
   }
-} 
+
+  /**
+   * Validate a specific wallet balance against transaction history
+   */
+  async validateWalletBalance(walletId: string) {
+    console.log('🔍 [ADMIN SERVICE] Validating wallet balance for:', walletId);
+
+    try {
+      const validation =
+        await this.walletService.validateWalletBalance(walletId);
+
+      console.log(
+        '✅ [ADMIN SERVICE] Wallet validation completed:',
+        validation.isValid ? 'VALID' : 'INVALID',
+      );
+
+      return validation;
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Wallet validation failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reconcile a specific wallet balance with transaction history
+   */
+  async reconcileWalletBalance(walletId: string) {
+    console.log('🔧 [ADMIN SERVICE] Reconciling wallet balance for:', walletId);
+
+    try {
+      const reconciliation =
+        await this.walletService.reconcileWalletBalance(walletId);
+
+      console.log('✅ [ADMIN SERVICE] Wallet reconciliation completed');
+
+      return reconciliation;
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Wallet reconciliation failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate all wallet balances
+   */
+  async validateAllWallets() {
+    console.log('🔍 [ADMIN SERVICE] Validating all wallet balances...');
+
+    try {
+      // Get all wallets
+      const wallets = await this.prisma.wallet.findMany({
+        include: {
+          user: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      console.log(
+        `🔍 [ADMIN SERVICE] Found ${wallets.length} wallets to validate`,
+      );
+
+      const validations = [];
+      let validCount = 0;
+      let invalidCount = 0;
+
+      for (const wallet of wallets) {
+        try {
+          const validation = await this.walletService.validateWalletBalance(
+            wallet.id,
+          );
+
+          validations.push({
+            walletId: wallet.id,
+            userId: wallet.userId,
+            userEmail: wallet.user.email,
+            userName: `${wallet.user.firstName} ${wallet.user.lastName}`,
+            virtualAccountNumber: wallet.virtualAccountNumber,
+            ...validation,
+          });
+
+          if (validation.isValid) {
+            validCount++;
+          } else {
+            invalidCount++;
+            console.warn(
+              `⚠️ [ADMIN SERVICE] Invalid wallet found: ${wallet.user.email} (${wallet.id})`,
+            );
+          }
+        } catch (error) {
+          console.error(
+            `❌ [ADMIN SERVICE] Error validating wallet ${wallet.id}:`,
+            error,
+          );
+          validations.push({
+            walletId: wallet.id,
+            userId: wallet.userId,
+            userEmail: wallet.user.email,
+            userName: `${wallet.user.firstName} ${wallet.user.lastName}`,
+            virtualAccountNumber: wallet.virtualAccountNumber,
+            isValid: false,
+            error: error.message,
+          });
+          invalidCount++;
+        }
+      }
+
+      console.log(
+        `✅ [ADMIN SERVICE] Validation complete: ${validCount} valid, ${invalidCount} invalid`,
+      );
+
+      return {
+        totalWallets: wallets.length,
+        validWallets: validCount,
+        invalidWallets: invalidCount,
+        validations: validations.sort((a, b) =>
+          a.isValid === b.isValid ? 0 : a.isValid ? 1 : -1,
+        ), // Invalid first
+      };
+    } catch (error) {
+      console.error(
+        '❌ [ADMIN SERVICE] Failed to validate all wallets:',
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Reset wallet balance to zero and clear associated transactions
+   */
+  async resetWalletBalance(walletId: string) {
+    console.log('🔄 [ADMIN SERVICE] Resetting wallet balance for:', walletId);
+    console.warn(
+      '⚠️ [ADMIN SERVICE] WARNING: This will permanently delete transactions and reset balance to 0',
+    );
+
+    try {
+      // Get wallet details first
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { id: walletId },
+        include: {
+          user: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      if (!wallet) {
+        throw new Error(`Wallet with ID ${walletId} not found`);
+      }
+
+      console.log(
+        `👤 [ADMIN SERVICE] Resetting wallet for: ${wallet.user.email}`,
+      );
+      console.log(`💰 [ADMIN SERVICE] Current balance: ₦${wallet.balance}`);
+
+      // Use database transaction for atomicity
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Get all transactions for this wallet
+        const transactions = await tx.walletTransaction.findMany({
+          where: {
+            OR: [{ senderWalletId: walletId }, { receiverWalletId: walletId }],
+          },
+        });
+
+        console.log(
+          `🗑️ [ADMIN SERVICE] Found ${transactions.length} transactions to delete`,
+        );
+
+        // Delete all transactions for this wallet
+        await tx.walletTransaction.deleteMany({
+          where: {
+            OR: [{ senderWalletId: walletId }, { receiverWalletId: walletId }],
+          },
+        });
+
+        // Clear webhook logs for this wallet's account number
+        const webhookLogs = await tx.webhookLog.findMany({
+          where: {
+            accountNumber: wallet.virtualAccountNumber,
+          },
+        });
+
+        console.log(
+          `🗑️ [ADMIN SERVICE] Found ${webhookLogs.length} webhook logs to clear`,
+        );
+
+        await tx.webhookLog.deleteMany({
+          where: {
+            accountNumber: wallet.virtualAccountNumber,
+          },
+        });
+
+        // Reset wallet balance to 0
+        const updatedWallet = await tx.wallet.update({
+          where: { id: walletId },
+          data: {
+            balance: 0,
+            lastTransactionAt: null,
+          },
+        });
+
+        return {
+          wallet: updatedWallet,
+          deletedTransactions: transactions.length,
+          deletedWebhookLogs: webhookLogs.length,
+          oldBalance: wallet.balance,
+          newBalance: 0,
+        };
+      });
+
+      console.log('✅ [ADMIN SERVICE] Wallet reset completed successfully');
+      console.log(
+        `💰 [ADMIN SERVICE] Balance: ₦${result.oldBalance} → ₦${result.newBalance}`,
+      );
+      console.log(
+        `🗑️ [ADMIN SERVICE] Deleted ${result.deletedTransactions} transactions`,
+      );
+      console.log(
+        `🗑️ [ADMIN SERVICE] Deleted ${result.deletedWebhookLogs} webhook logs`,
+      );
+
+      return {
+        message: 'Wallet balance reset successfully',
+        userEmail: wallet.user.email,
+        walletId: wallet.id,
+        accountNumber: wallet.virtualAccountNumber,
+        oldBalance: result.oldBalance,
+        newBalance: result.newBalance,
+        deletedTransactions: result.deletedTransactions,
+        deletedWebhookLogs: result.deletedWebhookLogs,
+      };
+    } catch (error) {
+      console.error(
+        '❌ [ADMIN SERVICE] Failed to reset wallet balance:',
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Reset wallet balance by account number
+   */
+  async resetWalletByAccountNumber(accountNumber: string) {
+    console.log(
+      '🔄 [ADMIN SERVICE] Finding wallet by account number:',
+      accountNumber,
+    );
+
+    try {
+      // Find wallet by account number
+      const wallet = await this.prisma.wallet.findFirst({
+        where: {
+          virtualAccountNumber: accountNumber,
+        },
+        include: {
+          user: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      if (!wallet) {
+        throw new Error(
+          `No wallet found with account number: ${accountNumber}`,
+        );
+      }
+
+      console.log(`✅ [ADMIN SERVICE] Found wallet for: ${wallet.user.email}`);
+
+      // Use the existing reset method
+      return this.resetWalletBalance(wallet.id);
+    } catch (error) {
+      console.error(
+        '❌ [ADMIN SERVICE] Failed to reset wallet by account number:',
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async createFeeConfiguration(dto: CreateFeeConfigurationDto) {
+    return this.prisma.feeConfiguration.create({
+      data: dto,
+    });
+  }
+
+  async updateFeeConfiguration(id: string, dto: UpdateFeeConfigurationDto) {
+    return this.prisma.feeConfiguration.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  async getFeeConfigurations() {
+    return this.prisma.feeConfiguration.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getFeeConfiguration(id: string) {
+    return this.prisma.feeConfiguration.findUnique({
+      where: { id },
+    });
+  }
+
+  async deleteFeeConfiguration(id: string) {
+    return this.prisma.feeConfiguration.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * Get provider-specific funding fees
+   */
+  async getFundingFees() {
+    const fundingFees = await this.prisma.feeConfiguration.findMany({
+      where: {
+        OR: [
+          { feeType: FeeType.FUNDING },
+          { feeType: FeeType.FUNDING_BUDPAY },
+          { feeType: FeeType.FUNDING_SMEPLUG },
+          { feeType: FeeType.FUNDING_POLARIS },
+        ],
+      },
+      orderBy: { feeType: 'asc' },
+    });
+
+    return fundingFees;
+  }
+
+  /**
+   * Create or update funding fee for a specific provider
+   */
+  async setProviderFundingFee(
+    provider: string,
+    dto: CreateFeeConfigurationDto,
+  ) {
+    const feeType = `FUNDING_${provider.toUpperCase()}` as FeeType;
+
+    // Check if fee configuration already exists
+    const existing = await this.prisma.feeConfiguration.findUnique({
+      where: { feeType: feeType },
+    });
+
+    if (existing) {
+      // Update existing
+      return this.prisma.feeConfiguration.update({
+        where: { id: existing.id },
+        data: {
+          ...dto,
+          feeType: feeType,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      // Create new
+      return this.prisma.feeConfiguration.create({
+        data: {
+          ...dto,
+          feeType: feeType,
+        },
+      });
+    }
+  }
+
+  /**
+   * Get funding fee for a specific provider
+   */
+  async getProviderFundingFee(provider: string) {
+    const feeType = `FUNDING_${provider.toUpperCase()}` as FeeType;
+
+    const feeConfig = await this.prisma.feeConfiguration.findUnique({
+      where: { feeType: feeType },
+    });
+
+    if (!feeConfig) {
+      // Fallback to generic FUNDING fee
+      return this.prisma.feeConfiguration.findUnique({
+        where: { feeType: FeeType.FUNDING },
+      });
+    }
+
+    return feeConfig;
+  }
+}

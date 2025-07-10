@@ -7,14 +7,9 @@ import { BudPayModule } from '../providers/budpay/budpay.module';
 import { SmePlugModule } from '../providers/smeplug/smeplug.module';
 
 @Module({
-  imports: [
-    ConfigModule, 
-    WalletModule,
-    BudPayModule,
-    SmePlugModule,
-  ],
+  imports: [ConfigModule, WalletModule, BudPayModule, SmePlugModule],
   controllers: [AdminController],
   providers: [AdminService],
   exports: [AdminService],
 })
-export class AdminModule {} 
+export class AdminModule {}

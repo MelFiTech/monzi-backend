@@ -13,4 +13,4 @@ import { PolarisWalletProvider } from './polaris-wallet.provider';
   providers: [PolarisWalletProvider],
   exports: [PolarisWalletProvider],
 })
-export class PolarisModule {} 
+export class PolarisModule {}

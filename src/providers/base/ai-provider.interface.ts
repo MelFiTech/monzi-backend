@@ -24,5 +24,7 @@ export interface SelfieVerificationResult {
 }
 
 export interface IAiProvider {
-  verifySelfie(request: SelfieVerificationRequest): Promise<SelfieVerificationResult>;
-} 
+  verifySelfie(
+    request: SelfieVerificationRequest,
+  ): Promise<SelfieVerificationResult>;
+}
