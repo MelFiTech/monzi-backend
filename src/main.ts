@@ -4,10 +4,13 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  try {
+    const app = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn', 'log'],
+    });
 
-  // Enable CORS
-  app.enableCors();
+    // Enable CORS
+    app.enableCors();
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -18,59 +21,31 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger configuration
-  const config = new DocumentBuilder()
-    .setTitle('Monzi Backend API')
-    .setDescription(
-      `
-🚀 **Monzi Backend** - AI-Powered Financial Transaction API
+    // Swagger configuration (simplified for production)
+    if (process.env.NODE_ENV !== 'production') {
+      const config = new DocumentBuilder()
+        .setTitle('Monzi Backend API')
+        .setDescription('AI-Powered Financial Transaction API')
+        .setVersion('1.0')
+        .addBearerAuth()
+        .build();
 
-    ## Features
-    - 🔐 **Authentication**: PIN & Biometric authentication
-    - 📸 **OCR Processing**: Extract transaction data from images
-    - 🤖 **AI Assistant**: Natural language transaction queries
-    - 💳 **Transactions**: Send money and track history
-    - 🏦 **Account Resolution**: Verify bank account details
-    
-    ## AI Prompt Examples
-    - "Show my last 3 GTBank transfers"
-    - "Find payments over 10,000 to John"
-    - "Total spent this month"
-    
-    ## Getting Started
-    1. Register a new account with \`/auth/register\`
-    2. Login with \`/auth/login\` to get your access token
-    3. Use the token in the "Authorize" button above
-    4. Try OCR with \`/ocr/extract\` or AI queries with \`/ai/query\`
-    `,
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('Authentication', 'User registration, login, and PIN verification')
-    .addTag('OCR', 'Image processing and text extraction')
-    .addTag('AI Assistant', 'Natural language transaction queries')
-    .addTag('Transactions', 'Money transfers and transaction history')
-    .addTag('Accounts', 'Bank account resolution and verification')
-    .build();
+      const document = SwaggerModule.createDocument(app, config);
+      SwaggerModule.setup('api', app, document);
+    }
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document, {
-    customSiteTitle: 'Monzi API Documentation',
-    customfavIcon: 'https://nestjs.com/img/logo_text.svg',
-    customJs: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
-    ],
-    customCssUrl: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
-    ],
-  });
+    const port = process.env.PORT || 3000;
+    await app.listen(port);
 
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-
-  console.log(`🚀 Monzi Backend running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api`);
+    console.log(`🚀 Monzi Backend running on: http://localhost:${port}`);
+    console.log(`📚 API Documentation: http://localhost:${port}/api`);
+  } catch (error) {
+    console.error('❌ Failed to start application:', error);
+    process.exit(1);
+  }
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('❌ Bootstrap failed:', error);
+  process.exit(1);
+});

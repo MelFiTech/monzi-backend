@@ -3,13 +3,18 @@ services:
     name: monzi-backend
     env: node
     plan: starter
-    buildCommand: npm run build:prod
+    buildCommand: npm ci && npm run build:prod
     startCommand: npm run start:prod
-    envVars:
+    region: oregon
+          envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=1024"
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
       - key: APP_URL
         value: https://monzi-backend.onrender.com
       - key: DATABASE_URL
@@ -22,6 +27,8 @@ services:
         value: 7d
       - key: EXPO_ACCESS_TOKEN
         value: wzQnEctygxQ3g5Ci5a23wdhattwbEMgmKwiAv3tt
+      - key: ALLOW_FIXED_OTP
+        value: "true"
 
 databases:
   - name: monzi-backend-db
