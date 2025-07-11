@@ -3,8 +3,8 @@ services:
     name: monzi-backend
     env: node
     plan: starter
-    buildCommand: npm ci && npm run build:prod
-    startCommand: npm run start:prod
+    buildCommand: yarn install --frozen-lockfile && yarn build:prod
+    startCommand: yarn start:prod
     region: oregon
     envVars:
       - key: NODE_ENV
