@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ExtractTextDto, OcrResponseDto, UploadImageDto } from './dto/ocr.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { Express } from 'express-serve-static-core';
 
 @ApiTags('OCR')
 @Controller('ocr')

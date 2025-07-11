@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExtractTextDto, ProcessedOcrDataDto } from './dto/ocr.dto';
+import { Express } from 'express-serve-static-core';
 
 @Injectable()
 export class OcrService {

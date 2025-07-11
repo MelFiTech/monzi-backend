@@ -15,6 +15,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import { Express } from 'express-serve-static-core';
 
 @Injectable()
 export class KycService {

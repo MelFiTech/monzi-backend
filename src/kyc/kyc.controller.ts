@@ -27,6 +27,7 @@ import {
 } from './dto/kyc.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { Express } from 'express-serve-static-core';
 
 @ApiTags('KYC')
 @Controller('kyc')
