@@ -8,7 +8,7 @@
   "scripts": {
     "build": "prisma generate && nest build && npm run postbuild",
     "build:prod": "prisma generate && nest build && npm run postbuild",
-    "postbuild": "echo \"module.exports = require('./src/main');\" > dist/main.js",
+    "postbuild": "echo \"module.exports = require('./src/main.js');\" > dist/main.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node --max-old-space-size=1024 dist/main.js",
     "start:dev": "prisma generate && nest start --watch",
