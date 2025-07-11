@@ -6,7 +6,7 @@ services:
     buildCommand: npm ci && npm run build:prod
     startCommand: npm run start:prod
     region: oregon
-          envVars:
+    envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -32,4 +32,4 @@ services:
 
 databases:
   - name: monzi-backend-db
-    plan: starter 
+    plan: starter
