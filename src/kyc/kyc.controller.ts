@@ -27,7 +27,19 @@ import {
 } from './dto/kyc.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { Express } from 'express-serve-static-core';
+
+// Type definition for multer file
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+  destination?: string;
+  filename?: string;
+  path?: string;
+}
 
 @ApiTags('KYC')
 @Controller('kyc')
@@ -100,7 +112,7 @@ export class KycController {
     }),
   )
   async uploadSelfie(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @Request() req,
   ) {
     console.log('📸 [KYC API] POST /kyc/upload-selfie - Request received');

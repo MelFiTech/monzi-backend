@@ -22,7 +22,19 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ExtractTextDto, OcrResponseDto, UploadImageDto } from './dto/ocr.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { Express } from 'express-serve-static-core';
+
+// Type definition for multer file
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+  destination?: string;
+  filename?: string;
+  path?: string;
+}
 
 @ApiTags('OCR')
 @Controller('ocr')
@@ -63,7 +75,7 @@ export class OcrController {
     }),
   )
   async uploadImage(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @Request() req,
     @Body() uploadImageDto: UploadImageDto,
   ) {

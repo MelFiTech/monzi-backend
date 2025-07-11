@@ -15,7 +15,19 @@ import {
 import * as bcrypt from 'bcrypt';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import { Express } from 'express-serve-static-core';
+
+// Type definition for multer file
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+  destination?: string;
+  filename?: string;
+  path?: string;
+}
 
 @Injectable()
 export class KycService {
@@ -250,7 +262,7 @@ export class KycService {
    * Upload and verify selfie with Gemini AI
    */
   async uploadSelfie(
-    file: Express.Multer.File,
+    file: MulterFile,
     userId: string,
   ): Promise<SelfieUploadResponseDto> {
     try {

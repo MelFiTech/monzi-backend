@@ -1,13 +1,25 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExtractTextDto, ProcessedOcrDataDto } from './dto/ocr.dto';
-import { Express } from 'express-serve-static-core';
+
+// Type definition for multer file
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+  destination?: string;
+  filename?: string;
+  path?: string;
+}
 
 @Injectable()
 export class OcrService {
   constructor(private prisma: PrismaService) {}
 
-  async processImage(file: Express.Multer.File, userId: string) {
+  async processImage(file: MulterFile, userId: string) {
     if (!file) {
       throw new BadRequestException('No image file provided');
     }
