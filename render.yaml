@@ -4,7 +4,7 @@ services:
     env: node
     plan: starter
     buildCommand: yarn install --frozen-lockfile && yarn build:prod
-    startCommand: yarn start:prod
+    startCommand: node --max-old-space-size=1024 ../dist/src/main.js
     region: oregon
     envVars:
       - key: NODE_ENV
