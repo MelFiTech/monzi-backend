@@ -6,8 +6,8 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "NODE_ENV=production NPM_CONFIG_PRODUCTION=false prisma generate && nest build",
-    "build:prod": "NODE_ENV=production NPM_CONFIG_PRODUCTION=false prisma generate && nest build",
+    "build": "prisma generate && nest build",
+    "build:prod": "prisma generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node --max-old-space-size=1024 dist/src/main.js",
     "start:dev": "prisma generate && nest start --watch",
