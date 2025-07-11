@@ -3,7 +3,7 @@ services:
     name: monzi-backend
     env: node
     plan: starter
-    buildCommand: yarn install --frozen-lockfile && yarn build:prod
+    buildCommand: yarn install && yarn build:prod
     startCommand: node --max-old-space-size=1024 ../dist/src/main.js
     region: oregon
     envVars:
