@@ -34,38 +34,37 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({
-    summary: 'Register new account',
+    summary: 'Register new user account',
     description:
-      'Step 1: Create new account with email, Nigerian phone number (+234XXXXXXXXXX), gender, date of birth, and 6-digit numeric passcode. SMS OTP will be sent for verification.',
+      'Step 1: Register a new user account. This will create the user and send a 6-digit OTP to their email for verification.',
   })
   @ApiResponse({
     status: 201,
-    description: 'Registration successful, SMS OTP sent',
+    description: 'User registered successfully, Email OTP sent',
     type: RegisterResponseDto,
   })
   @ApiResponse({
-    status: 409,
-    description: 'Account with email or phone already exists',
-  })
-  @ApiResponse({
     status: 400,
-    description: 'Invalid registration data',
+    description: 'Registration failed - validation errors or user already exists',
   })
   async register(
     @Body() registerDto: RegisterDto,
   ): Promise<RegisterResponseDto> {
-    console.log('📝 [AUTH API] POST /auth/register - New registration');
-    console.log('📋 Request Data:', {
-      email: registerDto.email,
-      phone: registerDto.phone,
-      gender: registerDto.gender,
-      dateOfBirth: registerDto.dateOfBirth,
-    });
+    console.log('🔍 [AUTH API] POST /auth/register - New registration');
+    console.log('📧 Email:', registerDto.email);
+    console.log('📱 Phone:', registerDto.phone);
+    console.log('👤 Gender:', registerDto.gender);
+    console.log('🎂 DOB:', registerDto.dateOfBirth);
 
     const result = await this.authService.register(registerDto);
 
     console.log('✅ [AUTH API] Registration successful');
-    console.log('📄 Response Data:', result);
+    console.log('📄 Response Data:', {
+      success: result.success,
+      message: result.message,
+      email: result.email,
+      otpExpiresAt: result.otpExpiresAt,
+    });
 
     return result;
   }
@@ -102,9 +101,9 @@ export class AuthController {
 
   @Post('verify-otp')
   @ApiOperation({
-    summary: 'Verify SMS OTP',
+    summary: 'Verify Email OTP',
     description:
-      'Step 3: Verify the 6-digit OTP code sent via SMS to complete account verification and automatically login',
+      'Step 3: Verify the 6-digit OTP code sent via email to complete account verification and automatically login',
   })
   @ApiResponse({
     status: 200,
@@ -123,7 +122,7 @@ export class AuthController {
     @Body() verifyOtpDto: VerifyOtpDto,
   ): Promise<AuthResponseDto> {
     console.log('🔍 [AUTH API] POST /auth/verify-otp - OTP verification');
-    console.log('📱 Phone:', verifyOtpDto.phone);
+    console.log('📧 Email:', verifyOtpDto.email);
     console.log('🔑 OTP:', verifyOtpDto.otpCode);
 
     const result = await this.authService.verifyOtp(verifyOtpDto);
@@ -139,31 +138,37 @@ export class AuthController {
 
   @Post('resend-otp')
   @ApiOperation({
-    summary: 'Resend SMS OTP',
+    summary: 'Resend Email OTP',
     description:
-      'Resend OTP code via SMS if the previous one expired or was not received',
+      'Resend the 6-digit OTP code to the user\'s email if they didn\'t receive it or if it expired',
   })
   @ApiResponse({
     status: 200,
-    description: 'SMS OTP resent successfully',
+    description: 'Email OTP resent successfully',
     type: OtpResponseDto,
   })
   @ApiResponse({
     status: 400,
-    description: 'Account already verified or other error',
+    description: 'Cannot resend OTP - user already verified or other error',
   })
   @ApiResponse({
     status: 404,
     description: 'User not found',
   })
-  async resendOtp(@Body() resendOtpDto: ResendOtpDto): Promise<OtpResponseDto> {
-    console.log('🔄 [AUTH API] POST /auth/resend-otp - Resending OTP');
-    console.log('📱 Phone:', resendOtpDto.phone);
+  async resendOtp(
+    @Body() resendOtpDto: ResendOtpDto,
+  ): Promise<OtpResponseDto> {
+    console.log('🔍 [AUTH API] POST /auth/resend-otp - Resend OTP');
+    console.log('📧 Email:', resendOtpDto.email);
 
     const result = await this.authService.resendOtp(resendOtpDto);
 
     console.log('✅ [AUTH API] OTP resent successfully');
-    console.log('📄 Response Data:', result);
+    console.log('📄 Response Data:', {
+      success: result.success,
+      message: result.message,
+      expiresAt: result.expiresAt,
+    });
 
     return result;
   }

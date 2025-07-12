@@ -156,8 +156,8 @@ export class EmailService {
 
       const templateVariables = {
         name: dto.name,
-        otpCode: dto.otpCode,
-        expirationMinutes: dto.expirationMinutes || '5',
+        otp: dto.otpCode, // Template expects 'otp', not 'otpCode'
+        expirationTime: dto.expirationMinutes || '15', // Template expects 'expirationTime', not 'expirationMinutes'
       };
 
       const htmlContent = this.replaceTemplateVariables(template, templateVariables);

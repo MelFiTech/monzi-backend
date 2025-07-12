@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
+import * as bcrypt from 'bcrypt';
 import {
   RegisterDto,
   LoginDto,
@@ -15,56 +17,52 @@ import {
   RegisterResponseDto,
   OtpResponseDto,
   AuthResponseDto,
+  UserProfileDto,
 } from './dto/auth.dto';
-import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   // Step 1: Register new account
   async register(registerDto: RegisterDto): Promise<RegisterResponseDto> {
     const { email, phone, gender, dateOfBirth, passcode } = registerDto;
 
-    console.log('📝 [AUTH] New registration attempt');
-    console.log('📧 Email:', email);
-    console.log('📱 Phone:', phone);
-    console.log('👤 Gender:', gender);
-    console.log('🎂 DOB:', dateOfBirth);
+    console.log('🔍 [AUTH] Registration request:', { email, phone, gender, dateOfBirth });
 
     // Check if user already exists
     const existingUser = await this.prisma.user.findFirst({
       where: {
-        OR: [{ email }, { phone }],
+        OR: [
+          { email },
+          { phone },
+        ],
       },
     });
 
     if (existingUser) {
       if (existingUser.email === email) {
-        throw new ConflictException(
-          'An account with this email already exists',
-        );
+        throw new BadRequestException('Account with this email already exists');
       }
       if (existingUser.phone === phone) {
-        throw new ConflictException(
-          'An account with this phone number already exists',
-        );
+        throw new BadRequestException('Account with this phone number already exists');
       }
     }
 
     // Hash the passcode
-    const hashedPasscode = await bcrypt.hash(passcode, 12);
+    const hashedPasscode = await bcrypt.hash(passcode, 10);
 
-    // Generate 6-digit OTP
+    // Generate OTP
     const otpCode = this.generateOtp();
-    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     try {
       // Create user with all required information
-      await this.prisma.user.create({
+      const user = await this.prisma.user.create({
         data: {
           email,
           phone,
@@ -78,15 +76,15 @@ export class AuthService {
         },
       });
 
-      // Send SMS OTP (for now, we'll log it - integrate SMS service in production)
-      await this.sendSmsOtp(phone, otpCode);
+      // Send Email OTP
+      await this.sendEmailOtp(email, otpCode, user.id);
 
-      console.log('✅ [AUTH] User registered successfully, SMS OTP sent');
+      console.log('✅ [AUTH] User registered successfully, Email OTP sent');
 
       return {
         success: true,
-        message: 'Registration successful. SMS OTP sent to your phone.',
-        phone,
+        message: 'Registration successful. Email OTP sent to your email.',
+        email,
         otpExpiresAt: otpExpiresAt.toISOString(),
       };
     } catch (error) {
@@ -143,18 +141,18 @@ export class AuthService {
     };
   }
 
-  // Step 3: Verify SMS OTP
+  // Step 3: Verify Email OTP
   async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<AuthResponseDto> {
-    const { phone, otpCode } = verifyOtpDto;
+    const { email, otpCode } = verifyOtpDto;
 
-    console.log('🔍 [AUTH] OTP verification for phone:', phone);
+    console.log('🔍 [AUTH] OTP verification for email:', email);
 
     const user = await this.prisma.user.findUnique({
-      where: { phone },
+      where: { email },
     });
 
     if (!user) {
-      throw new NotFoundException('User not found with this phone number');
+      throw new NotFoundException('User not found with this email address');
     }
 
     if (!user.otpCode || !user.otpExpiresAt) {
@@ -179,7 +177,7 @@ export class AuthService {
 
     // Mark as verified and onboarded, clear OTP
     const updatedUser = await this.prisma.user.update({
-      where: { phone },
+      where: { email },
       data: {
         isVerified: true,
         isOnboarded: true,
@@ -208,18 +206,18 @@ export class AuthService {
     };
   }
 
-  // Resend SMS OTP
+  // Resend Email OTP
   async resendOtp(resendOtpDto: ResendOtpDto): Promise<OtpResponseDto> {
-    const { phone } = resendOtpDto;
+    const { email } = resendOtpDto;
 
-    console.log('🔄 [AUTH] Resending OTP to phone:', phone);
+    console.log('🔄 [AUTH] Resending OTP to email:', email);
 
     const user = await this.prisma.user.findUnique({
-      where: { phone },
+      where: { email },
     });
 
     if (!user) {
-      throw new NotFoundException('User not found with this phone number');
+      throw new NotFoundException('User not found with this email address');
     }
 
     if (user.isVerified) {
@@ -228,25 +226,25 @@ export class AuthService {
 
     // Generate new OTP
     const otpCode = this.generateOtp();
-    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     // Update user with new OTP
     await this.prisma.user.update({
-      where: { phone },
+      where: { email },
       data: {
         otpCode,
         otpExpiresAt,
       },
     });
 
-    // Send SMS OTP
-    await this.sendSmsOtp(phone, otpCode);
+    // Send Email OTP
+    await this.sendEmailOtp(email, otpCode, user.id);
 
     console.log('✅ [AUTH] OTP resent successfully');
 
     return {
       success: true,
-      message: 'SMS OTP resent successfully',
+      message: 'Email OTP resent successfully',
       expiresAt: otpExpiresAt.toISOString(),
     };
   }
@@ -256,27 +254,30 @@ export class AuthService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  private async sendSmsOtp(phone: string, otpCode: string): Promise<void> {
-    console.log('📱 [SMS SERVICE] Sending OTP to:', phone);
-    console.log('🔑 [SMS SERVICE] OTP Code:', otpCode);
+  private async sendEmailOtp(email: string, otpCode: string, userId: string): Promise<void> {
+    console.log('📧 [EMAIL SERVICE] Sending OTP to:', email);
+    console.log('🔑 [EMAIL SERVICE] OTP Code:', otpCode);
 
-    // TODO: Integrate with actual SMS service (Twilio, AWS SNS, or Nigerian SMS provider)
-    // For now, we'll just log it for development
-    console.log(`🚀 SMS OTP for ${phone}: ${otpCode}`);
-
-    // In production, replace this with actual SMS service call:
-    /*
     try {
-      await smsService.send({
-        to: phone,
-        message: `Your Monzi verification code is: ${otpCode}. Valid for 5 minutes.`,
+      // Get user name for email personalization
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
       });
-      console.log('✅ [SMS SERVICE] OTP sent successfully');
+
+      // Use email service to send OTP with correct template variables
+      await this.emailService.sendOtpEmail({
+        email,
+        name: user?.email.split('@')[0] || 'User',
+        otpCode,
+        expirationMinutes: '15',
+      });
+
+      console.log('✅ [EMAIL SERVICE] OTP sent successfully');
     } catch (error) {
-      console.error('❌ [SMS SERVICE] Failed to send OTP:', error);
-      throw new BadRequestException('Failed to send SMS OTP');
+      console.error('❌ [EMAIL SERVICE] Failed to send OTP:', error);
+      throw new BadRequestException('Failed to send Email OTP');
     }
-    */
   }
 
   // JWT validation

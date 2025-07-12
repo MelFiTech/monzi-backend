@@ -82,22 +82,18 @@ export class LoginDto {
   passcode: string;
 }
 
-// Step 3: Verify SMS OTP
+// Step 3: Verify Email OTP
 export class VerifyOtpDto {
   @ApiProperty({
-    example: '+2348123456789',
-    description: 'Phone number where OTP was sent',
+    example: 'user@example.com',
+    description: 'Email address where OTP was sent',
   })
-  @IsString()
-  @Matches(/^\+234[789][01]\d{8}$/, {
-    message:
-      'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits',
-  })
-  phone: string;
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  email: string;
 
   @ApiProperty({
     example: '123456',
-    description: '6-digit OTP code received via SMS',
+    description: '6-digit OTP code received via email',
   })
   @IsString()
   @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
@@ -108,15 +104,11 @@ export class VerifyOtpDto {
 // Resend OTP
 export class ResendOtpDto {
   @ApiProperty({
-    example: '+2348123456789',
-    description: 'Phone number to resend OTP to',
+    example: 'user@example.com',
+    description: 'Email address to resend OTP to',
   })
-  @IsString()
-  @Matches(/^\+234[789][01]\d{8}$/, {
-    message:
-      'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits',
-  })
-  phone: string;
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  email: string;
 }
 
 // Response DTOs
@@ -125,16 +117,16 @@ export class RegisterResponseDto {
   success: boolean;
 
   @ApiProperty({
-    example: 'Registration successful. SMS OTP sent to your phone.',
+    example: 'Registration successful. Email OTP sent to your email.',
     description: 'Response message',
   })
   message: string;
 
   @ApiProperty({
-    example: '+2348123456789',
-    description: 'Phone number where OTP was sent',
+    example: 'user@example.com',
+    description: 'Email address where OTP was sent',
   })
-  phone: string;
+  email: string;
 
   @ApiProperty({
     example: '2024-01-01T12:05:00Z',
@@ -148,7 +140,7 @@ export class OtpResponseDto {
   success: boolean;
 
   @ApiProperty({
-    example: 'SMS OTP sent successfully',
+    example: 'Email OTP sent successfully',
     description: 'Response message',
   })
   message: string;
