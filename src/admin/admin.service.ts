@@ -40,6 +40,8 @@ import {
   DashboardUserStatsDto,
   DashboardTransactionStatsDto,
   DashboardWalletStatsDto,
+  DeleteUserDto,
+  DeleteUserResponse,
 } from './dto/admin.dto';
 import { KycStatus, Prisma, FeeType as PrismaFeeType } from '@prisma/client';
 
@@ -1812,6 +1814,127 @@ export class AdminService {
     }
   }
 
+  async deleteUser(deleteUserDto: DeleteUserDto): Promise<DeleteUserResponse> {
+    console.log('🗑️ [ADMIN SERVICE] Deleting user with criteria:', deleteUserDto);
+
+    try {
+      // Find the user first
+      const whereClause: any = {};
+      if (deleteUserDto.userId) {
+        whereClause.id = deleteUserDto.userId;
+      } else if (deleteUserDto.email) {
+        whereClause.email = deleteUserDto.email;
+      }
+
+      const user = await this.prisma.user.findUnique({
+        where: whereClause,
+        select: {
+          id: true,
+          email: true,
+          wallet: {
+            select: {
+              id: true,
+              virtualAccountNumber: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      console.log('👤 [ADMIN SERVICE] Found user to delete:', user.email);
+
+      // Use transaction to ensure all related data is deleted properly
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // Count transactions before deletion
+        const transactionCount = await prisma.transaction.count({
+          where: { userId: user.id },
+        });
+
+        // Delete all related records first (due to foreign key constraints)
+        
+        // Delete push tokens
+        await prisma.pushToken.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Delete AI approvals
+        await prisma.aiApproval.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Delete AI queries
+        await prisma.aiQuery.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Delete OCR scans
+        await prisma.ocrScan.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Delete wallet transactions (if wallet exists)
+        if (user.wallet) {
+          await prisma.walletTransaction.deleteMany({
+            where: {
+              OR: [
+                { senderWalletId: user.wallet.id },
+                { receiverWalletId: user.wallet.id },
+              ],
+            },
+          });
+        }
+
+        // Delete transactions
+        await prisma.transaction.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Delete wallet (if exists)
+        const walletDeleted = user.wallet !== null;
+        if (user.wallet) {
+          await prisma.wallet.delete({
+            where: { id: user.wallet.id },
+          });
+        }
+
+        // Finally, delete the user
+        await prisma.user.delete({
+          where: { id: user.id },
+        });
+
+        console.log('✅ [ADMIN SERVICE] User and all related data deleted successfully');
+        console.log('📊 [ADMIN SERVICE] Deleted:', {
+          user: user.email,
+          wallet: walletDeleted,
+          transactions: transactionCount,
+        });
+
+        return {
+          walletDeleted,
+          transactionsDeleted: transactionCount,
+        };
+      });
+
+      return {
+        success: true,
+        message: 'User deleted successfully',
+        deletedUserId: user.id,
+        deletedUserEmail: user.email,
+        walletDeleted: result.walletDeleted,
+        transactionsDeleted: result.transactionsDeleted,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error deleting user:', error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to delete user');
+    }
+  }
+
   async getUserStats(): Promise<AdminUserStatsDto> {
     console.log('📊 [ADMIN SERVICE] Retrieving user statistics');
 
@@ -1967,7 +2090,7 @@ export class AdminService {
         reference: tx.reference,
         description: tx.description,
         fee: (tx.metadata as any)?.fee || 0,
-        providerReference: (tx.metadata as any)?.provider_reference || null,
+        providerReference: (tx.metadata as any)?.providerReference || null,
         createdAt: tx.createdAt.toISOString(),
         updatedAt: tx.updatedAt.toISOString(),
         user: tx.user,
@@ -1978,7 +2101,12 @@ export class AdminService {
               bankName: tx.fromAccount.bankName,
               bankCode: tx.fromAccount.bankCode,
             }
-          : undefined,
+          : (tx.metadata as any)?.provider ? {
+              accountNumber: (tx.metadata as any)?.accountNumber || '',
+              accountName: 'External Account',
+              bankName: `${(tx.metadata as any)?.provider} Provider`,
+              bankCode: (tx.metadata as any)?.provider || '',
+            } : undefined,
         receiver: tx.toAccount
           ? {
               accountNumber: tx.toAccount.accountNumber,
@@ -1986,7 +2114,12 @@ export class AdminService {
               bankName: tx.toAccount.bankName,
               bankCode: tx.toAccount.bankCode,
             }
-          : undefined,
+          : (tx.metadata as any)?.recipientBank ? {
+              accountNumber: (tx.metadata as any)?.recipientAccount || '',
+              accountName: (tx.metadata as any)?.recipientName || '',
+              bankName: (tx.metadata as any)?.recipientBank || '',
+              bankCode: (tx.metadata as any)?.bankCode || '',
+            } : undefined,
       }));
 
       // Calculate stats
@@ -1997,7 +2130,7 @@ export class AdminService {
             where: whereClause,
           })
         )._sum.amount || 0,
-        totalFees: 0, // Fees are stored in metadata, would need custom calculation
+        totalFees: adminTransactions.reduce((sum, tx) => sum + tx.fee, 0),
         completed: await this.prisma.transaction.count({
           where: { ...whereClause, status: 'COMPLETED' },
         }),
@@ -2060,7 +2193,6 @@ export class AdminService {
               email: true,
               firstName: true,
               lastName: true,
-              phone: true,
             },
           },
           fromAccount: {
@@ -2088,21 +2220,27 @@ export class AdminService {
         throw new NotFoundException('Transaction not found');
       }
 
-      const adminTransactionDetail: AdminTransactionDetailDto = {
+      // Determine the primary user (sender for withdrawals/transfers, receiver for deposits)
+      const primaryUser = transaction.user;
+      
+      // Convert wallet transaction type to admin transaction type
+      const adminType = transaction.type;
+
+      const adminTransaction: AdminTransactionDetailDto = {
         id: transaction.id,
         amount: transaction.amount,
         currency: transaction.currency,
-        type: transaction.type,
+        type: adminType,
         status: transaction.status,
         reference: transaction.reference,
         description: transaction.description,
         fee: (transaction.metadata as any)?.fee || 0,
-        providerReference: (transaction.metadata as any)?.provider_reference || null,
-        providerResponse: (transaction.metadata as any)?.provider_response || null,
+        providerReference: (transaction.metadata as any)?.providerReference || null,
+        providerResponse: null, // Not available in Transaction table
         metadata: transaction.metadata,
         createdAt: transaction.createdAt.toISOString(),
         updatedAt: transaction.updatedAt.toISOString(),
-        user: transaction.user,
+        user: primaryUser,
         sender: transaction.fromAccount
           ? {
               accountNumber: transaction.fromAccount.accountNumber,
@@ -2110,7 +2248,12 @@ export class AdminService {
               bankName: transaction.fromAccount.bankName,
               bankCode: transaction.fromAccount.bankCode,
             }
-          : undefined,
+          : (transaction.metadata as any)?.provider ? {
+              accountNumber: (transaction.metadata as any)?.accountNumber || '',
+              accountName: 'External Account',
+              bankName: `${(transaction.metadata as any)?.provider} Provider`,
+              bankCode: (transaction.metadata as any)?.provider || '',
+            } : undefined,
         receiver: transaction.toAccount
           ? {
               accountNumber: transaction.toAccount.accountNumber,
@@ -2118,20 +2261,22 @@ export class AdminService {
               bankName: transaction.toAccount.bankName,
               bankCode: transaction.toAccount.bankCode,
             }
-          : undefined,
+          : (transaction.metadata as any)?.recipientBank ? {
+              accountNumber: (transaction.metadata as any)?.recipientAccount || '',
+              accountName: (transaction.metadata as any)?.recipientName || '',
+              bankName: (transaction.metadata as any)?.recipientBank || '',
+              bankCode: (transaction.metadata as any)?.bankCode || '',
+            } : undefined,
       };
 
       console.log('✅ [ADMIN SERVICE] Transaction detail retrieved');
 
       return {
         success: true,
-        transaction: adminTransactionDetail,
+        transaction: adminTransaction,
       };
     } catch (error) {
-      console.error(
-        '❌ [ADMIN SERVICE] Error retrieving transaction detail:',
-        error,
-      );
+      console.error('❌ [ADMIN SERVICE] Error retrieving transaction detail:', error);
       if (error instanceof NotFoundException) {
         throw error;
       }
@@ -2160,6 +2305,15 @@ export class AdminService {
         _sum: { amount: true },
       });
 
+      // Calculate total fees from metadata
+      const allTransactions = await this.prisma.transaction.findMany({
+        select: { metadata: true },
+      });
+      const totalFees = allTransactions.reduce((sum, tx) => {
+        const fee = (tx.metadata as any)?.fee || 0;
+        return sum + fee;
+      }, 0);
+
       console.log(
         '✅ [ADMIN SERVICE] Transaction statistics retrieved:',
         totalTransactions,
@@ -2174,7 +2328,7 @@ export class AdminService {
 
       return {
         totalAmount: totalAmountAgg._sum.amount || 0,
-        totalFees: 0, // Fees are stored in metadata, would need custom calculation
+        totalFees: totalFees,
         completed: completedTransfers,
         pending: pendingTransfers,
         failed: failedTransfers,
@@ -2216,7 +2370,7 @@ export class AdminService {
         }),
       };
 
-      // Transaction Stats
+      // Transaction Stats (from WalletTransaction table)
       const totalVolumeAgg = await this.prisma.transaction.aggregate({
         _sum: { amount: true },
       });

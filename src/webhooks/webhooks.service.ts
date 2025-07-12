@@ -820,6 +820,30 @@ export class WebhooksService {
           },
         });
 
+        // Also create a record in the main Transaction table for admin queries
+        await tx.transaction.create({
+          data: {
+            amount: netAmount,
+            currency: 'NGN',
+            type: 'DEPOSIT',
+            status: TransactionStatus.COMPLETED,
+            reference: data.transactionReference,
+            description: data.description || `Wallet funding via ${data.provider}`,
+            userId: wallet.userId,
+            metadata: {
+              provider: data.provider,
+              eventType: data.eventType,
+              accountNumber: data.accountNumber,
+              webhookProcessedAt: new Date().toISOString(),
+              grossAmount: data.amount, // Original amount from provider
+              fundingFee: fundingFee, // Our funding fee
+              netAmount: netAmount, // Amount credited to user
+              feeType: `FUNDING_${data.provider}`, // Fee type used
+              walletTransactionId: transaction.id,
+            },
+          },
+        });
+
         // Update wallet balance
         const updatedWallet = await tx.wallet.update({
           where: { id: wallet.id },

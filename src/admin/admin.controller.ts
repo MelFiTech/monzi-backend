@@ -35,6 +35,8 @@ import {
   UpdateFeeConfigurationDto,
   GetUsersResponse,
   GetUserDetailResponse,
+  DeleteUserDto,
+  DeleteUserResponse,
   GetTransactionsResponse,
   GetTransactionDetailResponse,
   GetDashboardStatsResponse,
@@ -1045,6 +1047,44 @@ export class AdminController {
 
     console.log('✅ [ADMIN API] User details retrieved successfully');
     console.log('📄 [ADMIN API] User:', result.user.email);
+
+    return result;
+  }
+
+  @Delete('users')
+  @ApiOperation({
+    summary: 'Delete user',
+    description: 'Delete a user by ID or email. This will also delete associated wallet, transactions, and other related data.',
+  })
+  @ApiBody({
+    type: DeleteUserDto,
+    description: 'Provide either userId or email to delete the user',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User deleted successfully',
+    type: DeleteUserResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid request - must provide either userId or email',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User not found',
+  })
+  async deleteUser(@Body(ValidationPipe) deleteUserDto: DeleteUserDto): Promise<DeleteUserResponse> {
+    console.log('🗑️ [ADMIN API] DELETE /admin/users - Deleting user');
+    console.log('📝 [ADMIN API] Delete criteria:', deleteUserDto);
+
+    if (!deleteUserDto.userId && !deleteUserDto.email) {
+      throw new BadRequestException('Either userId or email must be provided');
+    }
+
+    const result = await this.adminService.deleteUser(deleteUserDto);
+
+    console.log('✅ [ADMIN API] User deleted successfully');
+    console.log('📄 [ADMIN API] Deleted user:', result.deletedUserEmail);
 
     return result;
   }

@@ -596,6 +596,30 @@ export class WalletService {
         },
       });
 
+      // Also create a record in the main Transaction table for admin queries
+      await this.prisma.transaction.create({
+        data: {
+          amount: transferDto.amount,
+          currency: 'NGN',
+          type: 'WITHDRAWAL',
+          status: TransactionStatus.COMPLETED,
+          reference,
+          description: transferDto.description || defaultNarration,
+          userId: userId,
+          metadata: {
+            fee,
+            recipientBank: transferDto.bankName,
+            recipientAccount: transferDto.accountNumber,
+            recipientName: transferDto.accountName,
+            bankCode,
+            walletTransactionId: transaction.id,
+            providerReference: providerResponse.data?.reference || reference,
+            providerStatus: providerResponse.data?.status,
+            providerFee: providerResponse.data?.fee,
+          },
+        },
+      });
+
       // Update wallet balance
       const updatedWallet = await this.prisma.wallet.update({
         where: { id: wallet.id },
@@ -623,7 +647,7 @@ export class WalletService {
       console.error('❌ [TRANSFER] Transfer failed:', error);
 
       // Create failed transaction record
-      await this.prisma.walletTransaction.create({
+      const failedTransaction = await this.prisma.walletTransaction.create({
         data: {
           amount: transferDto.amount,
           type: WalletTransactionType.WITHDRAWAL,
@@ -638,6 +662,27 @@ export class WalletService {
             recipientBank: transferDto.bankName,
             recipientAccount: transferDto.accountNumber,
             recipientName: transferDto.accountName,
+            error: error.message,
+          },
+        },
+      });
+
+      // Also create a record in the main Transaction table for admin queries
+      await this.prisma.transaction.create({
+        data: {
+          amount: transferDto.amount,
+          currency: 'NGN',
+          type: 'WITHDRAWAL',
+          status: TransactionStatus.FAILED,
+          reference,
+          description: transferDto.description || defaultNarration,
+          userId: userId,
+          metadata: {
+            fee,
+            recipientBank: transferDto.bankName,
+            recipientAccount: transferDto.accountNumber,
+            recipientName: transferDto.accountName,
+            walletTransactionId: failedTransaction.id,
             error: error.message,
           },
         },

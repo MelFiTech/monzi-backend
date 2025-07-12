@@ -562,6 +562,61 @@ export class GetUserDetailResponse {
   user: AdminUserDetailDto;
 }
 
+export class DeleteUserDto {
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID to delete',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email to delete',
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+}
+
+export class DeleteUserResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'User deleted successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'ID of the deleted user',
+  })
+  deletedUserId: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'Email of the deleted user',
+  })
+  deletedUserEmail: string;
+
+  @ApiProperty({
+    example: true,
+    description: 'Whether associated wallet was also deleted',
+  })
+  walletDeleted: boolean;
+
+  @ApiProperty({
+    example: 5,
+    description: 'Number of associated transactions deleted',
+  })
+  transactionsDeleted: number;
+}
+
 // ==================== TRANSACTION MANAGEMENT DTOs ====================
 
 export class AdminTransactionUserDto {
