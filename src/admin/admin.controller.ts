@@ -9,6 +9,7 @@ import {
   HttpStatus,
   Put,
   BadRequestException,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,6 +17,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { FeeType } from '@prisma/client';
@@ -31,6 +33,11 @@ import {
   KycReviewResponse,
   CreateFeeConfigurationDto,
   UpdateFeeConfigurationDto,
+  GetUsersResponse,
+  GetUserDetailResponse,
+  GetTransactionsResponse,
+  GetTransactionDetailResponse,
+  GetDashboardStatsResponse,
 } from './dto/admin.dto';
 
 @ApiTags('Admin')
@@ -951,5 +958,234 @@ export class AdminController {
         isActive: result.isActive,
       },
     };
+  }
+
+  // ==================== USER MANAGEMENT ENDPOINTS ====================
+
+  @Get('users')
+  @ApiOperation({
+    summary: 'Get all users',
+    description: 'Retrieve all users with pagination and filtering options',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of users to return (default: 20)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Number of users to skip (default: 0)',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: String,
+    description: 'Filter by KYC status (PENDING, UNDER_REVIEW, APPROVED, REJECTED)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by email, phone, or name',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Users retrieved successfully',
+    type: GetUsersResponse,
+  })
+  async getUsers(
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ): Promise<GetUsersResponse> {
+    console.log('👥 [ADMIN API] GET /admin/users - Retrieving users');
+    console.log('📊 [ADMIN API] Query params:', { limit, offset, status, search });
+
+    const result = await this.adminService.getUsers(
+      limit ? Number(limit) : 20,
+      offset ? Number(offset) : 0,
+      status,
+      search,
+    );
+
+    console.log('✅ [ADMIN API] Users retrieved successfully');
+    console.log('📄 [ADMIN API] Found', result.users.length, 'users of', result.total, 'total');
+
+    return result;
+  }
+
+  @Get('users/:userId')
+  @ApiOperation({
+    summary: 'Get user details',
+    description: 'Retrieve detailed information about a specific user',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID to get details for',
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User details retrieved successfully',
+    type: GetUserDetailResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User not found',
+  })
+  async getUserDetail(@Param('userId') userId: string): Promise<GetUserDetailResponse> {
+    console.log('🔍 [ADMIN API] GET /admin/users/:userId - Getting user details');
+    console.log('👤 [ADMIN API] User ID:', userId);
+
+    const result = await this.adminService.getUserDetail(userId);
+
+    console.log('✅ [ADMIN API] User details retrieved successfully');
+    console.log('📄 [ADMIN API] User:', result.user.email);
+
+    return result;
+  }
+
+  // ==================== TRANSACTION MANAGEMENT ENDPOINTS ====================
+
+  @Get('transactions')
+  @ApiOperation({
+    summary: 'Get all transactions',
+    description: 'Retrieve all transactions with pagination and filtering options',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of transactions to return (default: 20)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Number of transactions to skip (default: 0)',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    type: String,
+    description: 'Filter by transaction type (DEPOSIT, WITHDRAWAL, TRANSFER)',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: String,
+    description: 'Filter by status (PENDING, COMPLETED, FAILED, CANCELLED)',
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    type: String,
+    description: 'Filter by specific user ID',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Filter from date (ISO string)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'Filter to date (ISO string)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transactions retrieved successfully',
+    type: GetTransactionsResponse,
+  })
+  async getTransactions(
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('type') type?: string,
+    @Query('status') status?: string,
+    @Query('userId') userId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<GetTransactionsResponse> {
+    console.log('💸 [ADMIN API] GET /admin/transactions - Retrieving transactions');
+    console.log('📊 [ADMIN API] Query params:', { limit, offset, type, status, userId, startDate, endDate });
+
+    const result = await this.adminService.getTransactions(
+      limit ? Number(limit) : 20,
+      offset ? Number(offset) : 0,
+      type,
+      status,
+      userId,
+      startDate,
+      endDate,
+    );
+
+    console.log('✅ [ADMIN API] Transactions retrieved successfully');
+    console.log('📄 [ADMIN API] Found', result.transactions.length, 'transactions of', result.total, 'total');
+
+    return result;
+  }
+
+  @Get('transactions/:transactionId')
+  @ApiOperation({
+    summary: 'Get transaction details',
+    description: 'Retrieve detailed information about a specific transaction',
+  })
+  @ApiParam({
+    name: 'transactionId',
+    description: 'Transaction ID to get details for',
+    example: 'txn123',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transaction details retrieved successfully',
+    type: GetTransactionDetailResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Transaction not found',
+  })
+  async getTransactionDetail(@Param('transactionId') transactionId: string): Promise<GetTransactionDetailResponse> {
+    console.log('🔍 [ADMIN API] GET /admin/transactions/:transactionId - Getting transaction details');
+    console.log('💳 [ADMIN API] Transaction ID:', transactionId);
+
+    const result = await this.adminService.getTransactionDetail(transactionId);
+
+    console.log('✅ [ADMIN API] Transaction details retrieved successfully');
+    console.log('📄 [ADMIN API] Transaction:', result.transaction.reference);
+
+    return result;
+  }
+
+  // ==================== DASHBOARD STATS ENDPOINTS ====================
+
+  @Get('dashboard/stats')
+  @ApiOperation({
+    summary: 'Get dashboard statistics',
+    description: 'Retrieve comprehensive statistics for the admin dashboard',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Dashboard statistics retrieved successfully',
+    type: GetDashboardStatsResponse,
+  })
+  async getDashboardStats(): Promise<GetDashboardStatsResponse> {
+    console.log('📊 [ADMIN API] GET /admin/dashboard/stats - Retrieving dashboard statistics');
+
+    const result = await this.adminService.getDashboardStats();
+
+    console.log('✅ [ADMIN API] Dashboard statistics retrieved successfully');
+    console.log('📄 [ADMIN API] Stats:', {
+      users: result.stats.users.total,
+      transactions: result.stats.transactions.total,
+      wallets: result.stats.wallets.total,
+    });
+
+    return result;
   }
 }

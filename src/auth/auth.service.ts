@@ -317,8 +317,24 @@ export class AuthService {
         lastName: true,
         isVerified: true,
         isOnboarded: true,
+        kycStatus: true,
+        bvn: true,
+        bvnVerifiedAt: true,
+        selfieUrl: true,
         createdAt: true,
         updatedAt: true,
+        wallet: {
+          select: {
+            id: true,
+            balance: true,
+            currency: true,
+            virtualAccountNumber: true,
+            provider: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
 
@@ -331,6 +347,149 @@ export class AuthService {
       dateOfBirth: user.dateOfBirth.toISOString(),
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
+      bvnVerifiedAt: user.bvnVerifiedAt?.toISOString() || null,
+      wallet: user.wallet ? {
+        ...user.wallet,
+        createdAt: user.wallet.createdAt.toISOString(),
+        updatedAt: user.wallet.updatedAt.toISOString(),
+      } : null,
+    };
+  }
+
+  // Get user transactions with detailed information
+  async getUserTransactions(
+    userId: string,
+    limit: number = 20,
+    offset: number = 0,
+    type?: string,
+    status?: string,
+  ) {
+    console.log('💸 [AUTH SERVICE] Getting transactions for user:', userId);
+    console.log('📊 [AUTH SERVICE] Filters:', { limit, offset, type, status });
+
+    // Build filter conditions
+    const whereConditions: any = {
+      userId: userId,
+    };
+
+    if (type) {
+      whereConditions.type = type;
+    }
+
+    if (status) {
+      whereConditions.status = status;
+    }
+
+    // Get transactions with detailed information
+    const [transactions, total] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: whereConditions,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          fromAccount: {
+            select: {
+              id: true,
+              accountNumber: true,
+              bankName: true,
+              bankCode: true,
+              accountName: true,
+            },
+          },
+          toAccount: {
+            select: {
+              id: true,
+              accountNumber: true,
+              bankName: true,
+              bankCode: true,
+              accountName: true,
+            },
+          },
+        },
+      }),
+      this.prisma.transaction.count({
+        where: whereConditions,
+      }),
+    ]);
+
+    // Get transaction statistics
+    const stats = await this.prisma.transaction.aggregate({
+      where: { userId: userId },
+      _sum: {
+        amount: true,
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    // Count transactions by status
+    const statusCounts = await this.prisma.transaction.groupBy({
+      by: ['status'],
+      where: { userId: userId },
+      _count: {
+        _all: true,
+      },
+    });
+
+    // Format status counts
+    const statusStats = {
+      completed: statusCounts.find(s => s.status === 'COMPLETED')?._count._all || 0,
+      pending: statusCounts.find(s => s.status === 'PENDING')?._count._all || 0,
+      failed: statusCounts.find(s => s.status === 'FAILED')?._count._all || 0,
+      cancelled: statusCounts.find(s => s.status === 'CANCELLED')?._count._all || 0,
+    };
+
+    // Format transactions
+    const formattedTransactions = transactions.map(transaction => ({
+      id: transaction.id,
+      amount: transaction.amount,
+      currency: transaction.currency,
+      type: transaction.type,
+      status: transaction.status,
+      reference: transaction.reference,
+      description: transaction.description,
+      metadata: transaction.metadata,
+      createdAt: transaction.createdAt.toISOString(),
+      updatedAt: transaction.updatedAt.toISOString(),
+      fromAccount: transaction.fromAccount ? {
+        id: transaction.fromAccount.id,
+        accountNumber: transaction.fromAccount.accountNumber,
+        bankName: transaction.fromAccount.bankName,
+        bankCode: transaction.fromAccount.bankCode,
+        accountName: transaction.fromAccount.accountName,
+      } : null,
+      toAccount: transaction.toAccount ? {
+        id: transaction.toAccount.id,
+        accountNumber: transaction.toAccount.accountNumber,
+        bankName: transaction.toAccount.bankName,
+        bankCode: transaction.toAccount.bankCode,
+        accountName: transaction.toAccount.accountName,
+      } : null,
+    }));
+
+    console.log('✅ [AUTH SERVICE] Retrieved', formattedTransactions.length, 'transactions');
+
+    return {
+      success: true,
+      transactions: formattedTransactions,
+      total,
+      page: Math.floor(offset / limit) + 1,
+      limit,
+      stats: {
+        totalAmount: stats._sum.amount || 0,
+        totalTransactions: stats._count._all || 0,
+        ...statusStats,
+      },
     };
   }
 }

@@ -14,6 +14,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { ProvidersModule } from './providers/providers.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
     ProvidersModule,
     NotificationsModule,
     PushNotificationsModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

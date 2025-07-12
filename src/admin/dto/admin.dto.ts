@@ -394,3 +394,489 @@ export class SetFeeDto {
   @IsBoolean()
   isActive?: boolean;
 }
+
+// ==================== USER MANAGEMENT DTOs ====================
+
+export class AdminUserDto {
+  @ApiProperty({ example: 'cmcypf6hk00001gk3itv4ybwo', description: 'User ID' })
+  id: string;
+
+  @ApiProperty({ example: 'user@example.com', description: 'User email' })
+  email: string;
+
+  @ApiProperty({ example: '+2348123456789', description: 'User phone number' })
+  phone: string;
+
+  @ApiProperty({ example: 'John', description: 'User first name' })
+  firstName?: string;
+
+  @ApiProperty({ example: 'Doe', description: 'User last name' })
+  lastName?: string;
+
+  @ApiProperty({ example: 'MALE', description: 'User gender' })
+  gender: string;
+
+  @ApiProperty({ example: '1996-09-09T00:00:00.000Z', description: 'Date of birth' })
+  dateOfBirth: string;
+
+  @ApiProperty({ example: 'PENDING', description: 'KYC status' })
+  kycStatus: string;
+
+  @ApiProperty({ example: true, description: 'Email verification status' })
+  isVerified: boolean;
+
+  @ApiProperty({ example: true, description: 'Onboarding completion status' })
+  isOnboarded: boolean;
+
+  @ApiProperty({ example: 'ACTIVE', description: 'Wallet status' })
+  walletStatus?: string;
+
+  @ApiProperty({ example: 1500.00, description: 'Wallet balance' })
+  walletBalance?: number;
+
+  @ApiProperty({ example: '9038123456', description: 'Virtual account number' })
+  virtualAccountNumber?: string;
+
+  @ApiProperty({ example: 'BUDPAY', description: 'Wallet provider' })
+  walletProvider?: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Account creation date' })
+  createdAt: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Last update date' })
+  updatedAt: string;
+}
+
+export class AdminUserStatsDto {
+  @ApiProperty({ example: 150, description: 'Total number of users' })
+  total: number;
+
+  @ApiProperty({ example: 120, description: 'Number of verified users' })
+  verified: number;
+
+  @ApiProperty({ example: 25, description: 'Number of pending users' })
+  pending: number;
+
+  @ApiProperty({ example: 5, description: 'Number of rejected users' })
+  rejected: number;
+
+  @ApiProperty({ example: 140, description: 'Number of onboarded users' })
+  onboarded: number;
+
+  @ApiProperty({ example: 120, description: 'Number of users with wallets' })
+  withWallets: number;
+}
+
+export class GetUsersResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    type: [AdminUserDto],
+    description: 'List of users',
+  })
+  users: AdminUserDto[];
+
+  @ApiProperty({ example: 150, description: 'Total number of users' })
+  total: number;
+
+  @ApiProperty({ example: 1, description: 'Current page number' })
+  page: number;
+
+  @ApiProperty({ example: 20, description: 'Number of users per page' })
+  limit: number;
+
+  @ApiProperty({
+    type: AdminUserStatsDto,
+    description: 'User statistics',
+  })
+  stats: AdminUserStatsDto;
+}
+
+export class AdminUserDetailDto {
+  @ApiProperty({ example: 'cmcypf6hk00001gk3itv4ybwo', description: 'User ID' })
+  id: string;
+
+  @ApiProperty({ example: 'user@example.com', description: 'User email' })
+  email: string;
+
+  @ApiProperty({ example: '+2348123456789', description: 'User phone number' })
+  phone: string;
+
+  @ApiProperty({ example: 'John', description: 'User first name' })
+  firstName?: string;
+
+  @ApiProperty({ example: 'Doe', description: 'User last name' })
+  lastName?: string;
+
+  @ApiProperty({ example: 'MALE', description: 'User gender' })
+  gender: string;
+
+  @ApiProperty({ example: '1996-09-09T00:00:00.000Z', description: 'Date of birth' })
+  dateOfBirth: string;
+
+  @ApiProperty({ example: 'VERIFIED', description: 'KYC status' })
+  kycStatus: string;
+
+  @ApiProperty({ example: true, description: 'Email verification status' })
+  isVerified: boolean;
+
+  @ApiProperty({ example: true, description: 'Onboarding completion status' })
+  isOnboarded: boolean;
+
+  @ApiProperty({ example: '22347795339', description: 'BVN number' })
+  bvn?: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'BVN verification date' })
+  bvnVerifiedAt?: string;
+
+  @ApiProperty({ example: '/uploads/kyc/user-selfie.jpg', description: 'Selfie URL' })
+  selfieUrl?: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Account creation date' })
+  createdAt: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Last update date' })
+  updatedAt: string;
+
+  @ApiProperty({ description: 'Wallet information', required: false })
+  wallet?: {
+    id: string;
+    balance: number;
+    currency: string;
+    virtualAccountNumber: string;
+    provider: string;
+    isActive: boolean;
+    createdAt: string;
+  };
+}
+
+export class GetUserDetailResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    type: AdminUserDetailDto,
+    description: 'Detailed user information',
+  })
+  user: AdminUserDetailDto;
+}
+
+// ==================== TRANSACTION MANAGEMENT DTOs ====================
+
+export class AdminTransactionUserDto {
+  @ApiProperty({ example: 'cmcypf6hk00001gk3itv4ybwo', description: 'User ID' })
+  id: string;
+
+  @ApiProperty({ example: 'user@example.com', description: 'User email' })
+  email: string;
+
+  @ApiProperty({ example: 'John', description: 'User first name' })
+  firstName?: string;
+
+  @ApiProperty({ example: 'Doe', description: 'User last name' })
+  lastName?: string;
+}
+
+export class AdminTransactionSenderDto {
+  @ApiProperty({ example: 'wallet123', description: 'Sender wallet ID' })
+  walletId?: string;
+
+  @ApiProperty({ example: '9038123456', description: 'Sender account number' })
+  accountNumber?: string;
+
+  @ApiProperty({ example: 'John Doe', description: 'Sender account name' })
+  accountName?: string;
+
+  @ApiProperty({ example: 'First Bank', description: 'Sender bank name' })
+  bankName?: string;
+
+  @ApiProperty({ example: '000016', description: 'Sender bank code' })
+  bankCode?: string;
+
+  @ApiProperty({ example: 6000.00, description: 'Balance before transaction' })
+  balanceBefore?: number;
+
+  @ApiProperty({ example: 1000.00, description: 'Balance after transaction' })
+  balanceAfter?: number;
+}
+
+export class AdminTransactionReceiverDto {
+  @ApiProperty({ example: 'wallet456', description: 'Receiver wallet ID' })
+  walletId?: string;
+
+  @ApiProperty({ example: '3089415578', description: 'Receiver account number' })
+  accountNumber?: string;
+
+  @ApiProperty({ example: 'Jane Smith', description: 'Receiver account name' })
+  accountName?: string;
+
+  @ApiProperty({ example: 'First Bank', description: 'Receiver bank name' })
+  bankName?: string;
+
+  @ApiProperty({ example: '000016', description: 'Receiver bank code' })
+  bankCode?: string;
+
+  @ApiProperty({ example: 500.00, description: 'Balance before transaction' })
+  balanceBefore?: number;
+
+  @ApiProperty({ example: 1500.00, description: 'Balance after transaction' })
+  balanceAfter?: number;
+}
+
+export class AdminTransactionDto {
+  @ApiProperty({ example: 'txn123', description: 'Transaction ID' })
+  id: string;
+
+  @ApiProperty({ example: 5000.00, description: 'Transaction amount' })
+  amount: number;
+
+  @ApiProperty({ example: 'NGN', description: 'Transaction currency' })
+  currency: string;
+
+  @ApiProperty({ example: 'WITHDRAWAL', description: 'Transaction type' })
+  type: string;
+
+  @ApiProperty({ example: 'COMPLETED', description: 'Transaction status' })
+  status: string;
+
+  @ApiProperty({ example: 'TXN_1234567890', description: 'Transaction reference' })
+  reference: string;
+
+  @ApiProperty({ example: 'Transfer to John Doe', description: 'Transaction description' })
+  description?: string;
+
+  @ApiProperty({ example: 50.00, description: 'Transaction fee' })
+  fee: number;
+
+  @ApiProperty({ example: 'BUDPAY_REF_123', description: 'Provider reference' })
+  providerReference?: string;
+
+  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Transaction creation date' })
+  createdAt: string;
+
+  @ApiProperty({ example: '2024-01-15T10:32:00Z', description: 'Transaction update date' })
+  updatedAt: string;
+
+  @ApiProperty({
+    type: AdminTransactionUserDto,
+    description: 'User who initiated the transaction',
+  })
+  user: AdminTransactionUserDto;
+
+  @ApiProperty({
+    type: AdminTransactionSenderDto,
+    description: 'Sender information',
+    required: false,
+  })
+  sender?: AdminTransactionSenderDto;
+
+  @ApiProperty({
+    type: AdminTransactionReceiverDto,
+    description: 'Receiver information',
+    required: false,
+  })
+  receiver?: AdminTransactionReceiverDto;
+}
+
+export class AdminTransactionStatsDto {
+  @ApiProperty({ example: 2500000.00, description: 'Total transaction amount' })
+  totalAmount: number;
+
+  @ApiProperty({ example: 125000.00, description: 'Total fees collected' })
+  totalFees: number;
+
+  @ApiProperty({ example: 4500, description: 'Number of completed transactions' })
+  completed: number;
+
+  @ApiProperty({ example: 300, description: 'Number of pending transactions' })
+  pending: number;
+
+  @ApiProperty({ example: 200, description: 'Number of failed transactions' })
+  failed: number;
+
+  @ApiProperty({ example: 50, description: 'Number of cancelled transactions' })
+  cancelled: number;
+}
+
+export class GetTransactionsResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    type: [AdminTransactionDto],
+    description: 'List of transactions',
+  })
+  transactions: AdminTransactionDto[];
+
+  @ApiProperty({ example: 5000, description: 'Total number of transactions' })
+  total: number;
+
+  @ApiProperty({ example: 1, description: 'Current page number' })
+  page: number;
+
+  @ApiProperty({ example: 20, description: 'Number of transactions per page' })
+  limit: number;
+
+  @ApiProperty({
+    type: AdminTransactionStatsDto,
+    description: 'Transaction statistics',
+  })
+  stats: AdminTransactionStatsDto;
+}
+
+export class AdminTransactionDetailDto {
+  @ApiProperty({ example: 'txn123', description: 'Transaction ID' })
+  id: string;
+
+  @ApiProperty({ example: 5000.00, description: 'Transaction amount' })
+  amount: number;
+
+  @ApiProperty({ example: 'NGN', description: 'Transaction currency' })
+  currency: string;
+
+  @ApiProperty({ example: 'WITHDRAWAL', description: 'Transaction type' })
+  type: string;
+
+  @ApiProperty({ example: 'COMPLETED', description: 'Transaction status' })
+  status: string;
+
+  @ApiProperty({ example: 'TXN_1234567890', description: 'Transaction reference' })
+  reference: string;
+
+  @ApiProperty({ example: 'Transfer to John Doe', description: 'Transaction description' })
+  description?: string;
+
+  @ApiProperty({ example: 50.00, description: 'Transaction fee' })
+  fee: number;
+
+  @ApiProperty({ example: 'BUDPAY_REF_123', description: 'Provider reference' })
+  providerReference?: string;
+
+  @ApiProperty({ description: 'Provider response data', required: false })
+  providerResponse?: any;
+
+  @ApiProperty({ description: 'Transaction metadata', required: false })
+  metadata?: any;
+
+  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Transaction creation date' })
+  createdAt: string;
+
+  @ApiProperty({ example: '2024-01-15T10:32:00Z', description: 'Transaction update date' })
+  updatedAt: string;
+
+  @ApiProperty({
+    type: AdminTransactionUserDto,
+    description: 'User who initiated the transaction',
+  })
+  user: AdminTransactionUserDto;
+
+  @ApiProperty({
+    type: AdminTransactionSenderDto,
+    description: 'Sender information',
+    required: false,
+  })
+  sender?: AdminTransactionSenderDto;
+
+  @ApiProperty({
+    type: AdminTransactionReceiverDto,
+    description: 'Receiver information',
+    required: false,
+  })
+  receiver?: AdminTransactionReceiverDto;
+}
+
+export class GetTransactionDetailResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    type: AdminTransactionDetailDto,
+    description: 'Detailed transaction information',
+  })
+  transaction: AdminTransactionDetailDto;
+}
+
+// ==================== DASHBOARD STATS DTOs ====================
+
+export class DashboardUserStatsDto {
+  @ApiProperty({ example: 1500, description: 'Total users' })
+  total: number;
+
+  @ApiProperty({ example: 1200, description: 'Verified users' })
+  verified: number;
+
+  @ApiProperty({ example: 250, description: 'Pending users' })
+  pending: number;
+
+  @ApiProperty({ example: 50, description: 'Rejected users' })
+  rejected: number;
+
+  @ApiProperty({ example: 120, description: 'New users this month' })
+  newThisMonth: number;
+}
+
+export class DashboardTransactionStatsDto {
+  @ApiProperty({ example: 15000, description: 'Total transactions' })
+  total: number;
+
+  @ApiProperty({ example: 13500, description: 'Completed transactions' })
+  completed: number;
+
+  @ApiProperty({ example: 1000, description: 'Pending transactions' })
+  pending: number;
+
+  @ApiProperty({ example: 500, description: 'Failed transactions' })
+  failed: number;
+
+  @ApiProperty({ example: 45000000.00, description: 'Total transaction volume' })
+  totalVolume: number;
+
+  @ApiProperty({ example: 2500000.00, description: 'Today\'s transaction volume' })
+  todayVolume: number;
+}
+
+export class DashboardWalletStatsDto {
+  @ApiProperty({ example: 1200, description: 'Total wallets' })
+  total: number;
+
+  @ApiProperty({ example: 1150, description: 'Active wallets' })
+  active: number;
+
+  @ApiProperty({ example: 50, description: 'Inactive wallets' })
+  inactive: number;
+
+  @ApiProperty({ example: 25000000.00, description: 'Total wallet balance' })
+  totalBalance: number;
+}
+
+export class DashboardStatsDto {
+  @ApiProperty({
+    type: DashboardUserStatsDto,
+    description: 'User statistics',
+  })
+  users: DashboardUserStatsDto;
+
+  @ApiProperty({
+    type: DashboardTransactionStatsDto,
+    description: 'Transaction statistics',
+  })
+  transactions: DashboardTransactionStatsDto;
+
+  @ApiProperty({
+    type: DashboardWalletStatsDto,
+    description: 'Wallet statistics',
+  })
+  wallets: DashboardWalletStatsDto;
+}
+
+export class GetDashboardStatsResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    type: DashboardStatsDto,
+    description: 'Dashboard statistics',
+  })
+  stats: DashboardStatsDto;
+}

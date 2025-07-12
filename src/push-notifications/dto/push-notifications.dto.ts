@@ -26,12 +26,84 @@ export class RegisterPushTokenDto {
   deviceId?: string;
 
   @ApiPropertyOptional({
+    example: "John's iPhone",
+    description: 'Device name as set by the user',
+  })
+  @IsOptional()
+  @IsString()
+  deviceName?: string;
+
+  @ApiPropertyOptional({
     example: 'ios',
     description: 'Platform (ios, android, web)',
   })
   @IsOptional()
   @IsString()
   platform?: string;
+
+  @ApiPropertyOptional({
+    example: '17.0',
+    description: 'Operating system version',
+  })
+  @IsOptional()
+  @IsString()
+  osVersion?: string;
+
+  @ApiPropertyOptional({
+    example: '1.0.0',
+    description: 'App version',
+  })
+  @IsOptional()
+  @IsString()
+  appVersion?: string;
+
+  @ApiPropertyOptional({
+    example: '1',
+    description: 'App build version',
+  })
+  @IsOptional()
+  @IsString()
+  buildVersion?: string;
+
+  @ApiPropertyOptional({
+    example: 'standalone',
+    description: 'App ownership (standalone, expo, guest)',
+  })
+  @IsOptional()
+  @IsString()
+  appOwnership?: string;
+
+  @ApiPropertyOptional({
+    example: 'storeClient',
+    description: 'Execution environment (storeClient, standalone, bareWorkflow)',
+  })
+  @IsOptional()
+  @IsString()
+  executionEnvironment?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether running on a physical device',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isDevice?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'Apple',
+    description: 'Device brand',
+  })
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @ApiPropertyOptional({
+    example: 'Apple',
+    description: 'Device manufacturer',
+  })
+  @IsOptional()
+  @IsString()
+  manufacturer?: string;
 }
 
 export class SendPushNotificationDto {

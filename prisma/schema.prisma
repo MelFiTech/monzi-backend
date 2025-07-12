@@ -233,7 +233,16 @@ model PushToken {
   id           String    @id @default(cuid())
   token        String    @unique  // Expo push token
   deviceId     String?   // Device identifier (optional)
+  deviceName   String?   // Device name as set by the user
   platform     String?   // iOS, Android, etc.
+  osVersion    String?   // Operating system version
+  appVersion   String?   // App version
+  buildVersion String?   // App build version
+  appOwnership String?   // App ownership (standalone, expo, guest)
+  executionEnvironment String? // Execution environment (storeClient, standalone, bareWorkflow)
+  isDevice     Boolean?  // Whether running on a physical device
+  brand        String?   // Device brand
+  manufacturer String?   // Device manufacturer
   isActive     Boolean   @default(true)
   lastUsedAt   DateTime  @default(now())
   createdAt    DateTime  @default(now())

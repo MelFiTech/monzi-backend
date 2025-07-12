@@ -25,6 +25,21 @@ import {
   KycDecision,
   CreateFeeConfigurationDto,
   UpdateFeeConfigurationDto,
+  GetUsersResponse,
+  AdminUserDto,
+  AdminUserStatsDto,
+  GetUserDetailResponse,
+  AdminUserDetailDto,
+  GetTransactionsResponse,
+  AdminTransactionDto,
+  AdminTransactionStatsDto,
+  GetTransactionDetailResponse,
+  AdminTransactionDetailDto,
+  GetDashboardStatsResponse,
+  DashboardStatsDto,
+  DashboardUserStatsDto,
+  DashboardTransactionStatsDto,
+  DashboardWalletStatsDto,
 } from './dto/admin.dto';
 import { KycStatus, Prisma, FeeType as PrismaFeeType } from '@prisma/client';
 
@@ -1582,5 +1597,684 @@ export class AdminService {
     }
 
     return feeConfig;
+  }
+
+  // ==================== USER MANAGEMENT METHODS ====================
+
+  async getUsers(
+    limit: number = 20,
+    offset: number = 0,
+    status?: string,
+    search?: string,
+  ): Promise<GetUsersResponse> {
+    console.log('📋 [ADMIN SERVICE] Retrieving users with filters:', {
+      limit,
+      offset,
+      status,
+      search,
+    });
+
+    try {
+      // Build where clause based on filters
+      const whereClause: any = {};
+
+      if (status) {
+        whereClause.kycStatus = status;
+      }
+
+      if (search) {
+        whereClause.OR = [
+          { email: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      // Get total count
+      const total = await this.prisma.user.count({
+        where: whereClause,
+      });
+
+      // Get users with pagination
+      const users = await this.prisma.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          firstName: true,
+          lastName: true,
+          gender: true,
+          dateOfBirth: true,
+          kycStatus: true,
+          isVerified: true,
+          isOnboarded: true,
+          createdAt: true,
+          updatedAt: true,
+          wallet: {
+            select: {
+              id: true,
+              balance: true,
+              virtualAccountNumber: true,
+              provider: true,
+              isActive: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+      });
+
+      const adminUsers: AdminUserDto[] = users.map((user) => ({
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        gender: user.gender,
+        dateOfBirth: user.dateOfBirth.toISOString(),
+        kycStatus: user.kycStatus,
+        isVerified: user.isVerified,
+        isOnboarded: user.isOnboarded,
+        walletStatus: user.wallet?.isActive ? 'ACTIVE' : 'INACTIVE',
+        walletBalance: user.wallet?.balance || 0,
+        virtualAccountNumber: user.wallet?.virtualAccountNumber,
+        walletProvider: user.wallet?.provider,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      }));
+
+      // Calculate stats
+      const stats: AdminUserStatsDto = {
+        total,
+        verified: await this.prisma.user.count({
+          where: { kycStatus: 'APPROVED' },
+        }),
+        pending: await this.prisma.user.count({
+          where: { kycStatus: 'PENDING' },
+        }),
+        rejected: await this.prisma.user.count({
+          where: { kycStatus: 'REJECTED' },
+        }),
+        onboarded: await this.prisma.user.count({
+          where: { isOnboarded: true },
+        }),
+        withWallets: await this.prisma.user.count({
+          where: { wallet: { isNot: null } },
+        }),
+      };
+
+      console.log(
+        '✅ [ADMIN SERVICE] Retrieved',
+        adminUsers.length,
+        'users of',
+        total,
+        'total',
+      );
+
+      return {
+        success: true,
+        users: adminUsers,
+        total,
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        stats,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error retrieving users:', error);
+      throw new BadRequestException('Failed to retrieve users');
+    }
+  }
+
+  async getUserDetail(userId: string): Promise<GetUserDetailResponse> {
+    console.log('🔍 [ADMIN SERVICE] Retrieving user detail for user:', userId);
+
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          firstName: true,
+          lastName: true,
+          gender: true,
+          dateOfBirth: true,
+          kycStatus: true,
+          isVerified: true,
+          isOnboarded: true,
+          bvn: true,
+          bvnVerifiedAt: true,
+          selfieUrl: true,
+          createdAt: true,
+          updatedAt: true,
+          wallet: {
+            select: {
+              id: true,
+              balance: true,
+              currency: true,
+              virtualAccountNumber: true,
+              provider: true,
+              isActive: true,
+              createdAt: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const adminUserDetail: AdminUserDetailDto = {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        gender: user.gender,
+        dateOfBirth: user.dateOfBirth.toISOString(),
+        kycStatus: user.kycStatus,
+        isVerified: user.isVerified,
+        isOnboarded: user.isOnboarded,
+        bvn: user.bvn,
+        bvnVerifiedAt: user.bvnVerifiedAt?.toISOString(),
+        selfieUrl: user.selfieUrl,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+        wallet: user.wallet
+          ? {
+              id: user.wallet.id,
+              balance: user.wallet.balance,
+              currency: user.wallet.currency,
+              virtualAccountNumber: user.wallet.virtualAccountNumber,
+              provider: user.wallet.provider,
+              isActive: user.wallet.isActive,
+              createdAt: user.wallet.createdAt.toISOString(),
+            }
+          : undefined,
+      };
+
+      console.log('✅ [ADMIN SERVICE] User detail retrieved');
+
+      return {
+        success: true,
+        user: adminUserDetail,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error retrieving user detail:', error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to retrieve user detail');
+    }
+  }
+
+  async getUserStats(): Promise<AdminUserStatsDto> {
+    console.log('📊 [ADMIN SERVICE] Retrieving user statistics');
+
+    try {
+      const totalUsers = await this.prisma.user.count();
+      const underReview = await this.prisma.user.count({
+        where: { kycStatus: 'UNDER_REVIEW' },
+      });
+      const approved = await this.prisma.user.count({
+        where: { kycStatus: 'APPROVED' },
+      });
+      const rejected = await this.prisma.user.count({
+        where: { kycStatus: 'REJECTED' },
+      });
+
+      console.log(
+        '✅ [ADMIN SERVICE] User statistics retrieved:',
+        totalUsers,
+        'total users,',
+        underReview,
+        'pending,',
+        approved,
+        'approved,',
+        rejected,
+        'rejected',
+      );
+
+      return {
+        total: totalUsers,
+        verified: approved,
+        pending: underReview,
+        rejected,
+        onboarded: await this.prisma.user.count({
+          where: { isOnboarded: true },
+        }),
+        withWallets: await this.prisma.user.count({
+          where: { wallet: { isNot: null } },
+        }),
+      };
+    } catch (error) {
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving user statistics:',
+        error,
+      );
+      throw new BadRequestException('Failed to retrieve user statistics');
+    }
+  }
+
+  // ==================== TRANSACTION MANAGEMENT METHODS ====================
+
+  async getTransactions(
+    limit: number = 20,
+    offset: number = 0,
+    type?: string,
+    status?: string,
+    userId?: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<GetTransactionsResponse> {
+    console.log('📋 [ADMIN SERVICE] Retrieving transactions with filters:', {
+      limit,
+      offset,
+      type,
+      status,
+      userId,
+      startDate,
+      endDate,
+    });
+
+    try {
+      // Build where clause based on filters
+      const whereClause: any = {};
+
+      if (type) {
+        whereClause.type = type;
+      }
+
+      if (status) {
+        whereClause.status = status;
+      }
+
+      if (userId) {
+        whereClause.userId = userId;
+      }
+
+      if (startDate || endDate) {
+        whereClause.createdAt = {};
+        if (startDate) {
+          whereClause.createdAt.gte = new Date(startDate);
+        }
+        if (endDate) {
+          whereClause.createdAt.lte = new Date(endDate);
+        }
+      }
+
+      // Get total count
+      const total = await this.prisma.transaction.count({
+        where: whereClause,
+      });
+
+      // Get transactions with pagination
+      const transactions = await this.prisma.transaction.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          type: true,
+          status: true,
+          reference: true,
+          description: true,
+          metadata: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          fromAccount: {
+            select: {
+              id: true,
+              accountNumber: true,
+              accountName: true,
+              bankName: true,
+              bankCode: true,
+            },
+          },
+          toAccount: {
+            select: {
+              id: true,
+              accountNumber: true,
+              accountName: true,
+              bankName: true,
+              bankCode: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+      });
+
+      const adminTransactions: AdminTransactionDto[] = transactions.map((tx) => ({
+        id: tx.id,
+        amount: tx.amount,
+        currency: tx.currency,
+        type: tx.type,
+        status: tx.status,
+        reference: tx.reference,
+        description: tx.description,
+        fee: (tx.metadata as any)?.fee || 0,
+        providerReference: (tx.metadata as any)?.provider_reference || null,
+        createdAt: tx.createdAt.toISOString(),
+        updatedAt: tx.updatedAt.toISOString(),
+        user: tx.user,
+        sender: tx.fromAccount
+          ? {
+              accountNumber: tx.fromAccount.accountNumber,
+              accountName: tx.fromAccount.accountName,
+              bankName: tx.fromAccount.bankName,
+              bankCode: tx.fromAccount.bankCode,
+            }
+          : undefined,
+        receiver: tx.toAccount
+          ? {
+              accountNumber: tx.toAccount.accountNumber,
+              accountName: tx.toAccount.accountName,
+              bankName: tx.toAccount.bankName,
+              bankCode: tx.toAccount.bankCode,
+            }
+          : undefined,
+      }));
+
+      // Calculate stats
+      const stats: AdminTransactionStatsDto = {
+        totalAmount: (
+          await this.prisma.transaction.aggregate({
+            _sum: { amount: true },
+            where: whereClause,
+          })
+        )._sum.amount || 0,
+        totalFees: 0, // Fees are stored in metadata, would need custom calculation
+        completed: await this.prisma.transaction.count({
+          where: { ...whereClause, status: 'COMPLETED' },
+        }),
+        pending: await this.prisma.transaction.count({
+          where: { ...whereClause, status: 'PENDING' },
+        }),
+        failed: await this.prisma.transaction.count({
+          where: { ...whereClause, status: 'FAILED' },
+        }),
+        cancelled: await this.prisma.transaction.count({
+          where: { ...whereClause, status: 'CANCELLED' },
+        }),
+      };
+
+      console.log(
+        '✅ [ADMIN SERVICE] Retrieved',
+        adminTransactions.length,
+        'transactions of',
+        total,
+        'total',
+      );
+
+      return {
+        success: true,
+        transactions: adminTransactions,
+        total,
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        stats,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error retrieving transactions:', error);
+      throw new BadRequestException('Failed to retrieve transactions');
+    }
+  }
+
+  async getTransactionDetail(transactionId: string): Promise<GetTransactionDetailResponse> {
+    console.log(
+      '🔍 [ADMIN SERVICE] Retrieving transaction detail for transaction:',
+      transactionId,
+    );
+
+    try {
+      const transaction = await this.prisma.transaction.findUnique({
+        where: { id: transactionId },
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          type: true,
+          status: true,
+          reference: true,
+          description: true,
+          metadata: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+            },
+          },
+          fromAccount: {
+            select: {
+              id: true,
+              accountNumber: true,
+              accountName: true,
+              bankName: true,
+              bankCode: true,
+            },
+          },
+          toAccount: {
+            select: {
+              id: true,
+              accountNumber: true,
+              accountName: true,
+              bankName: true,
+              bankCode: true,
+            },
+          },
+        },
+      });
+
+      if (!transaction) {
+        throw new NotFoundException('Transaction not found');
+      }
+
+      const adminTransactionDetail: AdminTransactionDetailDto = {
+        id: transaction.id,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        type: transaction.type,
+        status: transaction.status,
+        reference: transaction.reference,
+        description: transaction.description,
+        fee: (transaction.metadata as any)?.fee || 0,
+        providerReference: (transaction.metadata as any)?.provider_reference || null,
+        providerResponse: (transaction.metadata as any)?.provider_response || null,
+        metadata: transaction.metadata,
+        createdAt: transaction.createdAt.toISOString(),
+        updatedAt: transaction.updatedAt.toISOString(),
+        user: transaction.user,
+        sender: transaction.fromAccount
+          ? {
+              accountNumber: transaction.fromAccount.accountNumber,
+              accountName: transaction.fromAccount.accountName,
+              bankName: transaction.fromAccount.bankName,
+              bankCode: transaction.fromAccount.bankCode,
+            }
+          : undefined,
+        receiver: transaction.toAccount
+          ? {
+              accountNumber: transaction.toAccount.accountNumber,
+              accountName: transaction.toAccount.accountName,
+              bankName: transaction.toAccount.bankName,
+              bankCode: transaction.toAccount.bankCode,
+            }
+          : undefined,
+      };
+
+      console.log('✅ [ADMIN SERVICE] Transaction detail retrieved');
+
+      return {
+        success: true,
+        transaction: adminTransactionDetail,
+      };
+    } catch (error) {
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving transaction detail:',
+        error,
+      );
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to retrieve transaction detail');
+    }
+  }
+
+  async getTransactionStats(): Promise<AdminTransactionStatsDto> {
+    console.log('📊 [ADMIN SERVICE] Retrieving transaction statistics');
+
+    try {
+      const totalTransactions = await this.prisma.transaction.count();
+      const completedTransfers = await this.prisma.transaction.count({
+        where: { status: 'COMPLETED' },
+      });
+      const pendingTransfers = await this.prisma.transaction.count({
+        where: { status: 'PENDING' },
+      });
+      const failedTransfers = await this.prisma.transaction.count({
+        where: { status: 'FAILED' },
+      });
+      const cancelledTransfers = await this.prisma.transaction.count({
+        where: { status: 'CANCELLED' },
+      });
+      const totalAmountAgg = await this.prisma.transaction.aggregate({
+        _sum: { amount: true },
+      });
+
+      console.log(
+        '✅ [ADMIN SERVICE] Transaction statistics retrieved:',
+        totalTransactions,
+        'total transactions,',
+        completedTransfers,
+        'completed,',
+        failedTransfers,
+        'failed,',
+        totalAmountAgg._sum.amount,
+        'total amount',
+      );
+
+      return {
+        totalAmount: totalAmountAgg._sum.amount || 0,
+        totalFees: 0, // Fees are stored in metadata, would need custom calculation
+        completed: completedTransfers,
+        pending: pendingTransfers,
+        failed: failedTransfers,
+        cancelled: cancelledTransfers,
+      };
+    } catch (error) {
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving transaction statistics:',
+        error,
+      );
+      throw new BadRequestException('Failed to retrieve transaction statistics');
+    }
+  }
+
+  // ==================== DASHBOARD STATS METHODS ====================
+
+  async getDashboardStats(): Promise<GetDashboardStatsResponse> {
+    console.log('📊 [ADMIN SERVICE] Retrieving dashboard statistics');
+
+    try {
+      const today = new Date();
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+      // User Stats
+      const userStats: DashboardUserStatsDto = {
+        total: await this.prisma.user.count(),
+        verified: await this.prisma.user.count({
+          where: { kycStatus: 'APPROVED' },
+        }),
+        pending: await this.prisma.user.count({
+          where: { kycStatus: 'PENDING' },
+        }),
+        rejected: await this.prisma.user.count({
+          where: { kycStatus: 'REJECTED' },
+        }),
+        newThisMonth: await this.prisma.user.count({
+          where: { createdAt: { gte: startOfMonth } },
+        }),
+      };
+
+      // Transaction Stats
+      const totalVolumeAgg = await this.prisma.transaction.aggregate({
+        _sum: { amount: true },
+      });
+
+      const todayVolumeAgg = await this.prisma.transaction.aggregate({
+        _sum: { amount: true },
+        where: { createdAt: { gte: startOfToday } },
+      });
+
+      const transactionStats: DashboardTransactionStatsDto = {
+        total: await this.prisma.transaction.count(),
+        completed: await this.prisma.transaction.count({
+          where: { status: 'COMPLETED' },
+        }),
+        pending: await this.prisma.transaction.count({
+          where: { status: 'PENDING' },
+        }),
+        failed: await this.prisma.transaction.count({
+          where: { status: 'FAILED' },
+        }),
+        totalVolume: totalVolumeAgg._sum.amount || 0,
+        todayVolume: todayVolumeAgg._sum.amount || 0,
+      };
+
+      // Wallet Stats
+      const walletBalanceAgg = await this.prisma.wallet.aggregate({
+        _sum: { balance: true },
+      });
+
+      const walletStats: DashboardWalletStatsDto = {
+        total: await this.prisma.wallet.count(),
+        active: await this.prisma.wallet.count({
+          where: { isActive: true },
+        }),
+        inactive: await this.prisma.wallet.count({
+          where: { isActive: false },
+        }),
+        totalBalance: walletBalanceAgg._sum.balance || 0,
+      };
+
+      const dashboardStats: DashboardStatsDto = {
+        users: userStats,
+        transactions: transactionStats,
+        wallets: walletStats,
+      };
+
+      console.log('✅ [ADMIN SERVICE] Dashboard statistics retrieved');
+
+      return {
+        success: true,
+        stats: dashboardStats,
+      };
+    } catch (error) {
+      console.error(
+        '❌ [ADMIN SERVICE] Error retrieving dashboard statistics:',
+        error,
+      );
+      throw new BadRequestException('Failed to retrieve dashboard statistics');
+    }
   }
 }

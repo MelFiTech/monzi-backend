@@ -5,12 +5,14 @@ import {
   UseGuards,
   Request,
   Get,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import {
@@ -189,6 +191,128 @@ export class AuthController {
     const result = await this.authService.getProfile(req.user.id);
 
     console.log('✅ [AUTH API] Profile retrieved successfully');
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('transactions')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get user transactions',
+    description: 'Get detailed transaction history for the authenticated user',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of transactions to return (default: 20)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Number of transactions to skip (default: 0)',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    type: String,
+    description: 'Filter by transaction type (TRANSFER, PAYMENT, WITHDRAWAL, DEPOSIT)',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: String,
+    description: 'Filter by transaction status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User transactions retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        transactions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', example: 'txn_123' },
+              amount: { type: 'number', example: 5000.00 },
+              currency: { type: 'string', example: 'NGN' },
+              type: { type: 'string', example: 'TRANSFER' },
+              status: { type: 'string', example: 'COMPLETED' },
+              reference: { type: 'string', example: 'TXN_1234567890' },
+              description: { type: 'string', example: 'Transfer to John Doe' },
+              metadata: { type: 'object', example: {} },
+              createdAt: { type: 'string', example: '2024-01-15T10:30:00Z' },
+              updatedAt: { type: 'string', example: '2024-01-15T10:32:00Z' },
+              fromAccount: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', example: 'acc_123' },
+                  accountNumber: { type: 'string', example: '9038123456' },
+                  bankName: { type: 'string', example: 'First Bank' },
+                  bankCode: { type: 'string', example: '000016' },
+                  accountName: { type: 'string', example: 'John Doe' },
+                }
+              },
+              toAccount: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', example: 'acc_456' },
+                  accountNumber: { type: 'string', example: '3089415578' },
+                  bankName: { type: 'string', example: 'GTBank' },
+                  bankCode: { type: 'string', example: '000013' },
+                  accountName: { type: 'string', example: 'Jane Smith' },
+                }
+              }
+            }
+          }
+        },
+        total: { type: 'number', example: 150 },
+        page: { type: 'number', example: 1 },
+        limit: { type: 'number', example: 20 },
+        stats: {
+          type: 'object',
+          properties: {
+            totalAmount: { type: 'number', example: 250000.00 },
+            totalTransactions: { type: 'number', example: 150 },
+            completed: { type: 'number', example: 145 },
+            pending: { type: 'number', example: 3 },
+            failed: { type: 'number', example: 2 },
+            cancelled: { type: 'number', example: 0 },
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing token',
+  })
+  async getUserTransactions(
+    @Request() req,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('type') type?: string,
+    @Query('status') status?: string,
+  ) {
+    console.log('💸 [AUTH API] GET /auth/transactions - User transactions request');
+    console.log('🆔 User ID:', req.user.id);
+    console.log('📊 Query params:', { limit, offset, type, status });
+
+    const result = await this.authService.getUserTransactions(
+      req.user.id,
+      limit ? Number(limit) : 20,
+      offset ? Number(offset) : 0,
+      type,
+      status,
+    );
+
+    console.log('✅ [AUTH API] User transactions retrieved successfully');
+    console.log('📄 Found', result.transactions.length, 'transactions of', result.total, 'total');
 
     return result;
   }

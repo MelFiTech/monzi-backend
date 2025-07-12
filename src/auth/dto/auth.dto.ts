@@ -225,6 +225,24 @@ export class UserProfileDto {
   })
   isOnboarded: boolean;
 
+  @ApiProperty({ example: 'VERIFIED', description: 'KYC verification status' })
+  kycStatus: string;
+
+  @ApiProperty({ example: '22234567890', description: 'BVN number' })
+  bvn?: string;
+
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'BVN verification date',
+  })
+  bvnVerifiedAt?: string;
+
+  @ApiProperty({
+    example: '/uploads/kyc/user-selfie.jpg',
+    description: 'Selfie URL',
+  })
+  selfieUrl?: string;
+
   @ApiProperty({
     example: '2024-01-01T00:00:00Z',
     description: 'Account creation date',
@@ -236,4 +254,29 @@ export class UserProfileDto {
     description: 'Last update date',
   })
   updatedAt: string;
+
+  @ApiProperty({
+    description: 'User wallet information',
+    required: false,
+    example: {
+      id: 'wallet123',
+      balance: 1500.00,
+      currency: 'NGN',
+      virtualAccountNumber: '9038123456',
+      provider: 'BUDPAY',
+      isActive: true,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    },
+  })
+  wallet?: {
+    id: string;
+    balance: number;
+    currency: string;
+    virtualAccountNumber: string;
+    provider: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
 }

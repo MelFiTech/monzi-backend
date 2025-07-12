@@ -62,12 +62,21 @@ export class PushNotificationsService {
       });
 
       if (existingToken) {
-        // Update existing token
+        // Update existing token with all device information
         await this.prisma.pushToken.update({
           where: { id: existingToken.id },
           data: {
             deviceId: dto.deviceId,
+            deviceName: dto.deviceName,
             platform: dto.platform,
+            osVersion: dto.osVersion,
+            appVersion: dto.appVersion,
+            buildVersion: dto.buildVersion,
+            appOwnership: dto.appOwnership,
+            executionEnvironment: dto.executionEnvironment,
+            isDevice: dto.isDevice,
+            brand: dto.brand,
+            manufacturer: dto.manufacturer,
             isActive: true,
             lastUsedAt: new Date(),
           },
@@ -76,6 +85,9 @@ export class PushNotificationsService {
         this.logger.log(
           `🔄 [PUSH] Updated existing push token for user: ${userId}`,
         );
+        this.logger.log(
+          `📱 [PUSH] Device: ${dto.deviceName || dto.deviceId || 'Unknown'} (${dto.platform} ${dto.osVersion})`,
+        );
         return {
           success: true,
           message: 'Push token updated successfully',
@@ -83,19 +95,31 @@ export class PushNotificationsService {
         };
       }
 
-      // Create new token
+      // Create new token with all device information
       const pushToken = await this.prisma.pushToken.create({
         data: {
           userId,
           token: dto.token,
           deviceId: dto.deviceId,
+          deviceName: dto.deviceName,
           platform: dto.platform,
+          osVersion: dto.osVersion,
+          appVersion: dto.appVersion,
+          buildVersion: dto.buildVersion,
+          appOwnership: dto.appOwnership,
+          executionEnvironment: dto.executionEnvironment,
+          isDevice: dto.isDevice,
+          brand: dto.brand,
+          manufacturer: dto.manufacturer,
           isActive: true,
         },
       });
 
       this.logger.log(
         `✅ [PUSH] Registered new push token for user: ${userId}`,
+      );
+      this.logger.log(
+        `📱 [PUSH] Device: ${dto.deviceName || dto.deviceId || 'Unknown'} (${dto.platform} ${dto.osVersion})`,
       );
       return {
         success: true,
@@ -410,7 +434,16 @@ export class PushNotificationsService {
         id: true,
         token: true,
         deviceId: true,
+        deviceName: true,
         platform: true,
+        osVersion: true,
+        appVersion: true,
+        buildVersion: true,
+        appOwnership: true,
+        executionEnvironment: true,
+        isDevice: true,
+        brand: true,
+        manufacturer: true,
         isActive: true,
         lastUsedAt: true,
         createdAt: true,
