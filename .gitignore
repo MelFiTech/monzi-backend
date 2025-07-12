@@ -29,3 +29,7 @@ build/
 # Temporary files
 env.example
 generate-jwt-secret.js
+
+# Test files with sensitive data
+test-*.js
+generate-test-token.js

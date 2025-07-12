@@ -31,9 +31,9 @@ model User {
   aiApprovals         AiApproval[]
   aiQueries           AiQuery[]
   ocrScans            OcrScan[]
+  pushTokens          PushToken[]
   transactions        Transaction[]
   wallet              Wallet?
-  pushTokens          PushToken[]
 
   @@map("users")
 }
@@ -194,10 +194,10 @@ model FeeConfiguration {
   fixedAmount Float?
   minAmount   Float?
   maxAmount   Float?
-  description String?  // Description of the fee configuration
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  description String?
 
   @@map("fee_configurations")
 }
@@ -230,27 +230,16 @@ model AiApproval {
 }
 
 model PushToken {
-  id           String    @id @default(cuid())
-  token        String    @unique  // Expo push token
-  deviceId     String?   // Device identifier (optional)
-  deviceName   String?   // Device name as set by the user
-  platform     String?   // iOS, Android, etc.
-  osVersion    String?   // Operating system version
-  appVersion   String?   // App version
-  buildVersion String?   // App build version
-  appOwnership String?   // App ownership (standalone, expo, guest)
-  executionEnvironment String? // Execution environment (storeClient, standalone, bareWorkflow)
-  isDevice     Boolean?  // Whether running on a physical device
-  brand        String?   // Device brand
-  manufacturer String?   // Device manufacturer
-  isActive     Boolean   @default(true)
-  lastUsedAt   DateTime  @default(now())
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  
-  // User who owns this token
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  token      String   @unique
+  deviceId   String?
+  platform   String?
+  isActive   Boolean  @default(true)
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
