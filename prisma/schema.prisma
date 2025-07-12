@@ -230,20 +230,140 @@ model AiApproval {
 }
 
 model PushToken {
-  id         String   @id @default(cuid())
-  token      String   @unique
-  deviceId   String?
-  platform   String?
-  isActive   Boolean  @default(true)
-  lastUsedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String   @id @default(cuid())
+  token                String   @unique
+  deviceId             String?
+  platform             String?
+  isActive             Boolean  @default(true)
+  lastUsedAt           DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  userId               String
+  appOwnership         String?
+  appVersion           String?
+  brand                String?
+  buildVersion         String?
+  deviceName           String?
+  executionEnvironment String?
+  isDevice             Boolean?
+  manufacturer         String?
+  osVersion            String?
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
   @@map("push_tokens")
+}
+
+model AuditorConfiguration {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  model             String   @default("claude-3-5-sonnet-20241022")
+  temperature       Float    @default(0.7)
+  maxTokens         Int      @default(8000)
+  systemPrompt      String?
+  isActive          Boolean  @default(true)
+  encryptionKey     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  chats             AuditorChat[]
+
+  @@map("auditor_configurations")
+}
+
+model AuditorChat {
+  id            String              @id @default(cuid())
+  title         String?
+  configId      String
+  adminUserId   String
+  sessionId     String              @unique
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  config        AuditorConfiguration @relation(fields: [configId], references: [id], onDelete: Cascade)
+  messages      AuditorMessage[]
+  reports       AuditorReport[]
+
+  @@index([sessionId])
+  @@index([adminUserId])
+  @@map("auditor_chats")
+}
+
+model AuditorMessage {
+  id          String              @id @default(cuid())
+  chatId      String
+  role        AuditorMessageRole
+  content     String
+  metadata    Json?
+  tokens      Int?
+  createdAt   DateTime            @default(now())
+  chat        AuditorChat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@map("auditor_messages")
+}
+
+model AuditorReport {
+  id          String            @id @default(cuid())
+  chatId      String
+  type        AuditorReportType
+  title       String
+  content     String
+  summary     String?
+  riskLevel   AuditorRiskLevel  @default(LOW)
+  findings    Json?
+  recommendations Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  chat        AuditorChat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([type])
+  @@index([riskLevel])
+  @@map("auditor_reports")
+}
+
+model AuditorMetrics {
+  id               String   @id @default(cuid())
+  period           String
+  periodType       String
+  totalUsers       Int      @default(0)
+  totalTransactions Int     @default(0)
+  totalVolume      Float    @default(0)
+  averageTransaction Float  @default(0)
+  successRate      Float    @default(0)
+  failureRate      Float    @default(0)
+  fraudAlerts      Int      @default(0)
+  systemHealth     Float    @default(100)
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([period, periodType])
+  @@index([periodType])
+  @@map("auditor_metrics")
+}
+
+enum AuditorMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum AuditorReportType {
+  FINANCIAL_ANALYSIS
+  RISK_ASSESSMENT
+  COMPLIANCE_AUDIT
+  SYSTEM_HEALTH
+  FRAUD_DETECTION
+}
+
+enum AuditorRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
 
 enum SystemConfigKey {

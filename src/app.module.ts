@@ -15,6 +15,7 @@ import { ProvidersModule } from './providers/providers.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 import { EmailModule } from './email/email.module';
+import { AuditorModule } from './auditor/auditor.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { EmailModule } from './email/email.module';
     NotificationsModule,
     PushNotificationsModule,
     EmailModule,
+    AuditorModule,
   ],
   controllers: [AppController],
   providers: [AppService],
