@@ -299,4 +299,24 @@ export class EmailController {
   async sendTemplateTestEmail(@Body() body: { email: string }): Promise<EmailSendResponse> {
     return await this.emailService.sendTemplateTestEmail(body.email);
   }
+
+  // KYC Approval email endpoint
+  @Post('send-kyc-approval')
+  @ApiOperation({ summary: 'Send KYC approval email' })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC approval email sent successfully',
+    type: EmailSendResponse,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @HttpCode(HttpStatus.OK)
+  async sendKycApprovalEmail(@Body() body: {
+    email: string;
+    name: string;
+    walletCreated?: boolean;
+    virtualAccountNumber?: string;
+    walletProvider?: string;
+  }): Promise<EmailSendResponse> {
+    return await this.emailService.sendKycApprovalEmail(body);
+  }
 } 

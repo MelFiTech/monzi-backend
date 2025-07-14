@@ -62,6 +62,7 @@ import {
 import { KycStatus, Prisma, FeeType as PrismaFeeType } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -74,6 +75,7 @@ export class AdminService {
     private configService: ConfigService,
     private notificationsGateway: NotificationsGateway,
     private pushNotificationsService: PushNotificationsService,
+    private emailService: EmailService,
   ) {}
 
   async setFee(setFeeDto: SetFeeDto): Promise<SetFeeResponse> {
@@ -213,15 +215,27 @@ export class AdminService {
     }
   }
 
-  async getFeeByType(type: FeeType): Promise<FeeConfigurationResponse | null> {
+  async getFeeByType(type: string): Promise<FeeConfigurationResponse | null> {
     console.log(
       '🔍 [ADMIN SERVICE] Retrieving fee configuration for type:',
       type,
     );
 
+    // Validate fee type
+    const validFeeTypes = Object.values(FeeType);
+    if (!validFeeTypes.includes(type as FeeType)) {
+      console.log(
+        '❌ [ADMIN SERVICE] Invalid fee type:',
+        type,
+        'Valid types:',
+        validFeeTypes,
+      );
+      return null;
+    }
+
     try {
       const feeConfiguration = await this.prisma.feeConfiguration.findUnique({
-        where: { feeType: type },
+        where: { feeType: type as FeeType },
       });
 
       if (!feeConfiguration) {
@@ -526,11 +540,8 @@ export class AdminService {
         createdAt: user.createdAt.toISOString(),
       };
 
-      // Generate full image URL if selfie exists
-      const baseUrl = this.configService?.get<string>('APP_URL') || 'http://localhost:3000';
-      const selfieImageUrl = user.selfieUrl
-        ? `${baseUrl}${user.selfieUrl}`
-        : undefined;
+      // Use Cloudinary URL directly since selfieUrl is already a complete Cloudinary URL
+      const selfieImageUrl = user.selfieUrl || undefined;
 
       console.log('✅ [ADMIN SERVICE] KYC submission details retrieved');
 
@@ -642,6 +653,43 @@ export class AdminService {
         }
 
         console.log('✅ [ADMIN SERVICE] KYC approved for user:', userId);
+
+        // Send notifications to user
+        try {
+          // Send push notification
+          await this.pushNotificationsService.sendPushNotificationToUser(
+            userId,
+            {
+              title: '🎉 KYC Approved!',
+              body: 'Your account has been verified. Your wallet is now ready to use!',
+              data: {
+                type: 'KYC_APPROVED',
+                walletCreated: walletCreated,
+                virtualAccountNumber: virtualAccountNumber,
+              },
+              priority: 'high',
+              sound: 'default',
+            },
+          );
+
+          // Send email notification
+          const userFullName = user.firstName && user.lastName 
+            ? `${user.firstName} ${user.lastName}` 
+            : user.firstName || user.lastName || 'User';
+
+          await this.emailService.sendKycApprovalEmail({
+            email: user.email,
+            name: userFullName,
+            walletCreated: walletCreated,
+            virtualAccountNumber: virtualAccountNumber,
+            walletProvider: 'Monzi',
+          });
+
+          console.log('📧 [ADMIN SERVICE] KYC approval notifications sent successfully');
+        } catch (notificationError) {
+          console.error('❌ [ADMIN SERVICE] Error sending KYC approval notifications:', notificationError);
+          // Don't fail the approval if notifications fail
+        }
       } else {
         // Reject KYC
         newStatus = 'REJECTED';

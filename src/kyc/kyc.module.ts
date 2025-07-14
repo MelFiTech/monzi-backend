@@ -7,9 +7,10 @@ import { AdminModule } from '../admin/admin.module';
 import { ConfigModule } from '@nestjs/config';
 import { RavenModule } from '../providers/raven/raven.module';
 import { GeminiModule } from '../providers/ai/gemini.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
-  imports: [ConfigModule, RavenModule, GeminiModule, WalletModule, AdminModule],
+  imports: [ConfigModule, RavenModule, GeminiModule, WalletModule, AdminModule, CloudinaryModule],
   controllers: [KycController],
   providers: [KycService, PrismaService],
   exports: [KycService],

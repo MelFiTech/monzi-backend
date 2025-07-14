@@ -402,6 +402,57 @@ export class EmailService {
     }
   }
 
+  async sendKycApprovalEmail(dto: {
+    email: string;
+    name: string;
+    walletCreated?: boolean;
+    virtualAccountNumber?: string;
+    walletProvider?: string;
+  }): Promise<EmailSendResponse> {
+    this.logger.log(`Sending KYC approval email to: ${dto.email}`);
+    
+    try {
+      const template = this.loadTemplate('kyc-approved');
+      const config = this.getEmailConfig(EmailType.OTP);
+      const resend = this.getResendClient(EmailType.OTP);
+
+      const templateVariables = {
+        name: dto.name,
+        email: dto.email,
+        walletCreated: dto.walletCreated || false,
+        virtualAccountNumber: dto.virtualAccountNumber || '',
+        walletProvider: dto.walletProvider || 'Monzi',
+        appUrl: this.configService.get<string>('APP_URL') || 'https://monzi.money',
+      };
+
+      const htmlContent = this.replaceTemplateVariables(template, templateVariables);
+      const textContent = this.generatePlainTextFromHtml(htmlContent);
+
+      const result = await resend.emails.send({
+        from: `${config.fromName} <${config.fromEmail}>`,
+        to: [dto.email],
+        subject: '🎉 KYC Approved - Your Monzi Account is Ready!',
+        html: htmlContent,
+        text: textContent,
+        tags: [
+          { name: 'email-type', value: 'kyc-approval' },
+        ],
+      });
+
+      this.logger.log(`KYC approval email sent successfully to: ${dto.email}, ID: ${result.data?.id || 'unknown'}`);
+
+      return {
+        success: true,
+        message: 'KYC approval email sent successfully',
+        emailId: result.data?.id || undefined,
+        type: EmailType.OTP,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to send KYC approval email to: ${dto.email}`, error);
+      throw new BadRequestException('Failed to send KYC approval email');
+    }
+  }
+
   async sendBulkEmails(dto: BulkEmailDto): Promise<EmailSendResponse[]> {
     this.logger.log(`Sending bulk emails to ${dto.emails.length} recipients`);
     

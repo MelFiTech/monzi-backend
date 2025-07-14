@@ -32,6 +32,27 @@ export class CloudinaryService {
     });
   }
 
+  async uploadBuffer(buffer: Buffer, folder: string = 'monzi', publicId?: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          public_id: publicId,
+          resource_type: 'auto',
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+
+      uploadStream.end(buffer);
+    });
+  }
+
   async uploadImageFromPath(filePath: string, folder: string = 'monzi'): Promise<any> {
     return cloudinary.uploader.upload(filePath, {
       folder,

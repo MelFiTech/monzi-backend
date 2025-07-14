@@ -7,6 +7,8 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  Param,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -18,6 +20,8 @@ import {
 } from '@nestjs/swagger';
 import { KycService } from './kyc.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles, UserRole } from '../auth/roles.decorator';
 import {
   VerifyBvnDto,
   UploadSelfieDto,
@@ -161,6 +165,108 @@ export class KycController {
       return result;
     } catch (error) {
       console.log('❌ [KYC API] Failed to get KYC status');
+      console.log('🚨 Error:', error.message);
+      throw error;
+    }
+  }
+
+  // ===== ADMIN ENDPOINTS =====
+
+  @ApiOperation({
+    summary: 'Get all KYC submissions (Admin only)',
+    description: 'Retrieve all KYC submissions for admin review',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC submissions retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @Get('admin/submissions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
+  async getAllKycSubmissions(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+    @Query('status') status?: string,
+  ) {
+    console.log('👨‍💼 [KYC ADMIN API] GET /kyc/admin/submissions - Request received');
+
+    try {
+      const result = await this.kycService.getAllKycSubmissions({
+        page: parseInt(page),
+        limit: parseInt(limit),
+        status,
+      });
+      console.log('✅ [KYC ADMIN API] KYC submissions retrieved');
+      return result;
+    } catch (error) {
+      console.log('❌ [KYC ADMIN API] Failed to get KYC submissions');
+      console.log('🚨 Error:', error.message);
+      throw error;
+    }
+  }
+
+  @ApiOperation({
+    summary: 'Get KYC submission details (Admin only)',
+    description: 'Retrieve detailed KYC submission information including images',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC submission details retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({ status: 404, description: 'KYC submission not found' })
+  @Get('admin/submissions/:userId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
+  async getKycSubmissionDetails(@Param('userId') userId: string) {
+    console.log('👨‍💼 [KYC ADMIN API] GET /kyc/admin/submissions/:userId - Request received');
+
+    try {
+      const result = await this.kycService.getKycSubmissionDetails(userId);
+      console.log('✅ [KYC ADMIN API] KYC submission details retrieved');
+      return result;
+    } catch (error) {
+      console.log('❌ [KYC ADMIN API] Failed to get KYC submission details');
+      console.log('🚨 Error:', error.message);
+      throw error;
+    }
+  }
+
+  @ApiOperation({
+    summary: 'Update KYC status (Admin only)',
+    description: 'Update KYC verification status by admin',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC status updated successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @Post('admin/submissions/:userId/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  async updateKycStatus(
+    @Param('userId') userId: string,
+    @Body() body: { status: string; reason?: string },
+    @Request() req,
+  ) {
+    console.log('👨‍💼 [KYC ADMIN API] POST /kyc/admin/submissions/:userId/status - Request received');
+
+    try {
+      const adminId = req.user.id;
+      const result = await this.kycService.updateKycStatus(
+        userId,
+        body.status,
+        body.reason,
+        adminId,
+      );
+      console.log('✅ [KYC ADMIN API] KYC status updated');
+      return result;
+    } catch (error) {
+      console.log('❌ [KYC ADMIN API] Failed to update KYC status');
       console.log('🚨 Error:', error.message);
       throw error;
     }

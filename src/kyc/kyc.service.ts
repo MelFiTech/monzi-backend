@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { RavenKycProvider } from '../providers/raven/raven-kyc.provider';
 import { GeminiAiProvider } from '../providers/ai/gemini.provider';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { KycStatus, AiApprovalType, AiApprovalStatus } from '@prisma/client';
 import {
   VerifyBvnDto,
@@ -13,8 +14,6 @@ import {
   CompleteKycResponseDto,
 } from './dto/kyc.dto';
 import * as bcrypt from 'bcrypt';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
 
 // Type definition for multer file
 interface MulterFile {
@@ -40,6 +39,7 @@ export class KycService {
     private readonly walletService: WalletService,
     private readonly ravenKycProvider: RavenKycProvider,
     private readonly geminiAiProvider: GeminiAiProvider,
+    private readonly cloudinaryService: CloudinaryService,
   ) {
     this.smeplugBaseUrl = this.configService.get<string>('SMEPLUG_BASE_URL');
     this.smeplugApiKey = this.configService.get<string>('SMEPLUG_API_KEY');
@@ -357,13 +357,7 @@ export class KycService {
       // Note: Selfie upload can be used for additional verification even for already verified users
       // This provides extra security and AI approval tracking
 
-      // Create uploads directory if it doesn't exist
-      const uploadsDir = join(process.cwd(), 'uploads', 'kyc');
-      if (!existsSync(uploadsDir)) {
-        mkdirSync(uploadsDir, { recursive: true });
-      }
-
-      // **IMPROVED NAMING: Use user's name instead of user ID**
+      // **CLOUDINARY UPLOAD: Upload to Cloudinary instead of local storage**
       const timestamp = Date.now();
       const firstName = user.firstName || 'User';
       const lastName = user.lastName || 'Account';
@@ -371,16 +365,29 @@ export class KycService {
       const cleanLastName = lastName.replace(/[^a-zA-Z0-9]/g, ''); // Remove special characters
       const fileExtension = file.originalname.split('.').pop() || 'jpg';
 
-      // Format: FirstnameLastname-timestamp.jpg (e.g., "GoodnesObaje-1752150022599.jpg")
-      const filename = `${cleanFirstName}${cleanLastName}-${timestamp}.${fileExtension}`;
-      const filepath = join(uploadsDir, filename);
-      const selfieUrl = `/uploads/kyc/${filename}`;
+      // Format: monzi/kyc/FirstnameLastname-timestamp (e.g., "monzi/kyc/GoodnessObaje-1752150022599")
+      const publicId = `monzi/kyc/${cleanFirstName}${cleanLastName}-${timestamp}`;
 
-      console.log('📁 [KYC SERVICE] Saving file as:', filename);
+      console.log('📁 [KYC SERVICE] Uploading to Cloudinary with public ID:', publicId);
 
-      // Save file
-      writeFileSync(filepath, file.buffer);
-      console.log('💾 [KYC SERVICE] Selfie saved to:', selfieUrl);
+      // Upload to Cloudinary
+      const uploadResult = await this.cloudinaryService.uploadBuffer(
+        file.buffer,
+        'monzi/kyc',
+        publicId
+      );
+
+      if (!uploadResult || !uploadResult.secure_url) {
+        console.log('❌ [KYC SERVICE] Cloudinary upload failed:', uploadResult);
+        return {
+          success: false,
+          message: 'Failed to upload image. Please try again.',
+          error: 'UPLOAD_FAILED',
+        };
+      }
+
+      const selfieUrl = uploadResult.secure_url;
+      console.log('💾 [KYC SERVICE] Selfie uploaded to Cloudinary:', selfieUrl);
 
       // Convert image to base64 for Gemini AI analysis
       const imageBase64 = file.buffer.toString('base64');
@@ -633,6 +640,197 @@ export class KycService {
         return 'KYC verification failed due to data mismatch. Please contact support to update your information.';
       default:
         return 'Unknown KYC status';
+    }
+  }
+
+  // ===== ADMIN METHODS =====
+
+  async getAllKycSubmissions(params: {
+    page: number;
+    limit: number;
+    status?: string;
+  }) {
+    try {
+      const { page, limit, status } = params;
+      const skip = (page - 1) * limit;
+
+      const whereClause: any = {};
+      if (status) {
+        whereClause.kycStatus = status;
+      }
+
+      const [users, total] = await Promise.all([
+        this.prisma.user.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            kycStatus: true,
+            kycVerifiedAt: true,
+            bvnVerifiedAt: true,
+            selfieUrl: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        this.prisma.user.count({ where: whereClause }),
+      ]);
+
+      return {
+        success: true,
+        data: users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      console.error('Failed to get KYC submissions:', error);
+      throw new HttpException(
+        'Failed to retrieve KYC submissions',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getKycSubmissionDetails(userId: string) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          gender: true,
+          dateOfBirth: true,
+          kycStatus: true,
+          kycVerifiedAt: true,
+          bvn: true,
+          bvnVerifiedAt: true,
+          bvnProviderResponse: true,
+          selfieUrl: true,
+          createdAt: true,
+          updatedAt: true,
+          aiApprovals: {
+            where: { type: 'KYC_VERIFICATION' },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
+        },
+      });
+
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Get optimized image URLs for admin viewing
+      let selfieUrl = null;
+      if (user.selfieUrl) {
+        // If it's already a Cloudinary URL, use it directly
+        if (user.selfieUrl.includes('cloudinary.com')) {
+          selfieUrl = user.selfieUrl;
+        } else {
+          // For local URLs, we'll need to handle migration later
+          selfieUrl = user.selfieUrl;
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          ...user,
+          selfieUrl,
+        },
+      };
+    } catch (error) {
+      console.error('Failed to get KYC submission details:', error);
+      throw new HttpException(
+        'Failed to retrieve KYC submission details',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async updateKycStatus(
+    userId: string,
+    status: string,
+    reason?: string,
+    adminId?: string,
+  ) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Validate status
+      const validStatuses = ['PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'];
+      if (!validStatuses.includes(status)) {
+        throw new HttpException('Invalid KYC status', HttpStatus.BAD_REQUEST);
+      }
+
+      const updateData: any = {
+        kycStatus: status,
+      };
+
+      if (status === 'APPROVED') {
+        updateData.kycVerifiedAt = new Date();
+      }
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+      });
+
+      // Log admin action
+      if (adminId) {
+        await this.prisma.adminActionLog.create({
+          data: {
+            adminId,
+            adminEmail: 'admin@monzi.money', // Will be set by interceptor
+            action: 'UPDATE_KYC_STATUS',
+            targetType: 'USER',
+            targetId: userId,
+            targetEmail: user.email,
+            details: {
+              previousStatus: user.kycStatus,
+              newStatus: status,
+              reason,
+            },
+            ipAddress: 'N/A', // Will be set by interceptor
+            userAgent: 'N/A', // Will be set by interceptor
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: `KYC status updated to ${status}`,
+        data: {
+          userId,
+          status,
+          reason,
+        },
+      };
+    } catch (error) {
+      console.error('Failed to update KYC status:', error);
+      throw new HttpException(
+        'Failed to update KYC status',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }
