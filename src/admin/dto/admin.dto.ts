@@ -11,6 +11,8 @@ import {
   Min,
   Max,
   IsNotEmpty,
+  Length,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -934,4 +936,836 @@ export class GetDashboardStatsResponse {
     description: 'Dashboard statistics',
   })
   stats: DashboardStatsDto;
+}
+
+// ==================== WALLET MANAGEMENT DTOs ====================
+
+export class FundWalletDto {
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID to fund wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email to fund wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({
+    example: '9038123456',
+    description: 'Account number to fund wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  accountNumber?: string;
+
+  @ApiProperty({
+    example: 5000.00,
+    description: 'Amount to fund wallet with',
+  })
+  @IsNumber()
+  @Min(1, { message: 'Amount must be at least 1' })
+  amount: number;
+
+  @ApiProperty({
+    example: 'Admin wallet funding',
+    description: 'Description for the funding transaction',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
+export class DebitWalletDto {
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID to debit wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email to debit wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({
+    example: '9038123456',
+    description: 'Account number to debit wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  accountNumber?: string;
+
+  @ApiProperty({
+    example: 1000.00,
+    description: 'Amount to debit from wallet',
+  })
+  @IsNumber()
+  @Min(1, { message: 'Amount must be at least 1' })
+  amount: number;
+
+  @ApiProperty({
+    example: 'Admin wallet debit',
+    description: 'Description for the debit transaction',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
+export class WalletOperationResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Wallet funded successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID',
+  })
+  userId: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email',
+  })
+  userEmail: string;
+
+  @ApiProperty({
+    example: 5000.00,
+    description: 'Previous wallet balance',
+  })
+  previousBalance: number;
+
+  @ApiProperty({
+    example: 10000.00,
+    description: 'New wallet balance',
+  })
+  newBalance: number;
+
+  @ApiProperty({
+    example: 5000.00,
+    description: 'Amount that was funded/debited',
+  })
+  amount: number;
+
+  @ApiProperty({
+    example: 'TXN_ADMIN_FUND_1234567890',
+    description: 'Transaction reference',
+  })
+  reference: string;
+
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Transaction timestamp',
+  })
+  timestamp: string;
+}
+
+export class EditUserDto {
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID to edit',
+  })
+  @IsString()
+  @IsNotEmpty()
+  userId: string;
+
+  @ApiProperty({
+    example: 'newemail@example.com',
+    description: 'New email address',
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({
+    example: '+2348123456789',
+    description: 'New phone number',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({
+    example: 'John',
+    description: 'New first name',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiProperty({
+    example: 'Doe',
+    description: 'New last name',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiProperty({
+    example: 'MALE',
+    description: 'New gender',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiProperty({
+    example: '1990-01-15',
+    description: 'New date of birth',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @ApiProperty({
+    example: '22234567890',
+    description: 'New BVN number',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  bvn?: string;
+
+  @ApiProperty({
+    example: 'VERIFIED',
+    description: 'New KYC status',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  kycStatus?: string;
+
+  @ApiProperty({
+    example: true,
+    description: 'New verification status',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isVerified?: boolean;
+
+  @ApiProperty({
+    example: true,
+    description: 'New onboarding status',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isOnboarded?: boolean;
+
+  @ApiProperty({
+    example: true,
+    description: 'New active status',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class EditUserResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'User updated successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'Updated user ID',
+  })
+  userId: string;
+
+  @ApiProperty({
+    example: ['email', 'phone', 'firstName'],
+    description: 'Fields that were updated',
+  })
+  updatedFields: string[];
+
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Update timestamp',
+  })
+  updatedAt: string;
+}
+
+export enum WalletProvider {
+  BUDPAY = 'BUDPAY',
+  SMEPLUG = 'SMEPLUG',
+  POLARIS = 'POLARIS',
+}
+
+export class CreateWalletDto {
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID to create wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email to create wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({
+    enum: WalletProvider,
+    example: 'BUDPAY',
+    description: 'Wallet provider to use',
+  })
+  @IsEnum(WalletProvider)
+  provider: WalletProvider;
+
+  @ApiProperty({
+    example: '1234',
+    description: 'Initial wallet PIN (4 digits)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Length(4, 4, { message: 'PIN must be exactly 4 digits' })
+  @Matches(/^\d{4}$/, { message: 'PIN must contain only numbers' })
+  pin?: string;
+}
+
+export class CreateWalletResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Wallet created successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID',
+  })
+  userId: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email',
+  })
+  userEmail: string;
+
+  @ApiProperty({
+    example: 'wallet123',
+    description: 'Created wallet ID',
+  })
+  walletId: string;
+
+  @ApiProperty({
+    example: '9038123456',
+    description: 'Virtual account number',
+  })
+  virtualAccountNumber: string;
+
+  @ApiProperty({
+    example: 'BUDPAY',
+    description: 'Wallet provider',
+  })
+  provider: string;
+
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Creation timestamp',
+  })
+  createdAt: string;
+}
+
+// Admin Role Management DTOs
+export enum AdminRole {
+  ADMIN = 'ADMIN',
+  CUSTOMER_REP = 'CUSTOMER_REP',
+  DEVELOPER = 'DEVELOPER',
+  SUDO_ADMIN = 'SUDO_ADMIN',
+}
+
+// Permission-based access control
+export enum Permission {
+  // User Management
+  VIEW_USERS = 'VIEW_USERS',
+  EDIT_USERS = 'EDIT_USERS',
+  DELETE_USERS = 'DELETE_USERS',
+  CREATE_USERS = 'CREATE_USERS',
+  
+  // Transaction Management
+  VIEW_TRANSACTIONS = 'VIEW_TRANSACTIONS',
+  APPROVE_TRANSACTIONS = 'APPROVE_TRANSACTIONS',
+  REVERSE_TRANSACTIONS = 'REVERSE_TRANSACTIONS',
+  
+  // KYC Management
+  VIEW_KYC = 'VIEW_KYC',
+  APPROVE_KYC = 'APPROVE_KYC',
+  REJECT_KYC = 'REJECT_KYC',
+  
+  // Wallet Management
+  VIEW_WALLETS = 'VIEW_WALLETS',
+  FUND_WALLETS = 'FUND_WALLETS',
+  DEBIT_WALLETS = 'DEBIT_WALLETS',
+  CREATE_WALLETS = 'CREATE_WALLETS',
+  
+  // Fee Management
+  VIEW_FEES = 'VIEW_FEES',
+  SET_FEES = 'SET_FEES',
+  DELETE_FEES = 'DELETE_FEES',
+  
+  // Provider Management
+  VIEW_PROVIDERS = 'VIEW_PROVIDERS',
+  SWITCH_PROVIDERS = 'SWITCH_PROVIDERS',
+  TEST_PROVIDERS = 'TEST_PROVIDERS',
+  
+  // System Management
+  VIEW_DASHBOARD = 'VIEW_DASHBOARD',
+  VIEW_LOGS = 'VIEW_LOGS',
+  SYSTEM_CONFIG = 'SYSTEM_CONFIG',
+  
+  // Admin Management (SUDO only)
+  CREATE_ADMINS = 'CREATE_ADMINS',
+  EDIT_ADMINS = 'EDIT_ADMINS',
+  DELETE_ADMINS = 'DELETE_ADMINS',
+  VIEW_ADMINS = 'VIEW_ADMINS',
+}
+
+export class CreateAdminDto {
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'Email of existing user to promote to admin',
+  })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  email: string;
+
+  @ApiProperty({
+    enum: AdminRole,
+    example: 'ADMIN',
+    description: 'Admin role to assign',
+  })
+  @IsEnum(AdminRole, { message: 'Role must be ADMIN, CUSTOMER_REP, DEVELOPER, or SUDO_ADMIN' })
+  role: AdminRole;
+
+  @ApiProperty({
+    example: ['VIEW_USERS', 'VIEW_TRANSACTIONS', 'VIEW_KYC'],
+    description: 'Specific permissions to grant (optional - will use role defaults if not provided)',
+    required: false,
+    type: [String],
+    enum: Permission,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(Permission, { each: true })
+  customPermissions?: Permission[];
+}
+
+export class CreateAdminResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'User promoted to admin successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 'user123',
+    description: 'User ID',
+  })
+  userId: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email',
+  })
+  email: string;
+
+  @ApiProperty({
+    example: 'John Doe',
+    description: 'User full name',
+  })
+  fullName: string;
+
+  @ApiProperty({
+    example: 'ADMIN',
+    description: 'Assigned admin role',
+  })
+  role: string;
+
+  @ApiProperty({
+    example: ['VIEW_USERS', 'VIEW_TRANSACTIONS', 'VIEW_KYC'],
+    description: 'Granted permissions',
+    type: [String],
+  })
+  permissions: string[];
+
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Promotion timestamp',
+  })
+  promotedAt: string;
+}
+
+export class AdminDto {
+  @ApiProperty({ example: 'admin123', description: 'Admin ID' })
+  id: string;
+
+  @ApiProperty({ example: 'admin@example.com', description: 'Admin email' })
+  email: string;
+
+  @ApiProperty({ example: '+2348123456789', description: 'Admin phone number' })
+  phone: string;
+
+  @ApiProperty({ example: 'John', description: 'Admin first name' })
+  firstName: string;
+
+  @ApiProperty({ example: 'Doe', description: 'Admin last name' })
+  lastName: string;
+
+  @ApiProperty({ example: 'ADMIN', description: 'Admin role' })
+  role: string;
+
+  @ApiProperty({ example: 'MALE', description: 'Admin gender' })
+  gender: string;
+
+  @ApiProperty({ example: '1990-01-15T00:00:00.000Z', description: 'Date of birth' })
+  dateOfBirth: string;
+
+  @ApiProperty({ example: true, description: 'Account active status' })
+  isActive: boolean;
+
+  @ApiProperty({ example: true, description: 'Email verification status' })
+  isVerified: boolean;
+
+  @ApiProperty({ 
+    example: ['VIEW_USERS', 'VIEW_TRANSACTIONS', 'VIEW_KYC'],
+    description: 'Admin permissions',
+    type: [String],
+  })
+  permissions: string[];
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Account creation date' })
+  createdAt: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Last update date' })
+  updatedAt: string;
+}
+
+export class GetAdminsResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Admins retrieved successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    type: [AdminDto],
+    description: 'List of admins',
+  })
+  admins: AdminDto[];
+
+  @ApiProperty({ example: 5, description: 'Total number of admins' })
+  total: number;
+
+  @ApiProperty({ example: 1, description: 'Current page' })
+  page: number;
+
+  @ApiProperty({ example: 20, description: 'Items per page' })
+  limit: number;
+}
+
+export class UpdateAdminDto {
+  @ApiProperty({
+    example: 'admin123',
+    description: 'Admin ID to update',
+  })
+  @IsString()
+  @IsNotEmpty()
+  adminId: string;
+
+  @ApiProperty({
+    example: 'John',
+    description: 'Admin first name',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiProperty({
+    example: 'Doe',
+    description: 'Admin last name',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiProperty({
+    example: '+2348123456789',
+    description: 'Admin phone number',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\+234[789][01]\d{8}$/, {
+    message: 'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits',
+  })
+  phone?: string;
+
+  @ApiProperty({
+    enum: AdminRole,
+    example: 'ADMIN',
+    description: 'Admin role',
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(AdminRole, { message: 'Role must be ADMIN, CUSTOMER_REP, DEVELOPER, or SUDO_ADMIN' })
+  role?: AdminRole;
+
+  @ApiProperty({
+    example: ['VIEW_USERS', 'VIEW_TRANSACTIONS'],
+    description: 'Permissions to update',
+    required: false,
+    type: [String],
+    enum: Permission,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(Permission, { each: true })
+  permissions?: Permission[];
+
+  @ApiProperty({
+    example: true,
+    description: 'Account active status',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class UpdateAdminResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Admin updated successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    type: AdminDto,
+    description: 'Updated admin information',
+  })
+  admin: AdminDto;
+}
+
+export class DeleteAdminDto {
+  @ApiProperty({
+    example: 'admin123',
+    description: 'Admin ID to delete',
+  })
+  @IsString()
+  @IsNotEmpty()
+  adminId: string;
+
+  @ApiProperty({
+    example: 'Performance issues',
+    description: 'Reason for deletion',
+  })
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+}
+
+export class DeleteAdminResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Admin deleted successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 'admin123',
+    description: 'Deleted admin ID',
+  })
+  adminId: string;
+}
+
+export class AdminActionLogDto {
+  @ApiProperty({ example: 'log123', description: 'Log ID' })
+  id: string;
+
+  @ApiProperty({ example: 'admin123', description: 'Admin ID who performed the action' })
+  adminId: string;
+
+  @ApiProperty({ example: 'admin@example.com', description: 'Admin email' })
+  adminEmail: string;
+
+  @ApiProperty({ example: 'CREATE_ADMIN', description: 'Action performed' })
+  action: string;
+
+  @ApiProperty({ example: 'USER', description: 'Type of resource affected', required: false })
+  targetType?: string;
+
+  @ApiProperty({ example: 'user123', description: 'ID of affected resource', required: false })
+  targetId?: string;
+
+  @ApiProperty({ example: 'user@example.com', description: 'Email of affected user', required: false })
+  targetEmail?: string;
+
+  @ApiProperty({ 
+    example: { role: 'ADMIN', permissions: ['VIEW_USERS'] }, 
+    description: 'Additional action details',
+    required: false 
+  })
+  details?: any;
+
+  @ApiProperty({ example: '192.168.1.1', description: 'IP address', required: false })
+  ipAddress?: string;
+
+  @ApiProperty({ example: 'Mozilla/5.0...', description: 'User agent', required: false })
+  userAgent?: string;
+
+  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Action timestamp' })
+  createdAt: string;
+}
+
+export class GetAdminLogsResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Admin logs retrieved successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    type: [AdminActionLogDto],
+    description: 'List of admin action logs',
+  })
+  logs: AdminActionLogDto[];
+
+  @ApiProperty({ example: 50, description: 'Total number of logs' })
+  total: number;
+
+  @ApiProperty({ example: 1, description: 'Current page' })
+  page: number;
+
+  @ApiProperty({ example: 20, description: 'Items per page' })
+  limit: number;
+}
+
+export class GetAdminLogsQueryDto {
+  @ApiProperty({
+    example: 'CREATE_ADMIN',
+    description: 'Filter by action type',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  action?: string;
+
+  @ApiProperty({
+    example: 'admin@example.com',
+    description: 'Filter by admin email',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  adminEmail?: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'Filter by target user email',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  targetEmail?: string;
+
+  @ApiProperty({
+    example: '2024-01-01',
+    description: 'Filter logs from this date (YYYY-MM-DD)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @ApiProperty({
+    example: '2024-01-31',
+    description: 'Filter logs until this date (YYYY-MM-DD)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+
+  @ApiProperty({
+    example: 20,
+    description: 'Number of logs to return',
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  limit?: number;
+
+  @ApiProperty({
+    example: 0,
+    description: 'Number of logs to skip',
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  offset?: number;
 }

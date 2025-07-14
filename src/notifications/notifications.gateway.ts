@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @WebSocketGateway({
   cors: {
@@ -26,6 +27,8 @@ export class NotificationsGateway
 
   private readonly logger = new Logger(NotificationsGateway.name);
   private clientUserMap = new Map<string, string>(); // socketId -> userId
+
+  constructor(private prisma: PrismaService) {}
 
   handleConnection(client: Socket) {
     this.logger.log(`🔌 Client connected: ${client.id}`);
@@ -87,10 +90,13 @@ export class NotificationsGateway
     });
   }
 
+
+
   /**
    * Emit wallet balance update to specific user
+   * Real-time websocket notifications are always sent regardless of push notification preferences
    */
-  emitWalletBalanceUpdate(
+  async emitWalletBalanceUpdate(
     userId: string,
     data: {
       oldBalance: number;
@@ -121,8 +127,9 @@ export class NotificationsGateway
 
   /**
    * Emit transaction notification to specific user
+   * Real-time websocket notifications are always sent regardless of push notification preferences
    */
-  emitTransactionNotification(
+  async emitTransactionNotification(
     userId: string,
     data: {
       type: 'FUNDING' | 'TRANSFER' | 'WITHDRAWAL';
@@ -151,13 +158,14 @@ export class NotificationsGateway
 
   /**
    * Emit general notification to specific user
+   * Real-time websocket notifications are always sent regardless of push notification preferences
    */
-  emitNotification(
+  async emitNotification(
     userId: string,
     notification: {
       title: string;
       message: string;
-      type: 'info' | 'success' | 'warning' | 'error';
+      type: 'info' | 'success' | 'warning' | 'error' | 'promotional';
       data?: any;
     },
   ) {
@@ -167,6 +175,30 @@ export class NotificationsGateway
 
     this.server.to(`user_${userId}`).emit('notification', {
       ...notification,
+      timestamp: new Date(),
+      id: Math.random().toString(36).substr(2, 9),
+    });
+  }
+
+  /**
+   * Emit promotional notification (admin-only)
+   * Real-time websocket notifications are always sent regardless of push notification preferences
+   */
+  async emitPromotionalNotification(
+    userId: string,
+    notification: {
+      title: string;
+      message: string;
+      data?: any;
+    },
+  ) {
+    this.logger.log(
+      `📢 Emitting promotional notification to user ${userId}: ${notification.title}`,
+    );
+
+    this.server.to(`user_${userId}`).emit('notification', {
+      ...notification,
+      type: 'promotional',
       timestamp: new Date(),
       id: Math.random().toString(36).substr(2, 9),
     });

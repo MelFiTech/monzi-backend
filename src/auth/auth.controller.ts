@@ -6,6 +6,8 @@ import {
   Request,
   Get,
   Query,
+  Put,
+  Param,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,6 +26,22 @@ import {
   OtpResponseDto,
   AuthResponseDto,
   UserProfileDto,
+  OtpRequestResponseDto,
+  RequestPinResetOtpDto,
+  SecurityOperationResponseDto,
+  ChangeTransactionPinDto,
+  ChangePasscodeDto,
+  ResetTransactionPinDto,
+  ResetPasscodeDto,
+  RequestAccountDeletionDto,
+  ConfirmAccountDeletionDto,
+  SignOutDto,
+  SignOutResponseDto,
+  UpdateNotificationPreferencesDto,
+  NotificationPreferencesResponseDto,
+  TransactionDetailResponseDto,
+  UpdateDeviceTokenOnLoginDto,
+  DeviceTokenUpdateResponseDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -318,6 +336,411 @@ export class AuthController {
 
     console.log('✅ [AUTH API] User transactions retrieved successfully');
     console.log('📄 Found', result.transactions.length, 'transactions of', result.total, 'total');
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('transactions/:id')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get detailed transaction information by ID',
+    description: 'Retrieve specific transaction details by its unique identifier.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction details retrieved successfully',
+    type: TransactionDetailResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid transaction ID or transaction not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing token',
+  })
+  async getTransactionById(
+    @Request() req,
+    @Param('id') id: string,
+  ): Promise<TransactionDetailResponseDto> {
+    console.log('🔍 [AUTH API] GET /auth/transactions/:id - Get transaction by ID');
+    console.log('🆔 User ID:', req.user.id);
+    console.log('🔗 Transaction ID:', id);
+
+    const result = await this.authService.getUserTransactionDetail(req.user.id, id);
+
+    console.log('✅ [AUTH API] Transaction details retrieved successfully');
+    console.log('📄 Response:', result);
+
+    return result;
+  }
+
+  @Post('request-reset-otp')
+  @ApiOperation({
+    summary: 'Request OTP for PIN/Passcode reset',
+    description: 'Request a 6-digit OTP code to reset transaction PIN or passcode',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'OTP sent successfully',
+    type: OtpRequestResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async requestResetOtp(
+    @Body() dto: RequestPinResetOtpDto,
+  ): Promise<OtpRequestResponseDto> {
+    console.log('🔐 [AUTH API] POST /auth/request-reset-otp - Request reset OTP');
+    console.log('📧 Email:', dto.email);
+
+    const result = await this.authService.requestResetOtp(dto);
+
+    console.log('✅ [AUTH API] Reset OTP sent successfully');
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-transaction-pin')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Change transaction PIN',
+    description: 'Change the 4-digit wallet transaction PIN. Can use current PIN or OTP for verification. Requires authentication.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction PIN changed successfully',
+    type: SecurityOperationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid PIN or missing required fields',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid current PIN or OTP',
+  })
+  async changeTransactionPin(
+    @Request() req,
+    @Body() dto: ChangeTransactionPinDto,
+  ): Promise<SecurityOperationResponseDto> {
+    console.log('🔐 [AUTH API] POST /auth/change-transaction-pin - Change PIN');
+    console.log('🆔 User ID:', req.user.id);
+
+    const result = await this.authService.changeTransactionPin(req.user.id, dto);
+
+    console.log('✅ [AUTH API] Transaction PIN changed successfully');
+
+    return result;
+  }
+
+  @Post('reset-transaction-pin')
+  @ApiOperation({
+    summary: 'Reset transaction PIN using OTP',
+    description: 'Reset the 4-digit wallet transaction PIN using OTP. No authentication required - use this when user forgot their PIN.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction PIN reset successfully',
+    type: SecurityOperationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid PIN or missing required fields',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid OTP code',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async resetTransactionPin(
+    @Body() dto: ResetTransactionPinDto,
+  ): Promise<SecurityOperationResponseDto> {
+    console.log('🔐 [AUTH API] POST /auth/reset-transaction-pin - Reset PIN');
+    console.log('📧 Email:', dto.email);
+
+    const result = await this.authService.resetTransactionPin(dto);
+
+    console.log('✅ [AUTH API] Transaction PIN reset successfully');
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-passcode')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Change login passcode',
+    description: 'Change the 6-digit login passcode. Can use current passcode or OTP for verification. Requires authentication.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Passcode changed successfully',
+    type: SecurityOperationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid passcode or missing required fields',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid current passcode or OTP',
+  })
+  async changePasscode(
+    @Request() req,
+    @Body() dto: ChangePasscodeDto,
+  ): Promise<SecurityOperationResponseDto> {
+    console.log('🔐 [AUTH API] POST /auth/change-passcode - Change passcode');
+    console.log('🆔 User ID:', req.user.id);
+
+    const result = await this.authService.changePasscode(req.user.id, dto);
+
+    console.log('✅ [AUTH API] Passcode changed successfully');
+
+    return result;
+  }
+
+  @Post('reset-passcode')
+  @ApiOperation({
+    summary: 'Reset login passcode using OTP',
+    description: 'Reset the 6-digit login passcode using OTP. No authentication required - use this when user forgot their passcode.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Passcode reset successfully',
+    type: SecurityOperationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid passcode or missing required fields',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid OTP code',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async resetPasscode(
+    @Body() dto: ResetPasscodeDto,
+  ): Promise<SecurityOperationResponseDto> {
+    console.log('🔐 [AUTH API] POST /auth/reset-passcode - Reset passcode');
+    console.log('📧 Email:', dto.email);
+
+    const result = await this.authService.resetPasscode(dto);
+
+    console.log('✅ [AUTH API] Passcode reset successfully');
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('request-account-deletion')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Request account deletion',
+    description: 'Request to delete/deactivate the user account. An OTP will be sent for confirmation.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Account deletion OTP sent successfully',
+    type: OtpRequestResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Account is already deactivated',
+  })
+  async requestAccountDeletion(
+    @Request() req,
+    @Body() dto: RequestAccountDeletionDto,
+  ): Promise<OtpRequestResponseDto> {
+    console.log('🗑️ [AUTH API] POST /auth/request-account-deletion - Request deletion');
+    console.log('🆔 User ID:', req.user.id);
+    console.log('📝 Reason:', dto.reason);
+
+    const result = await this.authService.requestAccountDeletion(req.user.id, dto);
+
+    console.log('✅ [AUTH API] Account deletion OTP sent successfully');
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('confirm-account-deletion')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Confirm account deletion',
+    description: 'Confirm account deletion with OTP code. This will deactivate the account.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Account deactivated successfully',
+    type: SecurityOperationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid OTP or other error',
+  })
+  async confirmAccountDeletion(
+    @Request() req,
+    @Body() dto: ConfirmAccountDeletionDto,
+  ): Promise<SecurityOperationResponseDto> {
+    console.log('🗑️ [AUTH API] POST /auth/confirm-account-deletion');
+    console.log('👤 User ID:', req.user.id);
+
+    const result = await this.authService.confirmAccountDeletion(req.user.id, dto);
+
+    console.log('✅ [AUTH API] Account deletion confirmed');
+    console.log('📄 Response:', result);
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('sign-out')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Sign out user',
+    description: 'Sign out user and optionally disable transaction notifications while keeping promotional notifications.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User signed out successfully',
+    type: SignOutResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Sign out failed',
+  })
+  async signOut(
+    @Request() req,
+    @Body() dto: SignOutDto,
+  ): Promise<SignOutResponseDto> {
+    console.log('🚪 [AUTH API] POST /auth/sign-out');
+    console.log('👤 User ID:', req.user.id);
+    console.log('📱 Options:', dto);
+
+    const result = await this.authService.signOut(req.user.id, dto);
+
+    console.log('✅ [AUTH API] Sign out successful');
+    console.log('📄 Response:', result);
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('notification-preferences')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update push notification preferences',
+    description: 'Update user push notification preferences for different types of notifications. These preferences only affect push notifications, not real-time websocket notifications.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification preferences updated successfully',
+    type: NotificationPreferencesResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to update notification preferences',
+  })
+  async updateNotificationPreferences(
+    @Request() req,
+    @Body() dto: UpdateNotificationPreferencesDto,
+  ): Promise<NotificationPreferencesResponseDto> {
+    console.log('🔔 [AUTH API] PUT /auth/notification-preferences');
+    console.log('👤 User ID:', req.user.id);
+    console.log('📱 New preferences:', dto);
+
+    const result = await this.authService.updateNotificationPreferences(req.user.id, dto);
+
+    console.log('✅ [AUTH API] Notification preferences updated');
+    console.log('📄 Response:', result);
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('notification-preferences')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get push notification preferences',
+    description: 'Get current user push notification preferences. These preferences only affect push notifications, not real-time websocket notifications.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification preferences retrieved successfully',
+    type: NotificationPreferencesResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to get notification preferences',
+  })
+  async getNotificationPreferences(
+    @Request() req,
+  ): Promise<NotificationPreferencesResponseDto> {
+    console.log('🔔 [AUTH API] GET /auth/notification-preferences');
+    console.log('👤 User ID:', req.user.id);
+
+    const result = await this.authService.getNotificationPreferences(req.user.id);
+
+    console.log('✅ [AUTH API] Notification preferences retrieved');
+    console.log('📄 Response:', result);
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('update-device-token')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update device token on login',
+    description: 'Update the device token for the authenticated user. This should be called after successful login to ensure push notifications go to the current device.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Device token updated successfully',
+    type: DeviceTokenUpdateResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to update device token',
+  })
+  async updateDeviceTokenOnLogin(
+    @Request() req,
+    @Body() dto: UpdateDeviceTokenOnLoginDto,
+  ): Promise<DeviceTokenUpdateResponseDto> {
+    console.log('📱 [AUTH API] POST /auth/update-device-token');
+    console.log('👤 User ID:', req.user.id);
+    console.log('🔑 Device token:', dto.deviceToken);
+
+    const result = await this.authService.updateDeviceTokenOnLogin(
+      req.user.id,
+      dto.deviceToken,
+      {
+        deviceId: dto.deviceId,
+        deviceName: dto.deviceName,
+        platform: dto.platform,
+        osVersion: dto.osVersion,
+        appVersion: dto.appVersion,
+        buildVersion: dto.buildVersion,
+        appOwnership: dto.appOwnership,
+        executionEnvironment: dto.executionEnvironment,
+        isDevice: dto.isDevice,
+        brand: dto.brand,
+        manufacturer: dto.manufacturer,
+      },
+    );
+
+    console.log('✅ [AUTH API] Device token updated');
+    console.log('📄 Response:', result);
 
     return result;
   }

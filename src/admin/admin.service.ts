@@ -42,8 +42,27 @@ import {
   DashboardWalletStatsDto,
   DeleteUserDto,
   DeleteUserResponse,
+  FundWalletDto,
+  WalletOperationResponse,
+  DebitWalletDto,
+  EditUserDto,
+  EditUserResponse,
+  CreateWalletDto,
+  CreateWalletResponse,
+  CreateAdminDto,
+  CreateAdminResponse,
+  UpdateAdminDto,
+  UpdateAdminResponse,
+  DeleteAdminDto,
+  DeleteAdminResponse,
+  GetAdminsResponse,
+  AdminDto,
+  GetAdminLogsResponse,
 } from './dto/admin.dto';
 import { KycStatus, Prisma, FeeType as PrismaFeeType } from '@prisma/client';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AdminService {
@@ -53,6 +72,8 @@ export class AdminService {
     private providerManager: ProviderManagerService,
     private transferProviderManager: TransferProviderManagerService,
     private configService: ConfigService,
+    private notificationsGateway: NotificationsGateway,
+    private pushNotificationsService: PushNotificationsService,
   ) {}
 
   async setFee(setFeeDto: SetFeeDto): Promise<SetFeeResponse> {
@@ -570,9 +591,9 @@ export class AdminService {
         );
       }
 
-      if (!user.selfieUrl) {
-        throw new BadRequestException('No selfie uploaded for this user');
-      }
+      // Admin can approve KYC even without selfie upload
+      // This allows manual approval based on other criteria (e.g., BVN verification)
+      console.log('ℹ️ [ADMIN SERVICE] Selfie status:', user.selfieUrl ? 'Uploaded' : 'Not uploaded');
 
       let newStatus: string;
       let walletCreated = false;
@@ -2430,5 +2451,1066 @@ export class AdminService {
       );
       throw new BadRequestException('Failed to retrieve dashboard statistics');
     }
+  }
+
+  // ==================== WALLET MANAGEMENT METHODS ====================
+
+  async fundWallet(dto: FundWalletDto): Promise<WalletOperationResponse> {
+    console.log('💰 [ADMIN SERVICE] Fund wallet request:', dto);
+
+    // Find user by provided identifier
+    let user;
+    if (dto.userId) {
+      user = await this.prisma.user.findUnique({
+        where: { id: dto.userId },
+        include: { wallet: true },
+      });
+    } else if (dto.email) {
+      user = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+        include: { wallet: true },
+      });
+    } else if (dto.accountNumber) {
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { virtualAccountNumber: dto.accountNumber },
+        include: { user: true },
+      });
+      user = wallet ? { ...wallet.user, wallet } : null;
+    } else {
+      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    }
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.wallet) {
+      throw new BadRequestException('User does not have a wallet');
+    }
+
+    const previousBalance = user.wallet.balance;
+    const newBalance = previousBalance + dto.amount;
+
+    // Generate transaction reference
+    const reference = `TXN_ADMIN_FUND_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+    try {
+      // Use transaction for atomicity
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // Update wallet balance
+        const updatedWallet = await prisma.wallet.update({
+          where: { id: user.wallet.id },
+          data: { balance: newBalance },
+        });
+
+        // Create transaction record
+        await prisma.transaction.create({
+          data: {
+            userId: user.id,
+            amount: dto.amount,
+            currency: 'NGN',
+            type: 'DEPOSIT',
+            status: 'COMPLETED',
+            reference,
+            description: dto.description || 'Admin wallet funding',
+            metadata: {
+              adminFunding: true,
+              previousBalance,
+              newBalance,
+            },
+          },
+        });
+
+        return updatedWallet;
+      });
+
+      console.log('✅ [ADMIN SERVICE] Wallet funded successfully');
+
+      // Emit real-time notifications
+      if (this.notificationsGateway) {
+        // Wallet balance update notification
+        this.notificationsGateway.emitWalletBalanceUpdate(user.id, {
+          oldBalance: previousBalance,
+          newBalance,
+          change: dto.amount,
+          currency: 'NGN',
+          provider: 'ADMIN',
+          accountNumber: user.wallet.virtualAccountNumber,
+          grossAmount: dto.amount,
+          fundingFee: 0,
+          netAmount: dto.amount,
+          reference,
+        });
+
+        // Transaction notification
+        this.notificationsGateway.emitTransactionNotification(user.id, {
+          type: 'FUNDING',
+          amount: dto.amount,
+          grossAmount: dto.amount,
+          fee: 0,
+          currency: 'NGN',
+          description: dto.description || 'Admin wallet funding',
+          reference,
+          provider: 'ADMIN',
+          status: 'COMPLETED',
+          timestamp: new Date().toISOString(),
+        });
+
+        // General notification
+        this.notificationsGateway.emitNotification(user.id, {
+          title: 'Wallet Funded by Admin',
+          message: `₦${dto.amount} has been credited to your wallet by admin.`,
+          type: 'success',
+          data: {
+            amount: dto.amount,
+            reference,
+            adminOperation: true,
+          },
+        });
+      }
+
+      // Send push notification
+      if (this.pushNotificationsService) {
+        try {
+          await this.pushNotificationsService.sendPushNotificationToUser(user.id, {
+            title: 'Wallet Funded',
+            body: `₦${dto.amount.toLocaleString()} has been credited to your wallet. Your new balance is ₦${newBalance.toLocaleString()}.`,
+            data: {
+              type: 'funding',
+              amount: dto.amount,
+              reference,
+              newBalance,
+            },
+            priority: 'high',
+          });
+          console.log('📱 [ADMIN SERVICE] Push notification sent for wallet funding');
+        } catch (pushError) {
+          console.error('❌ [ADMIN SERVICE] Failed to send push notification:', pushError);
+          // Don't fail the operation if push notification fails
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Wallet funded successfully',
+        userId: user.id,
+        userEmail: user.email,
+        previousBalance,
+        newBalance,
+        amount: dto.amount,
+        reference,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error funding wallet:', error);
+      throw new BadRequestException('Failed to fund wallet');
+    }
+  }
+
+  async debitWallet(dto: DebitWalletDto): Promise<WalletOperationResponse> {
+    console.log('💸 [ADMIN SERVICE] Debit wallet request:', dto);
+
+    // Find user by provided identifier
+    let user;
+    if (dto.userId) {
+      user = await this.prisma.user.findUnique({
+        where: { id: dto.userId },
+        include: { wallet: true },
+      });
+    } else if (dto.email) {
+      user = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+        include: { wallet: true },
+      });
+    } else if (dto.accountNumber) {
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { virtualAccountNumber: dto.accountNumber },
+        include: { user: true },
+      });
+      user = wallet ? { ...wallet.user, wallet } : null;
+    } else {
+      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    }
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.wallet) {
+      throw new BadRequestException('User does not have a wallet');
+    }
+
+    const previousBalance = user.wallet.balance;
+
+    if (previousBalance < dto.amount) {
+      throw new BadRequestException(
+        `Insufficient balance. Current balance: ₦${previousBalance}, Requested: ₦${dto.amount}`,
+      );
+    }
+
+    const newBalance = previousBalance - dto.amount;
+
+    // Generate transaction reference
+    const reference = `TXN_ADMIN_DEBIT_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+    try {
+      // Use transaction for atomicity
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // Update wallet balance
+        const updatedWallet = await prisma.wallet.update({
+          where: { id: user.wallet.id },
+          data: { balance: newBalance },
+        });
+
+        // Create transaction record
+        await prisma.transaction.create({
+          data: {
+            userId: user.id,
+            amount: dto.amount,
+            currency: 'NGN',
+            type: 'WITHDRAWAL',
+            status: 'COMPLETED',
+            reference,
+            description: dto.description || 'Admin wallet debit',
+            metadata: {
+              adminDebit: true,
+              previousBalance,
+              newBalance,
+            },
+          },
+        });
+
+        return updatedWallet;
+      });
+
+      console.log('✅ [ADMIN SERVICE] Wallet debited successfully');
+
+      // Emit real-time notifications
+      if (this.notificationsGateway) {
+        // Wallet balance update notification
+        this.notificationsGateway.emitWalletBalanceUpdate(user.id, {
+          oldBalance: previousBalance,
+          newBalance,
+          change: -dto.amount,
+          currency: 'NGN',
+          provider: 'ADMIN',
+          accountNumber: user.wallet.virtualAccountNumber,
+          grossAmount: dto.amount,
+          fundingFee: 0,
+          netAmount: -dto.amount,
+          reference,
+        });
+
+        // Transaction notification
+        this.notificationsGateway.emitTransactionNotification(user.id, {
+          type: 'WITHDRAWAL',
+          amount: dto.amount,
+          grossAmount: dto.amount,
+          fee: 0,
+          currency: 'NGN',
+          description: dto.description || 'Admin wallet debit',
+          reference,
+          provider: 'ADMIN',
+          status: 'COMPLETED',
+          timestamp: new Date().toISOString(),
+        });
+
+        // General notification
+        this.notificationsGateway.emitNotification(user.id, {
+          title: 'Wallet Debited by Admin',
+          message: `₦${dto.amount} has been debited from your wallet by admin.`,
+          type: 'warning',
+          data: {
+            amount: dto.amount,
+            reference,
+            adminOperation: true,
+          },
+        });
+      }
+
+      // Send push notification
+      if (this.pushNotificationsService) {
+        try {
+          await this.pushNotificationsService.sendPushNotificationToUser(user.id, {
+            title: 'Wallet Debited',
+            body: `₦${dto.amount.toLocaleString()} has been debited from your wallet. Your new balance is ₦${newBalance.toLocaleString()}.`,
+            data: {
+              type: 'withdrawal',
+              amount: dto.amount,
+              reference,
+              newBalance,
+            },
+            priority: 'high',
+          });
+          console.log('📱 [ADMIN SERVICE] Push notification sent for wallet debit');
+        } catch (pushError) {
+          console.error('❌ [ADMIN SERVICE] Failed to send push notification:', pushError);
+          // Don't fail the operation if push notification fails
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Wallet debited successfully',
+        userId: user.id,
+        userEmail: user.email,
+        previousBalance,
+        newBalance,
+        amount: dto.amount,
+        reference,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error debiting wallet:', error);
+      throw new BadRequestException('Failed to debit wallet');
+    }
+  }
+
+  async editUser(dto: EditUserDto): Promise<EditUserResponse> {
+    console.log('✏️ [ADMIN SERVICE] Edit user request:', dto);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Track which fields are being updated
+    const updatedFields: string[] = [];
+    const updateData: any = {};
+
+    if (dto.email !== undefined) {
+      updateData.email = dto.email;
+      updatedFields.push('email');
+    }
+    if (dto.phone !== undefined) {
+      updateData.phone = dto.phone;
+      updatedFields.push('phone');
+    }
+    if (dto.firstName !== undefined) {
+      updateData.firstName = dto.firstName;
+      updatedFields.push('firstName');
+    }
+    if (dto.lastName !== undefined) {
+      updateData.lastName = dto.lastName;
+      updatedFields.push('lastName');
+    }
+    if (dto.gender !== undefined) {
+      updateData.gender = dto.gender;
+      updatedFields.push('gender');
+    }
+    if (dto.dateOfBirth !== undefined) {
+      updateData.dateOfBirth = new Date(dto.dateOfBirth);
+      updatedFields.push('dateOfBirth');
+    }
+    if (dto.bvn !== undefined) {
+      updateData.bvn = dto.bvn;
+      updatedFields.push('bvn');
+    }
+    if (dto.kycStatus !== undefined) {
+      updateData.kycStatus = dto.kycStatus;
+      updatedFields.push('kycStatus');
+    }
+    if (dto.isVerified !== undefined) {
+      updateData.isVerified = dto.isVerified;
+      updatedFields.push('isVerified');
+    }
+    if (dto.isOnboarded !== undefined) {
+      updateData.isOnboarded = dto.isOnboarded;
+      updatedFields.push('isOnboarded');
+    }
+    if (dto.isActive !== undefined) {
+      updateData.isActive = dto.isActive;
+      updatedFields.push('isActive');
+    }
+
+    if (updatedFields.length === 0) {
+      throw new BadRequestException('No fields provided to update');
+    }
+
+    try {
+      const updatedUser = await this.prisma.user.update({
+        where: { id: dto.userId },
+        data: updateData,
+      });
+
+      console.log('✅ [ADMIN SERVICE] User updated successfully');
+
+      return {
+        success: true,
+        message: 'User updated successfully',
+        userId: updatedUser.id,
+        updatedFields,
+        updatedAt: updatedUser.updatedAt.toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error updating user:', error);
+      throw new BadRequestException('Failed to update user');
+    }
+  }
+
+  async createWallet(dto: CreateWalletDto): Promise<CreateWalletResponse> {
+    console.log('🏦 [ADMIN SERVICE] Create wallet request:', dto);
+
+    // Find user by provided identifier
+    let user;
+    if (dto.userId) {
+      user = await this.prisma.user.findUnique({
+        where: { id: dto.userId },
+        include: { wallet: true },
+      });
+    } else if (dto.email) {
+      user = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+        include: { wallet: true },
+      });
+    } else {
+      throw new BadRequestException('Must provide userId or email');
+    }
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.wallet) {
+      throw new BadRequestException('User already has a wallet');
+    }
+
+    try {
+      // Temporarily override provider selection for admin creation
+      const providerService = await this.providerManager.getWalletProvider(dto.provider);
+
+      // Create wallet account with provider
+      const accountResult = await providerService.createWallet({
+        firstName: user.firstName || 'User',
+        lastName: user.lastName || 'User',
+        email: user.email,
+        phoneNumber: user.phone,
+        gender: user.gender === 'MALE' ? 'M' : 'F',
+        dateOfBirth: user.dateOfBirth.toISOString().split('T')[0],
+        bvn: user.bvn,
+        address: 'Default Address',
+        city: 'Default City',
+        state: 'Default State',
+        country: 'Nigeria',
+        accountName: `${user.firstName || 'User'} ${user.lastName || 'User'}`,
+      });
+
+      // Hash PIN if provided
+      let hashedPin = null;
+      if (dto.pin) {
+        const bcrypt = require('bcrypt');
+        hashedPin = await bcrypt.hash(dto.pin, 10);
+      }
+
+      // Create wallet in database with complete provider data
+      const wallet = await this.prisma.wallet.create({
+        data: {
+          userId: user.id,
+          balance: 0,
+          currency: 'NGN',
+          virtualAccountNumber: accountResult.data?.accountNumber,
+          providerAccountName: accountResult.data?.accountName,
+          providerId: accountResult.data?.customerId,
+          bankName: accountResult.data?.bankName,
+          provider: dto.provider,
+          pin: hashedPin,
+          isActive: true,
+        },
+      });
+
+      console.log('💾 [ADMIN SERVICE] Stored provider data:', {
+        providerId: accountResult.data?.customerId,
+        bankName: accountResult.data?.bankName,
+        accountName: accountResult.data?.accountName,
+      });
+
+      console.log('✅ [ADMIN SERVICE] Wallet created successfully');
+
+      // Emit real-time notifications
+      if (this.notificationsGateway) {
+        // General notification for wallet creation
+        this.notificationsGateway.emitNotification(user.id, {
+          title: 'Wallet Created by Admin',
+          message: `Your wallet has been created successfully by admin. Account Number: ${wallet.virtualAccountNumber}`,
+          type: 'success',
+          data: {
+            walletId: wallet.id,
+            accountNumber: wallet.virtualAccountNumber,
+            provider: wallet.provider,
+            adminOperation: true,
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: 'Wallet created successfully',
+        userId: user.id,
+        userEmail: user.email,
+        walletId: wallet.id,
+        virtualAccountNumber: wallet.virtualAccountNumber,
+        provider: wallet.provider,
+        createdAt: wallet.createdAt.toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error creating wallet:', error);
+      throw new BadRequestException('Failed to create wallet');
+    }
+  }
+
+  // ==================== ADMIN MANAGEMENT METHODS ====================
+
+  // Role-based permission mapping
+  private getDefaultPermissions(role: string): string[] {
+    switch (role) {
+      case 'SUDO_ADMIN':
+        return ['*']; // All permissions
+      
+      case 'ADMIN':
+        return [
+          'VIEW_USERS', 'EDIT_USERS', 'DELETE_USERS',
+          'VIEW_TRANSACTIONS', 'APPROVE_TRANSACTIONS', 'REVERSE_TRANSACTIONS',
+          'VIEW_KYC', 'APPROVE_KYC', 'REJECT_KYC',
+          'VIEW_WALLETS', 'FUND_WALLETS', 'DEBIT_WALLETS', 'CREATE_WALLETS',
+          'VIEW_FEES', 'SET_FEES', 'DELETE_FEES',
+          'VIEW_PROVIDERS', 'SWITCH_PROVIDERS', 'TEST_PROVIDERS',
+          'VIEW_DASHBOARD', 'VIEW_LOGS', 'SYSTEM_CONFIG',
+          'VIEW_ADMINS', 'EDIT_ADMINS', 'DELETE_ADMINS',
+        ];
+      
+      case 'CUSTOMER_REP':
+        return [
+          'VIEW_USERS', 'EDIT_USERS',
+          'VIEW_TRANSACTIONS', 'APPROVE_TRANSACTIONS',
+          'VIEW_KYC', 'APPROVE_KYC', 'REJECT_KYC',
+          'VIEW_WALLETS', 'FUND_WALLETS',
+          'VIEW_FEES',
+          'VIEW_DASHBOARD',
+        ];
+      
+      case 'DEVELOPER':
+        return [
+          'VIEW_LOGS', 'TEST_PROVIDERS', 'VIEW_DASHBOARD',
+          'VIEW_PROVIDERS', 'SYSTEM_CONFIG',
+          'VIEW_TRANSACTIONS', 'VIEW_USERS',
+        ];
+      
+      default:
+        return [];
+    }
+  }
+
+  async createAdmin(
+    createAdminDto: CreateAdminDto,
+    adminId: string,
+    adminEmail: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<CreateAdminResponse> {
+    console.log('👑 [ADMIN SERVICE] Promoting user to admin:', createAdminDto.email);
+
+    // Check if user exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: createAdminDto.email },
+    });
+
+    if (!existingUser) {
+      throw new BadRequestException('User with this email does not exist');
+    }
+
+    // Check if user is already an admin
+    if (existingUser.role !== 'USER') {
+      throw new BadRequestException(`User is already an admin with role: ${existingUser.role}`);
+    }
+
+    // Determine permissions
+    const permissions = createAdminDto.customPermissions || 
+      this.getDefaultPermissions(createAdminDto.role);
+
+    try {
+      // Promote user to admin
+      const promotedUser = await this.prisma.user.update({
+        where: { email: createAdminDto.email },
+        data: {
+          role: createAdminDto.role,
+          // Store permissions as JSON in metadata
+          metadata: {
+            permissions: permissions,
+            isAdmin: true,
+            promotedBy: adminEmail,
+            promotedAt: new Date().toISOString(),
+          },
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          metadata: true,
+          updatedAt: true,
+        },
+      });
+
+      console.log('✅ [ADMIN SERVICE] User promoted to admin successfully:', promotedUser.email);
+
+      // Log the admin action
+      await this.logAdminAction(
+        adminId,
+        adminEmail,
+        'CREATE_ADMIN',
+        'USER',
+        promotedUser.id,
+        promotedUser.email,
+        {
+          role: promotedUser.role,
+          permissions: permissions,
+          previousRole: 'USER',
+        },
+        ipAddress,
+        userAgent
+      );
+
+      return {
+        success: true,
+        message: 'User promoted to admin successfully',
+        userId: promotedUser.id,
+        email: promotedUser.email,
+        fullName: `${promotedUser.firstName || ''} ${promotedUser.lastName || ''}`.trim(),
+        role: promotedUser.role,
+        permissions: permissions,
+        promotedAt: promotedUser.updatedAt.toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Admin promotion failed:', error);
+      throw new BadRequestException('Admin promotion failed. Please try again.');
+    }
+  }
+
+  async getAdmins(
+    limit: number = 20,
+    offset: number = 0,
+    role?: string,
+    search?: string,
+  ): Promise<GetAdminsResponse> {
+    console.log('📋 [ADMIN SERVICE] Retrieving admins with filters:', {
+      limit,
+      offset,
+      role,
+      search,
+    });
+
+    try {
+      // Build where clause based on filters
+      const whereClause: any = {
+        role: { in: ['ADMIN', 'CUSTOMER_REP', 'DEVELOPER', 'SUDO_ADMIN'] },
+      };
+
+      if (role) {
+        whereClause.role = role;
+      }
+
+      if (search) {
+        whereClause.OR = [
+          { email: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      // Get total count
+      const total = await this.prisma.user.count({
+        where: whereClause,
+      });
+
+      // Get admins with pagination
+      const admins = await this.prisma.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          firstName: true,
+          lastName: true,
+          gender: true,
+          dateOfBirth: true,
+          role: true,
+          isActive: true,
+          isVerified: true,
+          createdAt: true,
+          updatedAt: true,
+          metadata: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+      });
+
+      // Format admins with permissions
+      const formattedAdmins = admins.map(admin => ({
+        id: admin.id,
+        email: admin.email,
+        phone: admin.phone,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        gender: admin.gender,
+        dateOfBirth: admin.dateOfBirth.toISOString(),
+        role: admin.role,
+        isActive: admin.isActive,
+        isVerified: admin.isVerified,
+        permissions: (admin.metadata as any)?.permissions || [],
+        createdAt: admin.createdAt.toISOString(),
+        updatedAt: admin.updatedAt.toISOString(),
+      }));
+
+      console.log('✅ [ADMIN SERVICE] Retrieved', formattedAdmins.length, 'admins');
+
+      return {
+        success: true,
+        message: 'Admins retrieved successfully',
+        admins: formattedAdmins,
+        total,
+        page: Math.floor(offset / limit) + 1,
+        limit,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to retrieve admins:', error);
+      throw new BadRequestException('Failed to retrieve admins');
+    }
+  }
+
+  async getAdminDetail(adminId: string): Promise<AdminDto> {
+    console.log('🔍 [ADMIN SERVICE] Getting admin details for:', adminId);
+
+    const admin = await this.prisma.user.findFirst({
+      where: {
+        id: adminId,
+        role: { in: ['ADMIN', 'CUSTOMER_REP', 'DEVELOPER', 'SUDO_ADMIN'] },
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        firstName: true,
+        lastName: true,
+        gender: true,
+        dateOfBirth: true,
+        role: true,
+        isActive: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        metadata: true,
+      },
+    });
+
+    if (!admin) {
+      throw new NotFoundException('Admin not found');
+    }
+
+    console.log('✅ [ADMIN SERVICE] Admin details retrieved:', admin.email);
+
+    return {
+      id: admin.id,
+      email: admin.email,
+      phone: admin.phone,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      gender: admin.gender,
+      dateOfBirth: admin.dateOfBirth.toISOString(),
+      role: admin.role,
+      isActive: admin.isActive,
+      isVerified: admin.isVerified,
+      permissions: (admin.metadata as any)?.permissions || [],
+      createdAt: admin.createdAt.toISOString(),
+      updatedAt: admin.updatedAt.toISOString(),
+    };
+  }
+
+  async updateAdmin(adminId: string, updateAdminDto: UpdateAdminDto): Promise<UpdateAdminResponse> {
+    console.log('✏️ [ADMIN SERVICE] Updating admin:', adminId);
+
+    // Check if admin exists
+    const existingAdmin = await this.prisma.user.findFirst({
+      where: {
+        id: adminId,
+        role: { in: ['ADMIN', 'CUSTOMER_REP', 'DEVELOPER', 'SUDO_ADMIN'] },
+      },
+    });
+
+    if (!existingAdmin) {
+      throw new NotFoundException('Admin not found');
+    }
+
+    // Build update data
+    const updateData: any = {};
+
+    if (updateAdminDto.firstName) updateData.firstName = updateAdminDto.firstName;
+    if (updateAdminDto.lastName) updateData.lastName = updateAdminDto.lastName;
+    if (updateAdminDto.phone) updateData.phone = updateAdminDto.phone;
+    if (updateAdminDto.role) updateData.role = updateAdminDto.role;
+    if (updateAdminDto.isActive !== undefined) updateData.isActive = updateAdminDto.isActive;
+
+    // Handle permissions update
+    if (updateAdminDto.permissions) {
+      const currentMetadata = (existingAdmin.metadata as any) || {};
+      updateData.metadata = {
+        ...currentMetadata,
+        permissions: updateAdminDto.permissions,
+      };
+    }
+
+    try {
+      const updatedAdmin = await this.prisma.user.update({
+        where: { id: adminId },
+        data: updateData,
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          firstName: true,
+          lastName: true,
+          gender: true,
+          dateOfBirth: true,
+          role: true,
+          isActive: true,
+          isVerified: true,
+          createdAt: true,
+          updatedAt: true,
+          metadata: true,
+        },
+      });
+
+      console.log('✅ [ADMIN SERVICE] Admin updated successfully:', updatedAdmin.email);
+
+      return {
+        success: true,
+        message: 'Admin updated successfully',
+        admin: {
+          id: updatedAdmin.id,
+          email: updatedAdmin.email,
+          phone: updatedAdmin.phone,
+          firstName: updatedAdmin.firstName,
+          lastName: updatedAdmin.lastName,
+          gender: updatedAdmin.gender,
+          dateOfBirth: updatedAdmin.dateOfBirth.toISOString(),
+          role: updatedAdmin.role,
+          isActive: updatedAdmin.isActive,
+          isVerified: updatedAdmin.isVerified,
+          permissions: (updatedAdmin.metadata as any)?.permissions || [],
+          createdAt: updatedAdmin.createdAt.toISOString(),
+          updatedAt: updatedAdmin.updatedAt.toISOString(),
+        },
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Admin update failed:', error);
+      throw new BadRequestException('Admin update failed');
+    }
+  }
+
+  async deleteAdmin(adminId: string, deleteAdminDto: DeleteAdminDto): Promise<DeleteAdminResponse> {
+    console.log('🗑️ [ADMIN SERVICE] Deleting admin:', adminId);
+
+    // Check if admin exists
+    const existingAdmin = await this.prisma.user.findFirst({
+      where: {
+        id: adminId,
+        role: { in: ['ADMIN', 'CUSTOMER_REP', 'DEVELOPER', 'SUDO_ADMIN'] },
+      },
+    });
+
+    if (!existingAdmin) {
+      throw new NotFoundException('Admin not found');
+    }
+
+    // Prevent deletion of SUDO_ADMIN
+    if (existingAdmin.role === 'SUDO_ADMIN') {
+      throw new BadRequestException('Cannot delete SUDO_ADMIN account');
+    }
+
+    try {
+      // Soft delete by deactivating the account
+      await this.prisma.user.update({
+        where: { id: adminId },
+        data: {
+          isActive: false,
+          metadata: {
+            ...(existingAdmin.metadata as any),
+            deletedAt: new Date().toISOString(),
+            deletedReason: deleteAdminDto.reason,
+            deletedBy: 'SUDO_ADMIN', // This will be updated to actual SUDO_ADMIN ID
+          },
+        },
+      });
+
+      console.log('✅ [ADMIN SERVICE] Admin deleted successfully:', existingAdmin.email);
+
+      return {
+        success: true,
+        message: 'Admin deleted successfully',
+        adminId: adminId,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Admin deletion failed:', error);
+      throw new BadRequestException('Admin deletion failed');
+    }
+  }
+
+  async getRolePermissions() {
+    console.log('📋 [ADMIN SERVICE] Getting role permissions mapping');
+
+    const roles = {
+      SUDO_ADMIN: ['*'],
+      ADMIN: this.getDefaultPermissions('ADMIN'),
+      CUSTOMER_REP: this.getDefaultPermissions('CUSTOMER_REP'),
+      DEVELOPER: this.getDefaultPermissions('DEVELOPER'),
+    };
+
+    return {
+      success: true,
+      message: 'Role permissions retrieved successfully',
+      roles,
+    };
+  }
+
+  private generateTemporaryPassword(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 12; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  // ==================== ADMIN ACTION LOGGING ====================
+
+  async logAdminAction(
+    adminId: string,
+    adminEmail: string,
+    action: string,
+    targetType?: string,
+    targetId?: string,
+    targetEmail?: string,
+    details?: any,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    try {
+      await this.prisma.adminActionLog.create({
+        data: {
+          adminId,
+          adminEmail,
+          action,
+          targetType,
+          targetId,
+          targetEmail,
+          details,
+          ipAddress,
+          userAgent,
+        },
+      });
+
+      console.log(`📝 [ADMIN LOG] ${action} by ${adminEmail}`);
+    } catch (error) {
+      console.error('❌ [ADMIN LOG] Failed to log admin action:', error);
+      // Don't throw error to avoid breaking the main operation
+    }
+  }
+
+  async getAdminLogs(
+    limit: number = 20,
+    offset: number = 0,
+    action?: string,
+    adminEmail?: string,
+    targetEmail?: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<GetAdminLogsResponse> {
+    console.log('📋 [ADMIN SERVICE] Retrieving admin logs with filters:', {
+      limit,
+      offset,
+      action,
+      adminEmail,
+      targetEmail,
+      startDate,
+      endDate,
+    });
+
+    try {
+      // Build where clause based on filters
+      const whereClause: any = {};
+
+      if (action) {
+        whereClause.action = action;
+      }
+
+      if (adminEmail) {
+        whereClause.adminEmail = { contains: adminEmail, mode: 'insensitive' };
+      }
+
+      if (targetEmail) {
+        whereClause.targetEmail = { contains: targetEmail, mode: 'insensitive' };
+      }
+
+      if (startDate || endDate) {
+        whereClause.createdAt = {};
+        if (startDate) {
+          whereClause.createdAt.gte = new Date(startDate);
+        }
+        if (endDate) {
+          whereClause.createdAt.lte = new Date(endDate + 'T23:59:59.999Z');
+        }
+      }
+
+      // Get total count
+      const total = await this.prisma.adminActionLog.count({
+        where: whereClause,
+      });
+
+      // Get logs with pagination
+      const logs = await this.prisma.adminActionLog.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+      });
+
+      // Format logs
+      const formattedLogs = logs.map(log => ({
+        id: log.id,
+        adminId: log.adminId,
+        adminEmail: log.adminEmail,
+        action: log.action,
+        targetType: log.targetType,
+        targetId: log.targetId,
+        targetEmail: log.targetEmail,
+        details: log.details,
+        ipAddress: log.ipAddress,
+        userAgent: log.userAgent,
+        createdAt: log.createdAt.toISOString(),
+      }));
+
+      console.log('✅ [ADMIN SERVICE] Retrieved', formattedLogs.length, 'admin logs');
+
+      return {
+        success: true,
+        message: 'Admin logs retrieved successfully',
+        logs: formattedLogs,
+        total,
+        page: Math.floor(offset / limit) + 1,
+        limit,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to retrieve admin logs:', error);
+      throw new BadRequestException('Failed to retrieve admin logs');
+    }
+  }
+
+  async getAdminLogsByAdmin(adminId: string, limit: number = 20, offset: number = 0) {
+    return this.getAdminLogs(limit, offset, undefined, undefined, undefined, undefined, undefined);
   }
 }

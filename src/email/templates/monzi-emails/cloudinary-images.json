@@ -1,0 +1,38 @@
+[
+  {
+    "filename": "monzi.png",
+    "publicId": "monzi/emails/fkeoczu7hzdhk9hwlzsm",
+    "url": "https://res.cloudinary.com/dyvehrmkp/image/upload/v1752461751/monzi/emails/fkeoczu7hzdhk9hwlzsm.png",
+    "folder": "monzi/emails"
+  },
+  {
+    "filename": "email-banner.png",
+    "publicId": "monzi/emails/y4ndg158hw7nfpuzrxg1",
+    "url": "https://res.cloudinary.com/dyvehrmkp/image/upload/v1752461754/monzi/emails/y4ndg158hw7nfpuzrxg1.png",
+    "folder": "monzi/emails"
+  },
+  {
+    "filename": "whatsapp.svg",
+    "publicId": "monzi/emails/monzi/emails/whatsapp",
+    "url": "https://res.cloudinary.com/dyvehrmkp/image/upload/v1752462018/monzi/emails/monzi/emails/whatsapp.svg",
+    "folder": "monzi/emails"
+  },
+  {
+    "filename": "instagram.svg",
+    "publicId": "monzi/emails/monzi/emails/instagram",
+    "url": "https://res.cloudinary.com/dyvehrmkp/image/upload/v1752462020/monzi/emails/monzi/emails/instagram.svg",
+    "folder": "monzi/emails"
+  },
+  {
+    "filename": "twitter.svg",
+    "publicId": "monzi/emails/monzi/emails/twitter",
+    "url": "https://res.cloudinary.com/dyvehrmkp/image/upload/v1752462023/monzi/emails/monzi/emails/twitter.svg",
+    "folder": "monzi/emails"
+  },
+  {
+    "filename": "monzi.svg",
+    "publicId": "monzi/emails/monzi/emails/monzi",
+    "url": "https://res.cloudinary.com/dyvehrmkp/image/upload/v1752462027/monzi/emails/monzi/emails/monzi.svg",
+    "folder": "monzi/emails"
+  }
+]

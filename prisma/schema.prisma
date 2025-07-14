@@ -8,32 +8,40 @@ datasource db {
 }
 
 model User {
-  id                  String        @id @default(cuid())
-  email               String        @unique
-  phone               String        @unique
-  firstName           String?
-  lastName            String?
-  gender              Gender
-  dateOfBirth         DateTime
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  passcode            String
-  bvn                 String?       @unique
-  isVerified          Boolean       @default(false)
-  isOnboarded         Boolean       @default(false)
-  kycStatus           KycStatus     @default(PENDING)
-  kycVerifiedAt       DateTime?
-  selfieUrl           String?
-  bvnVerifiedAt       DateTime?
-  bvnProviderResponse Json?
-  otpCode             String?
-  otpExpiresAt        DateTime?
-  aiApprovals         AiApproval[]
-  aiQueries           AiQuery[]
-  ocrScans            OcrScan[]
-  pushTokens          PushToken[]
-  transactions        Transaction[]
-  wallet              Wallet?
+  id                              String                @id @default(cuid())
+  email                           String                @unique
+  phone                           String                @unique
+  firstName                       String?
+  lastName                        String?
+  gender                          Gender
+  dateOfBirth                     DateTime
+  createdAt                       DateTime              @default(now())
+  updatedAt                       DateTime              @updatedAt
+  passcode                        String
+  bvn                             String?               @unique
+  isVerified                      Boolean               @default(false)
+  isOnboarded                     Boolean               @default(false)
+  kycStatus                       KycStatus             @default(PENDING)
+  kycVerifiedAt                   DateTime?
+  selfieUrl                       String?
+  bvnVerifiedAt                   DateTime?
+  bvnProviderResponse             Json?
+  otpCode                         String?
+  otpExpiresAt                    DateTime?
+  isActive                        Boolean               @default(true)
+  role                            UserRole              @default(USER)
+  metadata                        Json?
+  notificationsEnabled            Boolean               @default(true)
+  promotionalNotificationsEnabled Boolean               @default(true)
+  transactionNotificationsEnabled Boolean               @default(true)
+  aiApprovals                     AiApproval[]
+  aiQueries                       AiQuery[]
+  notificationHistory             NotificationHistory[]
+  ocrScans                        OcrScan[]
+  pushTokens                      PushToken[]
+  transactions                    Transaction[]
+  wallet                          Wallet?
+  adminActionLogs                 AdminActionLog[]
 
   @@map("users")
 }
@@ -255,35 +263,61 @@ model PushToken {
   @@map("push_tokens")
 }
 
+model NotificationHistory {
+  id            String              @id @default(cuid())
+  userId        String
+  type          NotificationType
+  channel       NotificationChannel
+  title         String
+  body          String
+  data          Json?
+  status        NotificationStatus  @default(PENDING)
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  failureReason String?
+  pushToken     String?
+  reference     String?
+  metadata      Json?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notification_history")
+}
+
 model AuditorConfiguration {
-  id                String   @id @default(cuid())
-  name              String
-  description       String?
-  model             String   @default("claude-3-5-sonnet-20241022")
-  temperature       Float    @default(0.7)
-  maxTokens         Int      @default(8000)
-  systemPrompt      String?
-  isActive          Boolean  @default(true)
-  encryptionKey     String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  chats             AuditorChat[]
+  id            String        @id @default(cuid())
+  name          String
+  description   String?
+  model         String        @default("claude-3-5-sonnet-20241022")
+  temperature   Float         @default(0.7)
+  maxTokens     Int           @default(8000)
+  systemPrompt  String?
+  isActive      Boolean       @default(true)
+  encryptionKey String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  chats         AuditorChat[]
 
   @@map("auditor_configurations")
 }
 
 model AuditorChat {
-  id            String              @id @default(cuid())
-  title         String?
-  configId      String
-  adminUserId   String
-  sessionId     String              @unique
-  isActive      Boolean             @default(true)
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  config        AuditorConfiguration @relation(fields: [configId], references: [id], onDelete: Cascade)
-  messages      AuditorMessage[]
-  reports       AuditorReport[]
+  id          String               @id @default(cuid())
+  title       String?
+  configId    String
+  adminUserId String
+  sessionId   String               @unique
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  config      AuditorConfiguration @relation(fields: [configId], references: [id], onDelete: Cascade)
+  messages    AuditorMessage[]
+  reports     AuditorReport[]
 
   @@index([sessionId])
   @@index([adminUserId])
@@ -291,32 +325,32 @@ model AuditorChat {
 }
 
 model AuditorMessage {
-  id          String              @id @default(cuid())
-  chatId      String
-  role        AuditorMessageRole
-  content     String
-  metadata    Json?
-  tokens      Int?
-  createdAt   DateTime            @default(now())
-  chat        AuditorChat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  id        String             @id @default(cuid())
+  chatId    String
+  role      AuditorMessageRole
+  content   String
+  metadata  Json?
+  tokens    Int?
+  createdAt DateTime           @default(now())
+  chat      AuditorChat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId])
   @@map("auditor_messages")
 }
 
 model AuditorReport {
-  id          String            @id @default(cuid())
-  chatId      String
-  type        AuditorReportType
-  title       String
-  content     String
-  summary     String?
-  riskLevel   AuditorRiskLevel  @default(LOW)
-  findings    Json?
+  id              String            @id @default(cuid())
+  chatId          String
+  type            AuditorReportType
+  title           String
+  content         String
+  summary         String?
+  riskLevel       AuditorRiskLevel  @default(LOW)
+  findings        Json?
   recommendations Json?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  chat        AuditorChat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  chat            AuditorChat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId])
   @@index([type])
@@ -325,24 +359,44 @@ model AuditorReport {
 }
 
 model AuditorMetrics {
-  id               String   @id @default(cuid())
-  period           String
-  periodType       String
-  totalUsers       Int      @default(0)
-  totalTransactions Int     @default(0)
-  totalVolume      Float    @default(0)
-  averageTransaction Float  @default(0)
-  successRate      Float    @default(0)
-  failureRate      Float    @default(0)
-  fraudAlerts      Int      @default(0)
-  systemHealth     Float    @default(100)
-  metadata         Json?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  period             String
+  periodType         String
+  totalUsers         Int      @default(0)
+  totalTransactions  Int      @default(0)
+  totalVolume        Float    @default(0)
+  averageTransaction Float    @default(0)
+  successRate        Float    @default(0)
+  failureRate        Float    @default(0)
+  fraudAlerts        Int      @default(0)
+  systemHealth       Float    @default(100)
+  metadata           Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@unique([period, periodType])
   @@index([periodType])
   @@map("auditor_metrics")
+}
+
+model AdminActionLog {
+  id          String    @id @default(cuid())
+  adminId     String
+  adminEmail  String
+  action      String    // e.g., "CREATE_ADMIN", "UPDATE_ADMIN", "DELETE_ADMIN", "FUND_WALLET"
+  targetType  String?   // e.g., "USER", "WALLET", "TRANSACTION"
+  targetId    String?   // ID of the affected resource
+  targetEmail String?   // Email of affected user
+  details     Json?     // Additional action details
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  admin       User      @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("admin_action_logs")
 }
 
 enum AuditorMessageRole {
@@ -443,4 +497,41 @@ enum AiQueryStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+enum NotificationType {
+  TRANSACTION
+  WALLET_FUNDING
+  WALLET_DEBIT
+  TRANSFER
+  WITHDRAWAL
+  PROMOTIONAL
+  SYSTEM
+  SECURITY
+  KYC
+  GENERAL
+}
+
+enum NotificationChannel {
+  PUSH
+  WEBSOCKET
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  EXPIRED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  CUSTOMER_REP
+  DEVELOPER
+  SUDO_ADMIN
 }

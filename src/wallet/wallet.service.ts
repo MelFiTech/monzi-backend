@@ -947,33 +947,53 @@ export class WalletService {
       userId,
     );
 
+    // Get user's wallet for additional info
     const wallet = await this.prisma.wallet.findUnique({
       where: { userId },
+      select: {
+        id: true,
+        virtualAccountNumber: true,
+        balance: true,
+      },
     });
 
     if (!wallet) {
       throw new NotFoundException('Wallet not found');
     }
 
-    const transactions = await this.prisma.walletTransaction.findMany({
-      where: {
-        OR: [{ senderWalletId: wallet.id }, { receiverWalletId: wallet.id }],
-      },
+    // Get all user transactions from the transaction table (unified approach)
+    const transactions = await this.prisma.transaction.findMany({
+      where: { userId },
       orderBy: { createdAt: 'desc' },
       take: limit,
       skip: offset,
       include: {
-        senderWallet: {
-          include: {
-            user: { select: { firstName: true, lastName: true } },
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
           },
         },
-        receiverWallet: {
-          include: {
-            user: { select: { firstName: true, lastName: true } },
+        fromAccount: {
+          select: {
+            id: true,
+            accountNumber: true,
+            bankName: true,
+            bankCode: true,
+            accountName: true,
           },
         },
-        bankAccount: true,
+        toAccount: {
+          select: {
+            id: true,
+            accountNumber: true,
+            bankName: true,
+            bankCode: true,
+            accountName: true,
+          },
+        },
       },
     });
 
@@ -983,29 +1003,73 @@ export class WalletService {
       'transactions',
     );
 
-    return transactions.map((transaction) => ({
-      id: transaction.id,
-      amount: transaction.amount,
-      type: transaction.type,
-      status: transaction.status,
-      reference: transaction.reference,
-      description: transaction.description,
-      fee: transaction.fee,
-      createdAt: transaction.createdAt.toISOString(),
-      metadata: transaction.metadata,
-      sender: transaction.senderWallet
-        ? {
-            name: `${transaction.senderWallet.user.firstName} ${transaction.senderWallet.user.lastName}`,
-            accountNumber: transaction.senderWallet.virtualAccountNumber,
-          }
-        : null,
-      receiver: transaction.receiverWallet
-        ? {
-            name: `${transaction.receiverWallet.user.firstName} ${transaction.receiverWallet.user.lastName}`,
-            accountNumber: transaction.receiverWallet.virtualAccountNumber,
-          }
-        : null,
-      bankAccount: transaction.bankAccount,
-    }));
+    // Transform to match the expected wallet transaction format
+    return transactions.map((transaction) => {
+      const metadata = transaction.metadata as any || {};
+      const user = transaction.user;
+
+      // Determine sender information
+      let sender = null;
+      if (transaction.fromAccount) {
+        sender = {
+          name: transaction.fromAccount.accountName,
+          accountNumber: transaction.fromAccount.accountNumber,
+        };
+      } else if (metadata.adminFunding || metadata.adminDebit) {
+        sender = {
+          name: 'Monzi Admin',
+          accountNumber: 'ADMIN',
+        };
+      } else if (metadata.provider) {
+        sender = {
+          name: metadata.providerAccountName || 'External Account',
+          accountNumber: metadata.accountNumber || 'EXT',
+        };
+      } else if (transaction.type === 'WITHDRAWAL' || transaction.type === 'TRANSFER') {
+        sender = {
+          name: `${user.firstName} ${user.lastName}`,
+          accountNumber: wallet.virtualAccountNumber,
+        };
+      }
+
+      // Determine receiver information
+      let receiver = null;
+      if (transaction.toAccount) {
+        receiver = {
+          name: transaction.toAccount.accountName,
+          accountNumber: transaction.toAccount.accountNumber,
+        };
+      } else if (metadata.recipientBank) {
+        receiver = {
+          name: metadata.recipientName || 'External Account',
+          accountNumber: metadata.recipientAccount,
+        };
+             } else if (transaction.type === 'DEPOSIT') {
+         receiver = {
+           name: `${user.firstName} ${user.lastName}`,
+           accountNumber: wallet.virtualAccountNumber,
+         };
+       } else if (metadata.provider) {
+        receiver = {
+          name: metadata.providerAccountName || 'External Account',
+          accountNumber: metadata.accountNumber || 'EXT',
+        };
+      }
+
+             return {
+         id: transaction.id,
+         amount: transaction.amount,
+         type: transaction.type === 'DEPOSIT' && metadata.adminFunding ? 'FUNDING' : transaction.type,
+         status: transaction.status,
+         reference: transaction.reference,
+         description: transaction.description,
+         fee: metadata.fee || 0,
+         createdAt: transaction.createdAt.toISOString(),
+         metadata: transaction.metadata,
+         sender,
+         receiver,
+         bankAccount: transaction.fromAccount || transaction.toAccount || null,
+       };
+    });
   }
 }

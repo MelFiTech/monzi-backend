@@ -10,6 +10,8 @@ import {
   Put,
   BadRequestException,
   Query,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +20,7 @@ import {
   ApiParam,
   ApiBody,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { FeeType } from '@prisma/client';
@@ -40,7 +43,27 @@ import {
   GetTransactionsResponse,
   GetTransactionDetailResponse,
   GetDashboardStatsResponse,
+  FundWalletDto,
+  WalletOperationResponse,
+  DebitWalletDto,
+  EditUserDto,
+  EditUserResponse,
+  CreateWalletDto,
+  CreateWalletResponse,
+  CreateAdminDto,
+  CreateAdminResponse,
+  GetAdminsResponse,
+  AdminDto,
+  UpdateAdminDto,
+  UpdateAdminResponse,
+  DeleteAdminDto,
+  DeleteAdminResponse,
+  GetAdminLogsResponse,
 } from './dto/admin.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../auth/roles.decorator';
 
 @ApiTags('Admin')
 @Controller('admin')
@@ -1225,6 +1248,571 @@ export class AdminController {
       transactions: result.stats.transactions.total,
       wallets: result.stats.wallets.total,
     });
+
+    return result;
+  }
+
+  @Post('fund-wallet')
+  @ApiOperation({
+    summary: 'Fund user wallet',
+    description: 'Admin endpoint to fund a user wallet by userId, email, or account number',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Wallet funded successfully',
+    type: WalletOperationResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid request or insufficient data',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User or wallet not found',
+  })
+  async fundWallet(
+    @Body(ValidationPipe) dto: FundWalletDto,
+  ): Promise<WalletOperationResponse> {
+    console.log('💰 [ADMIN API] POST /admin/fund-wallet - Fund wallet request');
+    console.log('📝 Request data:', {
+      userId: dto.userId,
+      email: dto.email,
+      accountNumber: dto.accountNumber,
+      amount: dto.amount,
+      description: dto.description,
+    });
+
+    const result = await this.adminService.fundWallet(dto);
+
+    console.log('✅ [ADMIN API] Wallet funded successfully');
+    console.log('📄 Response data:', {
+      success: result.success,
+      userId: result.userId,
+      amount: result.amount,
+      previousBalance: result.previousBalance,
+      newBalance: result.newBalance,
+      reference: result.reference,
+    });
+
+    return result;
+  }
+
+  @Post('debit-wallet')
+  @ApiOperation({
+    summary: 'Debit user wallet',
+    description: 'Admin endpoint to debit from a user wallet by userId, email, or account number',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Wallet debited successfully',
+    type: WalletOperationResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid request, insufficient balance, or insufficient data',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User or wallet not found',
+  })
+  async debitWallet(
+    @Body(ValidationPipe) dto: DebitWalletDto,
+  ): Promise<WalletOperationResponse> {
+    console.log('💸 [ADMIN API] POST /admin/debit-wallet - Debit wallet request');
+    console.log('📝 Request data:', {
+      userId: dto.userId,
+      email: dto.email,
+      accountNumber: dto.accountNumber,
+      amount: dto.amount,
+      description: dto.description,
+    });
+
+    const result = await this.adminService.debitWallet(dto);
+
+    console.log('✅ [ADMIN API] Wallet debited successfully');
+    console.log('📄 Response data:', {
+      success: result.success,
+      userId: result.userId,
+      amount: result.amount,
+      previousBalance: result.previousBalance,
+      newBalance: result.newBalance,
+      reference: result.reference,
+    });
+
+    return result;
+  }
+
+  @Put('edit-user')
+  @ApiOperation({
+    summary: 'Edit user information',
+    description: 'Admin endpoint to edit any user field including email, phone, names, KYC status, etc.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User updated successfully',
+    type: EditUserResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid request or no fields to update',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User not found',
+  })
+  async editUser(
+    @Body(ValidationPipe) dto: EditUserDto,
+  ): Promise<EditUserResponse> {
+    console.log('✏️ [ADMIN API] PUT /admin/edit-user - Edit user request');
+    console.log('📝 Request data:', {
+      userId: dto.userId,
+      updatingFields: Object.keys(dto).filter(key => key !== 'userId' && dto[key] !== undefined),
+    });
+
+    const result = await this.adminService.editUser(dto);
+
+    console.log('✅ [ADMIN API] User updated successfully');
+    console.log('📄 Response data:', {
+      success: result.success,
+      userId: result.userId,
+      updatedFields: result.updatedFields,
+    });
+
+    return result;
+  }
+
+  @Post('create-wallet')
+  @ApiOperation({
+    summary: 'Create wallet for user',
+    description: 'Admin endpoint to create a wallet for a user with specific provider',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Wallet created successfully',
+    type: CreateWalletResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid request or user already has wallet',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User not found',
+  })
+  async createWallet(
+    @Body(ValidationPipe) dto: CreateWalletDto,
+  ): Promise<CreateWalletResponse> {
+    console.log('🏦 [ADMIN API] POST /admin/create-wallet - Create wallet request');
+    console.log('📝 Request data:', {
+      userId: dto.userId,
+      email: dto.email,
+      provider: dto.provider,
+      hasPin: !!dto.pin,
+    });
+
+    const result = await this.adminService.createWallet(dto);
+
+    console.log('✅ [ADMIN API] Wallet created successfully');
+    console.log('📄 Response data:', {
+      success: result.success,
+      userId: result.userId,
+      walletId: result.walletId,
+      virtualAccountNumber: result.virtualAccountNumber,
+      provider: result.provider,
+    });
+
+    return result;
+  }
+
+  // ==================== ADMIN MANAGEMENT ENDPOINTS ====================
+
+  @Post('create-admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Promote existing user to admin',
+    description: 'SUDO_ADMIN only: Promote an existing user to admin role with specific permissions',
+  })
+  @ApiBody({ type: CreateAdminDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'User promoted to admin successfully',
+    type: CreateAdminResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid admin data',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Requires SUDO_ADMIN role',
+  })
+  async createAdmin(
+    @Request() req,
+    @Body(ValidationPipe) createAdminDto: CreateAdminDto,
+  ): Promise<CreateAdminResponse> {
+    console.log('👑 [ADMIN API] POST /admin/create-admin - Promoting user to admin');
+    console.log('📝 Request Data:', {
+      email: createAdminDto.email,
+      role: createAdminDto.role,
+      permissions: createAdminDto.customPermissions,
+    });
+
+    const result = await this.adminService.createAdmin(
+      createAdminDto,
+      req.user.id,
+      req.user.email,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    console.log('✅ [ADMIN API] User promoted to admin successfully');
+    console.log('📄 Response Data:', {
+      userId: result.userId,
+      email: result.email,
+      fullName: result.fullName,
+      role: result.role,
+      permissions: result.permissions,
+    });
+
+    return result;
+  }
+
+  @Get('admins')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get all admin users',
+    description: 'Retrieve all admin users with pagination and filtering',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of admins to return (default: 20)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Number of admins to skip (default: 0)',
+  })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    type: String,
+    description: 'Filter by admin role',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by email, name, or phone',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Admins retrieved successfully',
+    type: GetAdminsResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Requires ADMIN or SUDO_ADMIN role',
+  })
+  async getAdmins(
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('role') role?: string,
+    @Query('search') search?: string,
+  ): Promise<GetAdminsResponse> {
+    console.log('👥 [ADMIN API] GET /admin/admins - Retrieving admins');
+    console.log('📊 Query params:', { limit, offset, role, search });
+
+    const result = await this.adminService.getAdmins(
+      limit ? Number(limit) : 20,
+      offset ? Number(offset) : 0,
+      role,
+      search,
+    );
+
+    console.log('✅ [ADMIN API] Admins retrieved successfully');
+    console.log('📄 Found', result.admins.length, 'admins of', result.total, 'total');
+
+    return result;
+  }
+
+  @Get('admins/:adminId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get admin details',
+    description: 'Retrieve detailed information about a specific admin',
+  })
+  @ApiParam({
+    name: 'adminId',
+    description: 'Admin ID to get details for',
+    example: 'admin123',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Admin details retrieved successfully',
+    type: AdminDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Admin not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Requires ADMIN or SUDO_ADMIN role',
+  })
+  async getAdminDetail(@Param('adminId') adminId: string): Promise<AdminDto> {
+    console.log('🔍 [ADMIN API] GET /admin/admins/:adminId - Getting admin details');
+    console.log('👤 Admin ID:', adminId);
+
+    const result = await this.adminService.getAdminDetail(adminId);
+
+    console.log('✅ [ADMIN API] Admin details retrieved successfully');
+    console.log('📄 Admin:', result.email);
+
+    return result;
+  }
+
+  @Put('admins/:adminId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update admin user',
+    description: 'SUDO_ADMIN only: Update admin information, role, and permissions',
+  })
+  @ApiParam({
+    name: 'adminId',
+    description: 'Admin ID to update',
+    example: 'admin123',
+  })
+  @ApiBody({ type: UpdateAdminDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Admin updated successfully',
+    type: UpdateAdminResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid update data',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Admin not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Requires SUDO_ADMIN role',
+  })
+  async updateAdmin(
+    @Param('adminId') adminId: string,
+    @Body(ValidationPipe) updateAdminDto: UpdateAdminDto,
+  ): Promise<UpdateAdminResponse> {
+    console.log('✏️ [ADMIN API] PUT /admin/admins/:adminId - Updating admin');
+    console.log('👤 Admin ID:', adminId);
+    console.log('📝 Update Data:', updateAdminDto);
+
+    const result = await this.adminService.updateAdmin(adminId, updateAdminDto);
+
+    console.log('✅ [ADMIN API] Admin updated successfully');
+    console.log('📄 Updated Admin:', result.admin.email);
+
+    return result;
+  }
+
+  @Delete('admins/:adminId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete admin user',
+    description: 'SUDO_ADMIN only: Delete an admin user (soft delete)',
+  })
+  @ApiParam({
+    name: 'adminId',
+    description: 'Admin ID to delete',
+    example: 'admin123',
+  })
+  @ApiBody({ type: DeleteAdminDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Admin deleted successfully',
+    type: DeleteAdminResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid deletion data',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Admin not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Requires SUDO_ADMIN role',
+  })
+  async deleteAdmin(
+    @Param('adminId') adminId: string,
+    @Body(ValidationPipe) deleteAdminDto: DeleteAdminDto,
+  ): Promise<DeleteAdminResponse> {
+    console.log('🗑️ [ADMIN API] DELETE /admin/admins/:adminId - Deleting admin');
+    console.log('👤 Admin ID:', adminId);
+    console.log('📝 Reason:', deleteAdminDto.reason);
+
+    const result = await this.adminService.deleteAdmin(adminId, deleteAdminDto);
+
+    console.log('✅ [ADMIN API] Admin deleted successfully');
+    console.log('📄 Deleted Admin ID:', result.adminId);
+
+    return result;
+  }
+
+  @Get('roles/permissions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get role permissions mapping',
+    description: 'SUDO_ADMIN only: Get the default permissions for each role',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Role permissions retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Role permissions retrieved successfully' },
+        roles: {
+          type: 'object',
+          properties: {
+            ADMIN: {
+              type: 'array',
+              items: { type: 'string' },
+              example: ['VIEW_USERS', 'VIEW_TRANSACTIONS', 'VIEW_KYC', 'APPROVE_KYC'],
+            },
+            CUSTOMER_REP: {
+              type: 'array',
+              items: { type: 'string' },
+              example: ['VIEW_USERS', 'VIEW_TRANSACTIONS', 'VIEW_KYC'],
+            },
+            DEVELOPER: {
+              type: 'array',
+              items: { type: 'string' },
+              example: ['VIEW_LOGS', 'TEST_PROVIDERS', 'VIEW_DASHBOARD'],
+            },
+            SUDO_ADMIN: {
+              type: 'array',
+              items: { type: 'string' },
+              example: ['*'],
+            },
+          },
+        },
+      },
+    },
+  })
+  async getRolePermissions() {
+    console.log('📋 [ADMIN API] GET /admin/roles/permissions - Getting role permissions');
+
+    const result = await this.adminService.getRolePermissions();
+
+    console.log('✅ [ADMIN API] Role permissions retrieved successfully');
+
+    return result;
+  }
+
+  @Get('logs')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get admin action logs',
+    description: 'Retrieve logs of all admin actions with filtering and pagination',
+  })
+  @ApiQuery({
+    name: 'action',
+    required: false,
+    type: String,
+    description: 'Filter by action type (e.g., CREATE_ADMIN, UPDATE_ADMIN, DELETE_ADMIN)',
+  })
+  @ApiQuery({
+    name: 'adminEmail',
+    required: false,
+    type: String,
+    description: 'Filter by admin email',
+  })
+  @ApiQuery({
+    name: 'targetEmail',
+    required: false,
+    type: String,
+    description: 'Filter by target user email',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Filter logs from this date (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'Filter logs until this date (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of logs to return (default: 20)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Number of logs to skip (default: 0)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Admin logs retrieved successfully',
+    type: GetAdminLogsResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Requires ADMIN or SUDO_ADMIN role',
+  })
+  async getAdminLogs(
+    @Query('action') action?: string,
+    @Query('adminEmail') adminEmail?: string,
+    @Query('targetEmail') targetEmail?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ): Promise<GetAdminLogsResponse> {
+    console.log('📋 [ADMIN API] GET /admin/logs - Retrieving admin logs');
+    console.log('📊 Query params:', { 
+      action, adminEmail, targetEmail, startDate, endDate, limit, offset 
+    });
+
+    const result = await this.adminService.getAdminLogs(
+      limit ? Number(limit) : 20,
+      offset ? Number(offset) : 0,
+      action,
+      adminEmail,
+      targetEmail,
+      startDate,
+      endDate,
+    );
+
+    console.log('✅ [ADMIN API] Admin logs retrieved successfully');
+    console.log('📄 Found', result.logs.length, 'logs of', result.total, 'total');
 
     return result;
   }

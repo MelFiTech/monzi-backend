@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@100..800&display=swap"
+      rel="stylesheet"
+    />
+    <title>OTP Verification - Monzi</title>
+    <style>
+      /* Reset and base styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: #000000;
+        margin: 0;
+        padding: 0;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      
+      /* Email container */
+      .email-container {
+        max-width: 640px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        padding: 20px;
+      }
+      
+      /* Logo section */
+      .logo-section {
+        text-align: center;
+        padding: 40px 0 20px 0;
+      }
+      
+      .logo {
+        width: 120px;
+        height: auto;
+        display: inline-block;
+      }
+      
+      /* Main content card */
+      .content-card {
+        background-color: #fafafb;
+        border-radius: 14px;
+        margin: 20px 0;
+        overflow: hidden;
+      }
+      
+      /* Content section */
+      .content-section {
+        padding: 40px;
+      }
+      
+      .greeting-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 18px;
+        line-height: 1.4;
+        color: #919687;
+        margin-bottom: 24px;
+      }
+      
+      .otp-title {
+        font-family: 'Sora', sans-serif;
+        font-weight: 700;
+        font-size: 22px;
+        line-height: 1.2;
+        color: #232323;
+        margin-bottom: 32px;
+      }
+      
+      /* OTP digits container */
+      .otp-container {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 32px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      
+      .otp-digit {
+        background-color: #f5f5f6;
+        border-radius: 10px;
+        width: 56px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Sora', sans-serif;
+        font-weight: 700;
+        font-size: 32px;
+        color: #232323;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        text-align: center;
+      }
+      
+      .otp-info {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 18px;
+        line-height: 1.4;
+        color: #848484;
+        margin-bottom: 32px;
+        text-align: center;
+      }
+      
+      .signature {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 18px;
+        line-height: 1.4;
+        color: #848484;
+        text-align: center;
+      }
+      
+      /* Footer section */
+      .footer-section {
+        background-color: #fafafb;
+        border-radius: 14px;
+        padding: 30px 20px;
+        margin-top: 20px;
+        text-align: center;
+      }
+      
+      .footer-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 18px;
+        line-height: 1.4;
+        color: #232323;
+        margin-bottom: 24px;
+      }
+      
+      .social-links {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+      }
+      
+      .social-link {
+        display: inline-block;
+      }
+      
+      .social-icon {
+        width: 32px;
+        height: 32px;
+        display: block;
+      }
+      
+      /* Responsive design */
+      @media only screen and (max-width: 640px) {
+        .email-container {
+          padding: 10px;
+        }
+        
+        .content-section {
+          padding: 30px 20px;
+        }
+        
+        .otp-title {
+          font-size: 20px;
+        }
+        
+        .greeting-text,
+        .otp-info,
+        .signature {
+          font-size: 16px;
+        }
+        
+        .otp-digit {
+          width: 50px;
+          height: 50px;
+          font-size: 28px;
+        }
+        
+        .footer-text {
+          font-size: 16px;
+        }
+      }
+      
+      @media only screen and (max-width: 480px) {
+        .email-container {
+          padding: 5px;
+        }
+        
+        .content-section {
+          padding: 25px 15px;
+        }
+        
+        .otp-title {
+          font-size: 18px;
+        }
+        
+        .greeting-text,
+        .otp-info,
+        .signature {
+          font-size: 15px;
+        }
+        
+        .otp-digit {
+          width: 45px;
+          height: 45px;
+          font-size: 24px;
+        }
+        
+        .otp-container {
+          gap: 12px;
+        }
+        
+        .footer-text {
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <!-- Logo Section -->
+      <div class="logo-section">
+        <img src="{{logoUrl}}" alt="Monzi Logo" class="logo" />
+      </div>
+      
+      <!-- Main Content Card -->
+      <div class="content-card">
+        <!-- Content Section -->
+        <div class="content-section">
+          <p class="greeting-text">Hi {{name}},</p>
+          
+          <h2 class="otp-title">This is your verification code:</h2>
+          
+          <!-- OTP Digits -->
+          <div class="otp-container">
+            <div class="otp-digit">{{otp}}</div>
+          </div>
+          
+          <p class="otp-info">
+            This code will only be valid for the next {{expirationTime}} minutes. 
+            Please, do not share with anyone.
+          </p>
+          
+          <p class="signature">
+            With vibes,<br />
+            Team Monzi <span>💸</span>
+          </p>
+        </div>
+      </div>
+      
+      <!-- Footer Section -->
+      <div class="footer-section">
+        <p class="footer-text">
+          Monzi, money at the snap of a camera!<br />
+          Download the app now on Android & iOS
+        </p>
+        
+        <div class="social-links">
+          <a href="#" class="social-link">
+                      <img src="{{instagramUrl}}" alt="Instagram" class="social-icon" />
+        </a>
+        <a href="#" class="social-link">
+          <img src="{{twitterUrl}}" alt="Twitter" class="social-icon" />
+        </a>
+        <a href="#" class="social-link">
+          <img src="{{whatsappUrl}}" alt="WhatsApp" class="social-icon" />
+          </a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -588,7 +588,8 @@ export class KycService {
         isVerified: user.kycStatus === 'APPROVED',
         verifiedAt: user.kycVerifiedAt,
         bvnVerified: !!user.bvnVerifiedAt,
-        selfieVerified: !!user.selfieUrl,
+        // selfieVerified should be true if user uploaded selfie OR admin approved KYC
+        selfieVerified: !!user.selfieUrl || user.kycStatus === 'APPROVED',
         message: this.getKycStatusMessage(user.kycStatus),
       };
     } catch (error) {

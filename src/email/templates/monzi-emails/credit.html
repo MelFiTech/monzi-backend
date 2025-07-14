@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@100..800&display=swap"
+      rel="stylesheet"
+    />
+    <title>Transaction Notification - Monzi</title>
+    <style>
+      /* Reset and base styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: #f5f5f5;
+        margin: 0;
+        padding: 0;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      
+      /* Email container */
+      .email-container {
+        max-width: 640px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        padding: 20px;
+      }
+      
+      /* Logo section */
+      .logo-section {
+        text-align: center;
+        padding: 40px 0 20px 0;
+      }
+      
+      .logo {
+        width: 120px;
+        height: auto;
+        display: inline-block;
+      }
+      
+      /* Main content card */
+      .content-card {
+        background-color: #fafafb;
+        border-radius: 14px;
+        margin: 20px 0;
+        overflow: hidden;
+      }
+      
+      /* Content section */
+      .content-section {
+        padding: 40px;
+      }
+      
+      .greeting-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 18px;
+        line-height: 1.4;
+        color: #959595;
+        margin-bottom: 8px;
+      }
+      
+      .transaction-title {
+        font-family: 'Sora', sans-serif;
+        font-weight: 700;
+        font-size: 24px;
+        line-height: 1.2;
+        color: #232323;
+        margin-bottom: 32px;
+      }
+      
+      .amount-display {
+        font-family: 'Sora', sans-serif;
+        font-weight: 600;
+        font-size: 40px;
+        line-height: 1;
+        color: #000000;
+        margin-bottom: 8px;
+      }
+      
+      .status-badge {
+        display: inline-block;
+        background-color: #ffe96e;
+        color: #000000;
+        font-family: 'Sora', sans-serif;
+        font-weight: 500;
+        font-size: 14px;
+        border-radius: 20px;
+        padding: 10px 14px;
+        margin-bottom: 32px;
+        text-transform: capitalize;
+      }
+      
+      /* Transaction details box */
+      .details-box {
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 32px 24px;
+        margin-bottom: 32px;
+        border: 1px solid #e8e8e8;
+      }
+      
+      .details-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+      
+      .details-row:last-child {
+        margin-bottom: 0;
+      }
+      
+      .details-label {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 16px;
+        color: #757484;
+        flex: 1;
+        min-width: 120px;
+      }
+      
+      .details-value {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 16px;
+        color: #757484;
+        text-align: right;
+        flex: 1;
+        min-width: 150px;
+        word-break: break-word;
+      }
+      
+      .support-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 1.4;
+        color: #232323;
+        text-align: center;
+        margin-top: 16px;
+      }
+      
+      .support-email,
+      .support-phone {
+        color: #ff4d4f;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      
+      /* Footer section */
+      .footer-section {
+        background-color: #fafafb;
+        border-radius: 14px;
+        padding: 30px 20px;
+        margin-top: 20px;
+        text-align: center;
+      }
+      
+      .footer-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 18px;
+        line-height: 1.4;
+        color: #232323;
+        margin-bottom: 24px;
+      }
+      
+      .social-links {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+      }
+      
+      .social-link {
+        display: inline-block;
+      }
+      
+      .social-icon {
+        width: 32px;
+        height: 32px;
+        display: block;
+      }
+      
+      /* Responsive design */
+      @media only screen and (max-width: 640px) {
+        .email-container {
+          padding: 10px;
+        }
+        
+        .content-section {
+          padding: 30px 20px;
+        }
+        
+        .transaction-title {
+          font-size: 22px;
+        }
+        
+        .amount-display {
+          font-size: 36px;
+        }
+        
+        .greeting-text {
+          font-size: 16px;
+        }
+        
+        .details-box {
+          padding: 24px 16px;
+        }
+        
+        .details-label,
+        .details-value {
+          font-size: 14px;
+        }
+        
+        .support-text {
+          font-size: 14px;
+        }
+        
+        .footer-text {
+          font-size: 16px;
+        }
+      }
+      
+      @media only screen and (max-width: 480px) {
+        .email-container {
+          padding: 5px;
+        }
+        
+        .content-section {
+          padding: 25px 15px;
+        }
+        
+        .transaction-title {
+          font-size: 20px;
+        }
+        
+        .amount-display {
+          font-size: 32px;
+        }
+        
+        .greeting-text {
+          font-size: 15px;
+        }
+        
+        .details-box {
+          padding: 20px 12px;
+        }
+        
+        .details-row {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+        }
+        
+        .details-label,
+        .details-value {
+          font-size: 13px;
+          text-align: left;
+        }
+        
+        .support-text {
+          font-size: 13px;
+        }
+        
+        .footer-text {
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <!-- Logo Section -->
+      <div class="logo-section">
+        <img src="{{logoUrl}}" alt="Monzi Logo" class="logo" />
+      </div>
+      
+      <!-- Main Content Card -->
+      <div class="content-card">
+        <!-- Content Section -->
+        <div class="content-section">
+          <p class="greeting-text">Hey {{name}},</p>
+          
+          <h2 class="transaction-title">You Received Funds</h2>
+          
+          <div class="amount-display">₦{{amount}}</div>
+          
+          <div class="status-badge">{{status}}</div>
+          
+          <!-- Transaction Details -->
+          <div class="details-box">
+            <div class="details-row">
+              <div class="details-label">Transaction Type</div>
+              <div class="details-value">{{transactionType}}</div>
+            </div>
+            
+            <div class="details-row">
+              <div class="details-label">Reference</div>
+              <div class="details-value">{{reference}}</div>
+            </div>
+            
+            <div class="details-row">
+              <div class="details-label">Description</div>
+              <div class="details-value">{{description}}</div>
+            </div>
+            
+            <div class="details-row">
+              <div class="details-label">Date & Time</div>
+              <div class="details-value">{{transactionDate}}</div>
+            </div>
+          </div>
+          
+          <p class="support-text">
+            If you have any issues or complaints regarding this transaction,
+            kindly send us an email at
+            <a href="mailto:support@monzi.money" class="support-email">
+              support@monzi.money
+            </a>
+            or call the customer care support via
+            <a href="tel:+2349039344151" class="support-phone">
+              +2349039344151
+            </a>
+          </p>
+        </div>
+      </div>
+      
+      <!-- Footer Section -->
+      <div class="footer-section">
+        <p class="footer-text">
+          Monzi, money at the snap of a camera!<br />
+          Download the app now on Android & iOS
+        </p>
+        
+        <div class="social-links">
+          <a href="#" class="social-link">
+                      <img src="{{instagramUrl}}" alt="Instagram" class="social-icon" />
+        </a>
+        <a href="#" class="social-link">
+          <img src="{{twitterUrl}}" alt="Twitter" class="social-icon" />
+        </a>
+        <a href="#" class="social-link">
+          <img src="{{whatsappUrl}}" alt="WhatsApp" class="social-icon" />
+          </a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

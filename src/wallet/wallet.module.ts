@@ -6,6 +6,8 @@ import { ConfigModule } from '@nestjs/config';
 import { PolarisModule } from '../providers/polaris/polaris.module';
 import { SmePlugModule } from '../providers/smeplug/smeplug.module';
 import { BudPayModule } from '../providers/budpay/budpay.module';
+import { ProvidersModule } from '../providers/providers.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { BudPayModule } from '../providers/budpay/budpay.module';
     PolarisModule,
     SmePlugModule,
     BudPayModule,
+    ProvidersModule,
+    NotificationsModule,
   ],
   controllers: [WalletController],
   providers: [WalletService],

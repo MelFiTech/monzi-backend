@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { EmailImagesService } from './email-images.service';
 import {
   SendOtpEmailDto,
   SendWelcomeEmailDto,
@@ -21,7 +22,10 @@ export class EmailService {
   private resendClients: Map<EmailType, Resend> = new Map();
   private emailConfigs: Map<EmailType, EmailConfig> = new Map();
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private emailImagesService: EmailImagesService,
+  ) {
     this.initializeEmailConfigs();
   }
 
@@ -50,8 +54,8 @@ export class EmailService {
     // Set configurations
     this.emailConfigs.set(EmailType.OTP, otpConfig);
     this.emailConfigs.set(EmailType.WELCOME, otpConfig); // Same as OTP
-    this.emailConfigs.set(EmailType.TRANSACTION, transactionConfig);
-    this.emailConfigs.set(EmailType.PROMOTIONAL, promotionalConfig);
+    this.emailConfigs.set(EmailType.TRANSACTION, otpConfig); // Use OTP config for now
+    this.emailConfigs.set(EmailType.PROMOTIONAL, otpConfig); // Use OTP config for now
 
     // Initialize Resend clients
     this.emailConfigs.forEach((config, type) => {
@@ -158,6 +162,10 @@ export class EmailService {
         name: dto.name,
         otp: dto.otpCode, // Template expects 'otp', not 'otpCode'
         expirationTime: dto.expirationMinutes || '15', // Template expects 'expirationTime', not 'expirationMinutes'
+        logoUrl: this.emailImagesService.getLogoUrl(),
+        // whatsappUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/whatsapp', 24),
+        // instagramUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/instagram', 24),
+        // twitterUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/twitter', 24),
       };
 
       const htmlContent = this.replaceTemplateVariables(template, templateVariables);
@@ -204,6 +212,11 @@ export class EmailService {
       const templateVariables = {
         name: dto.name,
         virtualAccountNumber: dto.virtualAccountNumber,
+        logoUrl: this.emailImagesService.getLogoUrl(),
+        bannerUrl: this.emailImagesService.getBannerUrl(),
+        // whatsappUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/whatsapp', 24),
+        // instagramUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/instagram', 24),
+        // twitterUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/twitter', 24),
       };
 
       const htmlContent = this.replaceTemplateVariables(template, templateVariables);
@@ -250,6 +263,10 @@ export class EmailService {
         status: dto.status,
         description: dto.description,
         transactionDate: dto.transactionDate,
+        logoUrl: this.emailImagesService.getLogoUrl(),
+        // whatsappUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/whatsapp', 24),
+        // instagramUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/instagram', 24),
+        // twitterUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/twitter', 24),
       };
 
       const htmlContent = this.replaceTemplateVariables(template, templateVariables);
@@ -298,6 +315,7 @@ export class EmailService {
         subject: dto.subject,
         content: dto.content,
         templateData: dto.templateData || {},
+        logoUrl: this.emailImagesService.getLogoUrl(),
       };
 
       const htmlContent = this.replaceTemplateVariables(template, templateVariables);
@@ -325,6 +343,62 @@ export class EmailService {
     } catch (error) {
       this.logger.error(`Failed to send promotional email to: ${dto.email}`, error);
       throw new BadRequestException('Failed to send promotional email');
+    }
+  }
+
+  async sendDeviceChangeEmail(dto: {
+    email: string;
+    name: string;
+    deviceName: string;
+    platform: string;
+    location?: string;
+    timestamp: string;
+  }): Promise<EmailSendResponse> {
+    this.logger.log(`Sending device change email to: ${dto.email}`);
+    
+    try {
+      const template = this.loadTemplate('device-change-email');
+      const config = this.getEmailConfig(EmailType.OTP); // Use OTP config for security emails
+      const resend = this.getResendClient(EmailType.OTP);
+
+      const templateVariables = {
+        'First Name': dto.name,
+        'Device Name': dto.deviceName,
+        'Platform': dto.platform,
+        'Location': dto.location || 'Unknown',
+        'Timestamp': dto.timestamp,
+        logoUrl: this.emailImagesService.getLogoUrl(),
+        // whatsappUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/whatsapp', 24),
+        // instagramUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/instagram', 24),
+        // twitterUrl: this.emailImagesService.getImageUrl('monzi/emails/monzi/emails/twitter', 24),
+      };
+
+      const htmlContent = this.replaceTemplateVariables(template, templateVariables);
+      const textContent = this.generatePlainTextFromHtml(htmlContent);
+
+      const result = await resend.emails.send({
+        from: `${config.fromName} <${config.fromEmail}>`,
+        to: [dto.email],
+        subject: 'New Device Detected - Monzi Security Alert',
+        html: htmlContent,
+        text: textContent,
+        tags: [
+          { name: 'email-type', value: 'security' },
+          { name: 'notification-type', value: 'device-change' },
+        ],
+      });
+
+      this.logger.log(`Device change email sent successfully to: ${dto.email}, ID: ${result.data?.id || 'unknown'}`);
+
+      return {
+        success: true,
+        message: 'Device change email sent successfully',
+        emailId: result.data?.id || undefined,
+        type: EmailType.OTP, // Using OTP type for security emails
+      };
+    } catch (error) {
+      this.logger.error(`Failed to send device change email to: ${dto.email}`, error);
+      throw new BadRequestException('Failed to send device change email');
     }
   }
 

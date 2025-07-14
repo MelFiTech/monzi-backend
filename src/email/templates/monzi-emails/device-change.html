@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@100..800&display=swap"
+      rel="stylesheet"
+    />
+    <title>Device Change Notification - Monzi</title>
+    <style>
+      /* Reset and base styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: #f5f5f5;
+        margin: 0;
+        padding: 0;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      
+      /* Email container */
+      .email-container {
+        max-width: 640px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        padding: 20px;
+      }
+      
+      /* Logo section */
+      .logo-section {
+        text-align: center;
+        padding: 40px 0 20px 0;
+      }
+      
+      .logo {
+        width: 120px;
+        height: auto;
+        display: inline-block;
+      }
+      
+      /* Main content card */
+      .content-card {
+        background-color: #fafafb;
+        border-radius: 14px;
+        margin: 20px 0;
+        overflow: hidden;
+      }
+      
+      /* Content section */
+      .content-section {
+        padding: 40px;
+      }
+      
+      .greeting-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 18px;
+        line-height: 1.4;
+        color: #959595;
+        margin-bottom: 8px;
+      }
+      
+      .alert-title {
+        font-family: 'Sora', sans-serif;
+        font-weight: 700;
+        font-size: 24px;
+        line-height: 1.2;
+        color: #232323;
+        margin-bottom: 32px;
+      }
+      
+      .warning-icon {
+        text-align: center;
+        margin-bottom: 24px;
+      }
+      
+      .warning-emoji {
+        font-size: 48px;
+        color: #ff4d4f;
+      }
+      
+      .info-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 1.4;
+        color: #232323;
+        margin-bottom: 24px;
+        text-align: center;
+      }
+      
+      /* Device details box */
+      .device-details {
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        border: 1px solid #e8e8e8;
+      }
+      
+      .device-title {
+        font-family: 'Sora', sans-serif;
+        font-weight: 600;
+        font-size: 16px;
+        color: #232323;
+        margin-bottom: 16px;
+      }
+      
+      .device-info {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 14px;
+        color: #757484;
+        margin-bottom: 8px;
+        line-height: 1.4;
+      }
+      
+      /* Security note */
+      .security-note {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 24px;
+      }
+      
+      .security-title {
+        font-family: 'Sora', sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        color: #856404;
+        margin-bottom: 8px;
+      }
+      
+      .security-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 14px;
+        color: #856404;
+        line-height: 1.4;
+      }
+      
+      .action-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 1.4;
+        color: #232323;
+        text-align: center;
+        margin-top: 16px;
+      }
+      
+      .support-email {
+        color: #ff4d4f;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      
+      /* Footer section */
+      .footer-section {
+        background-color: #fafafb;
+        border-radius: 14px;
+        padding: 30px 20px;
+        margin-top: 20px;
+        text-align: center;
+      }
+      
+      .footer-text {
+        font-family: 'Sora', sans-serif;
+        font-weight: 400;
+        font-size: 18px;
+        line-height: 1.4;
+        color: #232323;
+        margin-bottom: 24px;
+      }
+      
+      .social-links {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+      }
+      
+      .social-link {
+        display: inline-block;
+      }
+      
+      .social-icon {
+        width: 32px;
+        height: 32px;
+        display: block;
+      }
+      
+      /* Responsive design */
+      @media only screen and (max-width: 640px) {
+        .email-container {
+          padding: 10px;
+        }
+        
+        .content-section {
+          padding: 30px 20px;
+        }
+        
+        .alert-title {
+          font-size: 22px;
+        }
+        
+        .greeting-text {
+          font-size: 16px;
+        }
+        
+        .info-text {
+          font-size: 14px;
+        }
+        
+        .device-details {
+          padding: 20px 16px;
+        }
+        
+        .device-title {
+          font-size: 15px;
+        }
+        
+        .device-info {
+          font-size: 13px;
+        }
+        
+        .security-note {
+          padding: 14px;
+        }
+        
+        .security-title,
+        .security-text {
+          font-size: 13px;
+        }
+        
+        .action-text {
+          font-size: 14px;
+        }
+        
+        .footer-text {
+          font-size: 16px;
+        }
+      }
+      
+      @media only screen and (max-width: 480px) {
+        .email-container {
+          padding: 5px;
+        }
+        
+        .content-section {
+          padding: 25px 15px;
+        }
+        
+        .alert-title {
+          font-size: 20px;
+        }
+        
+        .greeting-text {
+          font-size: 15px;
+        }
+        
+        .info-text {
+          font-size: 13px;
+        }
+        
+        .device-details {
+          padding: 16px 12px;
+        }
+        
+        .device-title {
+          font-size: 14px;
+        }
+        
+        .device-info {
+          font-size: 12px;
+        }
+        
+        .security-note {
+          padding: 12px;
+        }
+        
+        .security-title,
+        .security-text {
+          font-size: 12px;
+        }
+        
+        .action-text {
+          font-size: 13px;
+        }
+        
+        .footer-text {
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <!-- Logo Section -->
+      <div class="logo-section">
+        <img src="{{logoUrl}}" alt="Monzi Logo" class="logo" />
+      </div>
+      
+      <!-- Main Content Card -->
+      <div class="content-card">
+        <!-- Content Section -->
+        <div class="content-section">
+          <p class="greeting-text">Hi {{First Name}},</p>
+          
+          <h2 class="alert-title">New Device Detected</h2>
+          
+          <div class="warning-icon">
+            <span class="warning-emoji">🔒</span>
+          </div>
+          
+          <p class="info-text">
+            We detected that you've logged into your Monzi account from a new device. 
+            This is just a security notification to keep you informed.
+          </p>
+          
+          <!-- Device Details -->
+          <div class="device-details">
+            <div class="device-title">New Device Information:</div>
+            <div class="device-info">Device: {{Device Name}}</div>
+            <div class="device-info">Platform: {{Platform}}</div>
+            <div class="device-info">Location: {{Location}}</div>
+            <div class="device-info">Time: {{Timestamp}}</div>
+          </div>
+          
+          <!-- Security Note -->
+          <div class="security-note">
+            <div class="security-title">Security Reminder:</div>
+            <div class="security-text">
+              If this wasn't you, please contact our support team immediately. 
+              Your account security is our top priority.
+            </div>
+          </div>
+          
+          <p class="action-text">
+            Questions? Contact us at 
+            <a href="mailto:support@monzimoney.com" class="support-email">
+              support@monzimoney.com
+            </a>
+          </p>
+          
+          <p class="signature">
+            With vibes,<br />
+            Team Monzi <span>💸</span>
+          </p>
+        </div>
+      </div>
+      
+      <!-- Footer Section -->
+      <div class="footer-section">
+        <p class="footer-text">
+          Monzi, money at the snap of a camera!<br />
+          Download the app now on Android & iOS
+        </p>
+        
+        <div class="social-links">
+          <a href="#" class="social-link">
+                      <img src="{{instagramUrl}}" alt="Instagram" class="social-icon" />
+        </a>
+        <a href="#" class="social-link">
+          <img src="{{twitterUrl}}" alt="Twitter" class="social-icon" />
+        </a>
+        <a href="#" class="social-link">
+          <img src="{{whatsappUrl}}" alt="WhatsApp" class="social-icon" />
+          </a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html> 
