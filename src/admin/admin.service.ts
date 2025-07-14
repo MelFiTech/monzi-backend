@@ -3561,4 +3561,71 @@ export class AdminService {
   async getAdminLogsByAdmin(adminId: string, limit: number = 20, offset: number = 0) {
     return this.getAdminLogs(limit, offset, undefined, undefined, undefined, undefined, undefined);
   }
+
+  /**
+   * Get wallet balance by user identifier
+   */
+  async getWalletBalance(params: {
+    userId?: string;
+    email?: string;
+    accountNumber?: string;
+  }): Promise<{
+    success: boolean;
+    userId: string;
+    userEmail: string;
+    balance: number;
+    currency: string;
+    formattedBalance: string;
+    accountNumber: string;
+    accountName: string;
+    bankName: string;
+    provider: string;
+  }> {
+    console.log('💰 [ADMIN SERVICE] Getting wallet balance for:', params);
+
+    // Find user by provided identifier
+    let user;
+    if (params.userId) {
+      user = await this.prisma.user.findUnique({
+        where: { id: params.userId },
+        include: { wallet: true },
+      });
+    } else if (params.email) {
+      user = await this.prisma.user.findUnique({
+        where: { email: params.email },
+        include: { wallet: true },
+      });
+    } else if (params.accountNumber) {
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { virtualAccountNumber: params.accountNumber },
+        include: { user: true },
+      });
+      user = wallet ? { ...wallet.user, wallet } : null;
+    } else {
+      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    }
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.wallet) {
+      throw new NotFoundException('User does not have a wallet');
+    }
+
+    console.log('✅ [ADMIN SERVICE] Wallet balance retrieved successfully');
+
+    return {
+      success: true,
+      userId: user.id,
+      userEmail: user.email,
+      balance: user.wallet.balance,
+      currency: 'NGN',
+      formattedBalance: `₦${user.wallet.balance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      accountNumber: user.wallet.virtualAccountNumber,
+      accountName: user.wallet.providerAccountName,
+      bankName: user.wallet.bankName,
+      provider: user.wallet.provider,
+    };
+  }
 }

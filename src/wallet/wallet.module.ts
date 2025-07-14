@@ -8,6 +8,7 @@ import { SmePlugModule } from '../providers/smeplug/smeplug.module';
 import { BudPayModule } from '../providers/budpay/budpay.module';
 import { ProvidersModule } from '../providers/providers.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     BudPayModule,
     ProvidersModule,
     NotificationsModule,
+    PushNotificationsModule,
   ],
   controllers: [WalletController],
   providers: [WalletService],

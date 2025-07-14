@@ -19,6 +19,8 @@ import {
 } from './dto/wallet.dto';
 import { ProviderManagerService } from '../providers/provider-manager.service';
 import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { WalletCreationData } from '../providers/base/wallet-provider.interface';
 import { BankTransferData } from '../providers/base/transfer-provider.interface';
 import * as bcrypt from 'bcrypt';
@@ -31,6 +33,8 @@ export class WalletService {
     private configService: ConfigService,
     private providerManager: ProviderManagerService,
     private transferProviderManager: TransferProviderManagerService,
+    private pushNotificationsService: PushNotificationsService,
+    private notificationsGateway: NotificationsGateway,
   ) {}
 
   /**
@@ -631,6 +635,78 @@ export class WalletService {
 
       console.log('✅ [TRANSFER] Transfer completed successfully');
       console.log('💰 [TRANSFER] New balance:', updatedWallet.balance);
+
+      // Emit real-time notifications
+      if (this.notificationsGateway) {
+        // Wallet balance update notification
+        this.notificationsGateway.emitWalletBalanceUpdate(userId, {
+          oldBalance: wallet.balance,
+          newBalance: updatedWallet.balance,
+          change: -totalDeduction,
+          currency: 'NGN',
+          provider: 'TRANSFER',
+          accountNumber: wallet.virtualAccountNumber,
+          grossAmount: transferDto.amount,
+          fundingFee: fee,
+          netAmount: -totalDeduction,
+          reference,
+        });
+
+        // Transaction notification
+        this.notificationsGateway.emitTransactionNotification(userId, {
+          type: 'WITHDRAWAL',
+          amount: transferDto.amount,
+          grossAmount: transferDto.amount,
+          fee: fee,
+          currency: 'NGN',
+          description: transferDto.description || defaultNarration,
+          reference,
+          provider: 'TRANSFER',
+          status: 'COMPLETED',
+          timestamp: new Date().toISOString(),
+        });
+
+        // General notification
+        this.notificationsGateway.emitNotification(userId, {
+          title: 'Transfer Completed Successfully',
+          message: `₦${transferDto.amount.toLocaleString()} transferred to ${transferDto.accountName}. Fee: ₦${fee.toLocaleString()}. New balance: ₦${updatedWallet.balance.toLocaleString()}.`,
+          type: 'success',
+          data: {
+            amount: transferDto.amount,
+            fee: fee,
+            newBalance: updatedWallet.balance,
+            reference,
+            recipientName: transferDto.accountName,
+            recipientAccount: transferDto.accountNumber,
+            recipientBank: transferDto.bankName,
+          },
+        });
+      }
+
+      // Send push notification
+      if (this.pushNotificationsService) {
+        try {
+          await this.pushNotificationsService.sendPushNotificationToUser(userId, {
+            title: '💸 Transfer Completed',
+            body: `₦${transferDto.amount.toLocaleString()} transferred to ${transferDto.accountName}. New balance: ₦${updatedWallet.balance.toLocaleString()}.`,
+            data: {
+              type: 'withdrawal',
+              amount: transferDto.amount,
+              fee: fee,
+              newBalance: updatedWallet.balance,
+              reference,
+              recipientName: transferDto.accountName,
+              recipientAccount: transferDto.accountNumber,
+              recipientBank: transferDto.bankName,
+            },
+            priority: 'high',
+          });
+          console.log('📱 [TRANSFER] Push notification sent for successful transfer');
+        } catch (pushError) {
+          console.error('❌ [TRANSFER] Failed to send push notification:', pushError);
+          // Don't fail the operation if push notification fails
+        }
+      }
 
       return {
         success: true,

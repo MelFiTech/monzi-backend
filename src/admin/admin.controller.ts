@@ -1816,4 +1816,86 @@ export class AdminController {
 
     return result;
   }
+
+  @Get('wallet/balance')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUDO_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get wallet balance (Admin only)',
+    description: 'Get wallet balance by user ID, email, or account number',
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    type: String,
+    description: 'User ID to get wallet balance for',
+  })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    type: String,
+    description: 'User email to get wallet balance for',
+  })
+  @ApiQuery({
+    name: 'accountNumber',
+    required: false,
+    type: String,
+    description: 'Account number to get wallet balance for',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Wallet balance retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        userId: { type: 'string', example: 'cmd123' },
+        userEmail: { type: 'string', example: 'user@example.com' },
+        balance: { type: 'number', example: 5000.0 },
+        currency: { type: 'string', example: 'NGN' },
+        formattedBalance: { type: 'string', example: '₦5,000.00' },
+        accountNumber: { type: 'string', example: '1234567890' },
+        accountName: { type: 'string', example: 'John Doe' },
+        bankName: { type: 'string', example: 'Wema Bank' },
+        provider: { type: 'string', example: 'BUDPAY' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Must provide userId, email, or accountNumber',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User or wallet not found',
+  })
+  async getWalletBalance(
+    @Query('userId') userId?: string,
+    @Query('email') email?: string,
+    @Query('accountNumber') accountNumber?: string,
+  ) {
+    console.log('💰 [ADMIN API] GET /admin/wallet/balance - Request received');
+    console.log('🔍 [ADMIN API] Query params:', { userId, email, accountNumber });
+
+    if (!userId && !email && !accountNumber) {
+      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    }
+
+    const result = await this.adminService.getWalletBalance({
+      userId,
+      email,
+      accountNumber,
+    });
+
+    console.log('✅ [ADMIN API] Wallet balance retrieved successfully');
+    console.log('📄 Response Data:', {
+      success: result.success,
+      userId: result.userId,
+      balance: result.balance,
+      accountNumber: result.accountNumber,
+    });
+
+    return result;
+  }
 }
