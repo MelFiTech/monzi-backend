@@ -440,8 +440,8 @@ export class KycService {
         };
       }
 
-      // Check if AI approved the selfie
-      if (!aiVerification.isValidSelfie || aiVerification.confidence < 0.8) {
+      // Check if AI approved the selfie (lowered threshold for better user experience)
+      if (!aiVerification.isValidSelfie || aiVerification.confidence < 0.6) {
         console.log(
           '❌ [KYC SERVICE] Gemini AI rejected selfie - storing for admin review',
         );

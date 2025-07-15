@@ -150,15 +150,18 @@ export class GeminiAiProvider implements IAiProvider {
     const basePrompt = `
 You are an expert AI image analyst specialized in verifying selfie photographs for KYC (Know Your Customer) verification purposes.
 
-Please analyze this image and determine if it meets the criteria for a valid KYC selfie:
+Please analyze this image and determine if it meets the criteria for a valid KYC selfie. Be reasonably lenient while ensuring basic security requirements are met.
 
-CRITERIA TO CHECK:
-1. FACE VISIBILITY: Is there a clear, unobstructed view of a human face?
-2. SINGLE PERSON: Is there only one person visible in the image?
-3. PROPER LIGHTING: Is the face well-lit and clearly visible (not too dark, not overexposed)?
-4. NO OBSTRUCTIONS: Are there no sunglasses, masks, hats, or other items obscuring the face?
-5. IMAGE QUALITY: Is the image clear and not blurry?
-6. AUTHENTIC SELFIE: Does this appear to be a real selfie photo (not a screenshot, drawing, or photo of a photo)?
+ESSENTIAL CRITERIA (Must be met):
+1. HUMAN FACE PRESENT: Can you identify a real human face in the image?
+2. FACE VISIBILITY: Is the face reasonably visible (doesn't need to be perfect lighting)?
+3. AUTHENTIC IMAGE: Does this appear to be a real photo (not a drawing, screenshot, or obviously fake)?
+
+PREFERRED CRITERIA (Good to have but not deal-breakers):
+4. SINGLE PERSON: Ideally only one person, but acceptable if main subject is clear
+5. PROPER LIGHTING: Good lighting preferred, but acceptable if face is still identifiable
+6. NO MAJOR OBSTRUCTIONS: Minor accessories (glasses, light makeup) are acceptable
+7. IMAGE QUALITY: Some blur or lower quality is acceptable if face is still recognizable
 
 ${
   bvnData
@@ -166,7 +169,7 @@ ${
 ADDITIONAL CONTEXT:
 - User's registered name: ${bvnData.firstName} ${bvnData.lastName}
 - User's registered gender: ${bvnData.gender}
-Please note if the person in the image appears to match the registered gender.
+Please note if the person in the image appears to match the registered gender (be flexible with appearance variations).
 `
     : ''
 }
@@ -189,7 +192,7 @@ Please respond with EXACTLY this JSON format (no additional text):
   "genderMatch": true/false/null
 }
 
-IMPORTANT: Only approve (isValidSelfie: true) if ALL criteria are met and confidence is above 0.8.`;
+GUIDANCE: Approve (isValidSelfie: true) if the ESSENTIAL criteria are met, even if some preferred criteria are not perfect. Be helpful and understanding - people may not have perfect cameras or lighting. Focus on security (real person, real photo) rather than photo quality perfection.`;
 
     return basePrompt;
   }
