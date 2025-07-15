@@ -4,6 +4,8 @@ import {
   ResolveAccountDto,
   BanksListResponseDto,
   ResolveAccountResponseDto,
+  SuperResolveAccountDto,
+  SuperResolveAccountResponseDto,
 } from './dto/accounts.dto';
 import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
 
@@ -13,6 +15,46 @@ export class AccountsService {
     private readonly configService: ConfigService,
     private readonly transferProviderManager: TransferProviderManagerService,
   ) {}
+
+  // Common Nigerian banks to try first (most likely to have accounts)
+  private readonly COMMON_BANKS = [
+    // Digital Banks First
+    { name: 'Kuda Bank', code: '50211' },
+    { name: 'OPay', code: '100004' },
+    { name: 'PalmPay', code: '100033' },
+    { name: 'Moniepoint', code: '50515' },
+    { name: 'VFD Microfinance Bank', code: '566' },
+    { name: 'Carbon', code: '565' },
+    { name: 'Fairmoney', code: '51318' },
+    { name: 'Sparkle', code: '51310' },
+    { name: 'Rubies Bank', code: '125' },
+    { name: 'Mint', code: '50304' },
+    // Traditional Banks
+    { name: 'GTBank', code: '058' },
+    { name: 'Zenith Bank', code: '057' },
+    { name: 'Access Bank', code: '044' },
+    { name: 'First Bank', code: '011' },
+    { name: 'UBA', code: '033' },
+    { name: 'Stanbic IBTC', code: '221' },
+    { name: 'Ecobank', code: '050' },
+    { name: 'Fidelity Bank', code: '070' },
+    { name: 'Union Bank', code: '032' },
+    { name: 'Wema Bank', code: '035' },
+    { name: 'Polaris Bank', code: '076' },
+    { name: 'Keystone Bank', code: '082' },
+    { name: 'Providus Bank', code: '101' },
+    { name: 'Sterling Bank', code: '232' },
+    { name: 'Unity Bank', code: '215' }
+  ];
+
+  // NUBAN API configuration
+  private readonly NUBAN_API_KEY = 'NUBAN-ODDOGOGF3226';
+  private readonly NUBAN_BASE_URL = 'https://app.nuban.com.ng/api/NUBAN-ODDOGOGF3226';
+
+  // Delay function for rate limiting
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
   /**
    * Get list of all banks from active transfer provider
@@ -60,6 +102,98 @@ export class AccountsService {
       }
       throw new HttpException(
         'Error connecting to payment provider',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Super resolve account number across multiple banks using NUBAN API
+   */
+  async superResolveAccount(
+    superResolveDto: SuperResolveAccountDto,
+  ): Promise<SuperResolveAccountResponseDto> {
+    const startTime = Date.now();
+    const accountNumber = superResolveDto.account_number;
+
+    try {
+      console.log('🔍 [SUPER RESOLVE] Starting super resolve for account:', accountNumber);
+      console.log(`🏦 [SUPER RESOLVE] Testing ${this.COMMON_BANKS.length} common banks...`);
+
+      let foundMatch = null;
+      let attempts = 0;
+
+      for (const bank of this.COMMON_BANKS) {
+        attempts++;
+        console.log(`\n🧪 [SUPER RESOLVE] Attempt ${attempts}/${this.COMMON_BANKS.length}: ${bank.name} (${bank.code})`);
+
+        try {
+          const url = `${this.NUBAN_BASE_URL}?acc_no=${accountNumber}&bank_code=${bank.code}`;
+          console.log(`📡 [SUPER RESOLVE] URL: ${url}`);
+
+          const response = await fetch(url);
+          console.log(`📊 [SUPER RESOLVE] Response status: ${response.status}`);
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('📄 [SUPER RESOLVE] Response:', JSON.stringify(data, null, 2));
+
+            // Check if resolution was successful (NUBAN returns array on success)
+            if (Array.isArray(data) && data.length > 0 && !data[0].error) {
+              const accountData = data[0];
+              console.log(`✅ [SUPER RESOLVE] SUCCESS! Found account in ${bank.name}`);
+              
+              foundMatch = {
+                success: true,
+                message: 'Account resolved successfully',
+                account_name: accountData.account_name,
+                account_number: accountData.account_number,
+                bank_name: accountData.bank_name,
+                bank_code: accountData.bank_code,
+                banks_tested: attempts,
+                execution_time: (Date.now() - startTime) / 1000,
+              };
+              break;
+            } else {
+              console.log(`❌ [SUPER RESOLVE] Not found in ${bank.name}: ${data.message || 'Unknown error'}`);
+            }
+          } else {
+            const errorText = await response.text();
+            console.log(`❌ [SUPER RESOLVE] Error with ${bank.name}: ${errorText}`);
+          }
+
+          // Rate limiting - wait 500ms between requests
+          if (attempts < this.COMMON_BANKS.length) {
+            console.log('⏳ [SUPER RESOLVE] Waiting 500ms before next attempt...');
+            await this.delay(500);
+          }
+
+        } catch (error) {
+          console.error(`❌ [SUPER RESOLVE] Error testing ${bank.name}:`, error.message);
+        }
+      }
+
+      const executionTime = (Date.now() - startTime) / 1000;
+
+      if (foundMatch) {
+        console.log('✅ [SUPER RESOLVE] Resolution successful!');
+        console.log('📄 [SUPER RESOLVE] Final result:', JSON.stringify(foundMatch, null, 2));
+        return foundMatch;
+      } else {
+        console.log('❌ [SUPER RESOLVE] NO MATCH FOUND');
+        return {
+          success: false,
+          message: 'Account not found in any of the tested banks',
+          banks_tested: attempts,
+          execution_time: executionTime,
+          error: 'Account number not found in common banks. Please try with a specific bank.',
+        };
+      }
+
+    } catch (error) {
+      console.error('🚨 [SUPER RESOLVE] Error in superResolveAccount:', error.message);
+      throw new HttpException(
+        'Error during super resolve process',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -196,6 +330,57 @@ export class AccountsService {
           '🎭 [BANK MATCHER] Trying common variations and abbreviations...',
         );
         const variations = {
+          // Digital Banks & Fintech First
+          kuda: 'Kuda Microfinance Bank',
+          'kuda bank': 'Kuda Microfinance Bank',
+          opay: 'OPAY',
+          'o-pay': 'OPAY',
+          'opay digital': 'OPAY',
+          moniepoint: 'Moniepoint Microfinance Bank',
+          'monie point': 'Moniepoint Microfinance Bank',
+          palmpay: 'PALMPAY',
+          'palm pay': 'PALMPAY',
+          palmPay: 'PALMPAY',
+          carbon: 'CARBON',
+          fairmoney: 'FAIRMONEY',
+          'fair money': 'FAIRMONEY',
+          vfd: 'VFD MFB',
+          'v bank': 'VFD MFB',
+          paga: 'PAGA',
+          eyowo: 'Eyowo Microfinance Bank',
+          sparkle: 'Sparkle Microfinance Bank',
+          renmoney: 'Renmoney Microfinance Bank',
+          'ren money': 'Renmoney Microfinance Bank',
+          mintyn: 'Mint Microfinance Bank',
+          rubies: 'Rubies MFB',
+          'rubies bank': 'Rubies MFB',
+          quickfund: 'Quickfund Microfinance Bank',
+          'quick fund': 'Quickfund Microfinance Bank',
+          onebank: 'ONE FINANCE',
+          'one bank': 'ONE FINANCE',
+          'one finance': 'ONE FINANCE',
+          mkudi: 'MKUDI',
+          korapay: 'Koraypay',
+          'kora pay': 'Koraypay',
+          flutterwave: 'Flutterwave',
+          'flutter wave': 'Flutterwave',
+          paystack: 'TITAN-PAYSTACK MICROFINANCE BANK',
+          'pay stack': 'TITAN-PAYSTACK MICROFINANCE BANK',
+          momo: 'MoMo PSB',
+          'mtn momo': 'MoMo PSB',
+          smartcash: 'SmartCash Payment Service bank',
+          'smart cash': 'SmartCash Payment Service bank',
+          hope: 'HopePSB',
+          'hope psb': 'HopePSB',
+          hopepsb: 'HopePSB',
+          tagpay: 'TAGPAY',
+          'tag pay': 'TAGPAY',
+          pocketapp: 'POCKETAPP',
+          'pocket app': 'POCKETAPP',
+          cellulant: 'CELLULANT',
+          gomoney: 'GOMONEY',
+          'go money': 'GOMONEY',
+
           // Traditional Banks
           'first bank': 'First Bank of Nigeria',
           firstbank: 'First Bank of Nigeria',
@@ -248,58 +433,6 @@ export class AccountsService {
           'taj bank': 'Taj Bank',
           jaiz: 'Jaiz Bank',
           'jaiz bank': 'Jaiz Bank',
-
-          // Digital Banks & Fintech
-          kuda: 'Kuda Microfinance Bank',
-          'kuda bank': 'Kuda Microfinance Bank',
-          opay: 'OPAY',
-          'o-pay': 'OPAY',
-          'opay digital': 'OPAY',
-          moniepoint: 'Moniepoint Microfinance Bank',
-          'monie point': 'Moniepoint Microfinance Bank',
-          palmpay: 'PALMPAY',
-          'palm pay': 'PALMPAY',
-          palmPay: 'PALMPAY',
-          carbon: 'CARBON',
-          fairmoney: 'FAIRMONEY',
-          'fair money': 'FAIRMONEY',
-          vfd: 'VFD MFB',
-          'v bank': 'VFD MFB',
-          paga: 'PAGA',
-          eyowo: 'Eyowo Microfinance Bank',
-          sparkle: 'Sparkle Microfinance Bank',
-          renmoney: 'Renmoney Microfinance Bank',
-          'ren money': 'Renmoney Microfinance Bank',
-          mintyn: 'Mint Microfinance Bank',
-          mint: 'Mint Microfinance Bank',
-          rubies: 'Rubies MFB',
-          'rubies bank': 'Rubies MFB',
-          quickfund: 'Quickfund Microfinance Bank',
-          'quick fund': 'Quickfund Microfinance Bank',
-          onebank: 'ONE FINANCE',
-          'one bank': 'ONE FINANCE',
-          'one finance': 'ONE FINANCE',
-          mkudi: 'MKUDI',
-          korapay: 'Koraypay',
-          'kora pay': 'Koraypay',
-          flutterwave: 'Flutterwave',
-          'flutter wave': 'Flutterwave',
-          paystack: 'TITAN-PAYSTACK MICROFINANCE BANK',
-          'pay stack': 'TITAN-PAYSTACK MICROFINANCE BANK',
-          momo: 'MoMo PSB',
-          'mtn momo': 'MoMo PSB',
-          smartcash: 'SmartCash Payment Service bank',
-          'smart cash': 'SmartCash Payment Service bank',
-          hope: 'HopePSB',
-          'hope psb': 'HopePSB',
-          hopepsb: 'HopePSB',
-          tagpay: 'TAGPAY',
-          'tag pay': 'TAGPAY',
-          pocketapp: 'POCKETAPP',
-          'pocket app': 'POCKETAPP',
-          cellulant: 'CELLULANT',
-          gomoney: 'GOMONEY',
-          'go money': 'GOMONEY',
 
           // Mortgage Banks
           'abbey mortgage': 'Abbey Mortgage Bank',

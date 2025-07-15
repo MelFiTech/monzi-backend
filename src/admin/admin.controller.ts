@@ -59,6 +59,10 @@ import {
   DeleteAdminDto,
   DeleteAdminResponse,
   GetAdminLogsResponse,
+  FreezeWalletDto,
+  UnfreezeWalletDto,
+  WalletFreezeResponse,
+  TotalWalletBalanceResponse,
 } from './dto/admin.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -71,6 +75,8 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Post('fees')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Set or update fee configuration',
     description:
@@ -101,6 +107,8 @@ export class AdminController {
   }
 
   @Get('fees')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get all fee configurations',
     description: 'Retrieve all configured fees for different transaction types',
@@ -127,6 +135,8 @@ export class AdminController {
   }
 
   @Get('fees/:type')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get fee configuration by type',
     description: 'Retrieve fee configuration for a specific transaction type',
@@ -167,6 +177,8 @@ export class AdminController {
   }
 
   @Delete('fees/:type')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Delete fee configuration',
     description: 'Remove fee configuration for a specific transaction type',
@@ -201,6 +213,8 @@ export class AdminController {
   }
 
   @Post('fees/seed')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Seed default fee configurations',
     description:
@@ -224,6 +238,8 @@ export class AdminController {
   }
 
   @Post('fees/:type/calculate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Calculate fee for amount',
     description:
@@ -295,6 +311,8 @@ export class AdminController {
   // ==================== KYC MANAGEMENT ENDPOINTS ====================
 
   @Get('kyc/submissions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   @ApiOperation({
     summary: 'Get all KYC submissions',
     description:
@@ -328,6 +346,8 @@ export class AdminController {
   }
 
   @Get('kyc/submissions/pending')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   @ApiOperation({
     summary: 'Get pending KYC submissions',
     description: 'Retrieve only KYC submissions that are pending admin review',
@@ -353,6 +373,8 @@ export class AdminController {
   }
 
   @Get('kyc/submissions/:userId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   @ApiOperation({
     summary: 'Get KYC submission details',
     description:
@@ -389,6 +411,8 @@ export class AdminController {
   }
 
   @Put('kyc/submissions/:userId/review')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Review KYC submission',
     description:
@@ -439,6 +463,8 @@ export class AdminController {
   // ==================== PROVIDER MANAGEMENT ENDPOINTS ====================
 
   @Get('providers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get available wallet providers',
     description:
@@ -484,6 +510,8 @@ export class AdminController {
   }
 
   @Post('providers/switch')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Switch wallet provider',
     description:
@@ -543,6 +571,8 @@ export class AdminController {
   }
 
   @Get('providers/current')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get current active provider',
     description: 'Get the currently active wallet provider name',
@@ -579,6 +609,8 @@ export class AdminController {
   // ==================== POLARIS API TEST ====================
 
   @Post('test-polaris-api')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.DEVELOPER)
   @ApiOperation({ summary: 'Test Polaris Bank API account creation directly' })
   async testPolarisApi(@Body() testData: any) {
     console.log('🧪 [POLARIS TEST] Testing Polaris Bank API directly');
@@ -600,6 +632,8 @@ export class AdminController {
   // ==================== BUDPAY API TEST ====================
 
   @Post('test-budpay-api')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.DEVELOPER)
   @ApiOperation({ summary: 'Test BudPay API wallet creation directly' })
   async testBudPayApi(@Body() testData: any) {
     console.log('🧪 [BUDPAY TEST] Testing BudPay API directly');
@@ -620,6 +654,8 @@ export class AdminController {
   // ==================== TRANSFER PROVIDER MANAGEMENT ====================
 
   @Get('transfer-providers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get available transfer providers',
     description:
@@ -648,6 +684,8 @@ export class AdminController {
   }
 
   @Post('transfer-providers/switch')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Switch transfer provider',
     description:
@@ -693,6 +731,8 @@ export class AdminController {
   }
 
   @Get('transfer-providers/current')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get current transfer provider',
     description: 'Get information about the currently active transfer provider',
@@ -723,6 +763,8 @@ export class AdminController {
   // ==================== TRANSFER API TESTS ====================
 
   @Get('test-bank-list')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.DEVELOPER)
   @ApiOperation({
     summary: 'Test bank list API',
     description: 'Test bank list retrieval from the active transfer provider',
@@ -748,6 +790,8 @@ export class AdminController {
   }
 
   @Post('test-account-verification')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.DEVELOPER)
   @ApiOperation({
     summary: 'Test account verification API',
     description: 'Test account verification with the active transfer provider',
@@ -789,6 +833,8 @@ export class AdminController {
   }
 
   @Post('test-bank-transfer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.DEVELOPER)
   @ApiOperation({
     summary: 'Test bank transfer functionality',
     description: 'Test the bank transfer system with active transfer provider',
@@ -798,6 +844,8 @@ export class AdminController {
   }
 
   @Get('validate-wallet/:walletId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Validate wallet balance against transaction history',
     description: 'Check if wallet balance matches the sum of all transactions',
@@ -820,6 +868,8 @@ export class AdminController {
   }
 
   @Post('reconcile-wallet/:walletId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Reconcile wallet balance with transaction history',
     description:
@@ -843,6 +893,8 @@ export class AdminController {
   }
 
   @Get('validate-all-wallets')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Validate all wallet balances',
     description: 'Check all wallets for balance discrepancies',
@@ -864,6 +916,8 @@ export class AdminController {
   }
 
   @Post('reset-wallet/:walletId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Reset wallet balance to zero (ADMIN ONLY)',
     description:
@@ -886,6 +940,8 @@ export class AdminController {
   }
 
   @Post('reset-wallet-by-account/:accountNumber')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   async resetWalletByAccount(@Param('accountNumber') accountNumber: string) {
     return this.adminService.resetWalletByAccountNumber(accountNumber);
   }
@@ -893,21 +949,29 @@ export class AdminController {
   // ==================== FEE CONFIGURATION ENDPOINTS ====================
 
   @Get('fee-configurations')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   async getFeeConfigurations() {
     return this.adminService.getFeeConfigurations();
   }
 
   @Get('fee-configurations/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   async getFeeConfiguration(@Param('id') id: string) {
     return this.adminService.getFeeConfiguration(id);
   }
 
   @Post('fee-configurations')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   async createFeeConfiguration(@Body() dto: CreateFeeConfigurationDto) {
     return this.adminService.createFeeConfiguration(dto);
   }
 
   @Put('fee-configurations/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   async updateFeeConfiguration(
     @Param('id') id: string,
     @Body() dto: UpdateFeeConfigurationDto,
@@ -916,6 +980,8 @@ export class AdminController {
   }
 
   @Delete('fee-configurations/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   async deleteFeeConfiguration(@Param('id') id: string) {
     return this.adminService.deleteFeeConfiguration(id);
   }
@@ -923,6 +989,8 @@ export class AdminController {
   // ==================== FUNDING FEES ENDPOINTS ====================
 
   @Get('funding-fees')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   async getFundingFees() {
     const fees = await this.adminService.getFundingFees();
     return {
@@ -941,6 +1009,8 @@ export class AdminController {
   }
 
   @Get('funding-fees/:provider')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   async getProviderFundingFee(@Param('provider') provider: string) {
     const feeConfig = await this.adminService.getProviderFundingFee(provider);
     return {
@@ -952,6 +1022,8 @@ export class AdminController {
   }
 
   @Post('funding-fees/:provider')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   async setProviderFundingFee(
     @Param('provider') provider: string,
     @Body() dto: CreateFeeConfigurationDto,
@@ -988,33 +1060,40 @@ export class AdminController {
   // ==================== USER MANAGEMENT ENDPOINTS ====================
 
   @Get('users')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   @ApiOperation({
     summary: 'Get all users',
-    description: 'Retrieve all users with pagination and filtering options',
+    description:
+      'Retrieve all users with pagination, filtering, and search capabilities',
   })
   @ApiQuery({
     name: 'limit',
     required: false,
     type: Number,
-    description: 'Number of users to return (default: 20)',
+    description: 'Number of users to retrieve (default: 20, max: 100)',
+    example: 20,
   })
   @ApiQuery({
     name: 'offset',
     required: false,
     type: Number,
-    description: 'Number of users to skip (default: 0)',
+    description: 'Number of users to skip for pagination',
+    example: 0,
   })
   @ApiQuery({
     name: 'status',
     required: false,
     type: String,
-    description: 'Filter by KYC status (PENDING, UNDER_REVIEW, APPROVED, REJECTED)',
+    description: 'Filter by user status (active, inactive, verified, unverified)',
+    example: 'active',
   })
   @ApiQuery({
     name: 'search',
     required: false,
     type: String,
-    description: 'Search by email, phone, or name',
+    description: 'Search users by email, phone, or name',
+    example: 'john@example.com',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -1044,6 +1123,8 @@ export class AdminController {
   }
 
   @Get('users/:userId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   @ApiOperation({
     summary: 'Get user details',
     description: 'Retrieve detailed information about a specific user',
@@ -1051,7 +1132,7 @@ export class AdminController {
   @ApiParam({
     name: 'userId',
     description: 'User ID to get details for',
-    example: 'cmcypf6hk00001gk3itv4ybwo',
+    example: 'cuid123',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -1115,6 +1196,8 @@ export class AdminController {
   // ==================== TRANSACTION MANAGEMENT ENDPOINTS ====================
 
   @Get('transactions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   @ApiOperation({
     summary: 'Get all transactions',
     description: 'Retrieve all transactions with pagination and filtering options',
@@ -1195,6 +1278,8 @@ export class AdminController {
   }
 
   @Get('transactions/:transactionId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   @ApiOperation({
     summary: 'Get transaction details',
     description: 'Retrieve detailed information about a specific transaction',
@@ -1228,6 +1313,8 @@ export class AdminController {
   // ==================== DASHBOARD STATS ENDPOINTS ====================
 
   @Get('dashboard/stats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   @ApiOperation({
     summary: 'Get dashboard statistics',
     description: 'Retrieve comprehensive statistics for the admin dashboard',
@@ -1253,6 +1340,8 @@ export class AdminController {
   }
 
   @Post('fund-wallet')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Fund user wallet',
     description: 'Admin endpoint to fund a user wallet by userId, email, or account number',
@@ -1298,6 +1387,8 @@ export class AdminController {
   }
 
   @Post('debit-wallet')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Debit user wallet',
     description: 'Admin endpoint to debit from a user wallet by userId, email, or account number',
@@ -1343,6 +1434,8 @@ export class AdminController {
   }
 
   @Put('edit-user')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Edit user information',
     description: 'Admin endpoint to edit any user field including email, phone, names, KYC status, etc.',
@@ -1382,6 +1475,8 @@ export class AdminController {
   }
 
   @Post('create-wallet')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Create wallet for user',
     description: 'Admin endpoint to create a wallet for a user with specific provider',
@@ -1894,6 +1989,137 @@ export class AdminController {
       userId: result.userId,
       balance: result.balance,
       accountNumber: result.accountNumber,
+    });
+
+    return result;
+  }
+
+  @Get('wallet/total-balance')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUDO_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get total wallet balance across all users',
+    description: 'Retrieve the sum of all wallet balances and statistics',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Total wallet balance retrieved successfully',
+    type: TotalWalletBalanceResponse,
+  })
+  async getTotalWalletBalance(): Promise<TotalWalletBalanceResponse> {
+    console.log('💰 [ADMIN API] GET /admin/wallet/total-balance - Request received');
+
+    const result = await this.adminService.getTotalWalletBalance();
+
+    console.log('✅ [ADMIN API] Total wallet balance retrieved successfully');
+    console.log('📄 Response Data:', {
+      totalBalance: result.totalBalance,
+      totalWallets: result.totalWallets,
+      activeWallets: result.activeWallets,
+      frozenWallets: result.frozenWallets,
+    });
+
+    return result;
+  }
+
+  @Post('wallet/freeze')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUDO_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Freeze a user wallet',
+    description: 'Freeze a wallet to prevent transactions. Must provide userId, email, or accountNumber',
+  })
+  @ApiBody({ type: FreezeWalletDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Wallet frozen successfully',
+    type: WalletFreezeResponse,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Must provide userId, email, or accountNumber',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User or wallet not found',
+  })
+  async freezeWallet(
+    @Request() req,
+    @Body(ValidationPipe) freezeWalletDto: FreezeWalletDto,
+  ): Promise<WalletFreezeResponse> {
+    console.log('❄️ [ADMIN API] POST /admin/wallet/freeze - Request received');
+    console.log('👤 [ADMIN API] Admin ID:', req.user.id);
+    console.log('📝 [ADMIN API] Request Data:', freezeWalletDto);
+
+    if (!freezeWalletDto.userId && !freezeWalletDto.email && !freezeWalletDto.accountNumber) {
+      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    }
+
+    const result = await this.adminService.freezeWallet(
+      freezeWalletDto,
+      req.user.id,
+      req.user.email,
+    );
+
+    console.log('✅ [ADMIN API] Wallet frozen successfully');
+    console.log('📄 Response Data:', {
+      success: result.success,
+      userId: result.userId,
+      isFrozen: result.isFrozen,
+      reason: result.reason,
+    });
+
+    return result;
+  }
+
+  @Post('wallet/unfreeze')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUDO_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Unfreeze a user wallet',
+    description: 'Unfreeze a wallet to allow transactions again. Must provide userId, email, or accountNumber',
+  })
+  @ApiBody({ type: UnfreezeWalletDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Wallet unfrozen successfully',
+    type: WalletFreezeResponse,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Must provide userId, email, or accountNumber',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User or wallet not found',
+  })
+  async unfreezeWallet(
+    @Request() req,
+    @Body(ValidationPipe) unfreezeWalletDto: UnfreezeWalletDto,
+  ): Promise<WalletFreezeResponse> {
+    console.log('🔥 [ADMIN API] POST /admin/wallet/unfreeze - Request received');
+    console.log('👤 [ADMIN API] Admin ID:', req.user.id);
+    console.log('📝 [ADMIN API] Request Data:', unfreezeWalletDto);
+
+    if (!unfreezeWalletDto.userId && !unfreezeWalletDto.email && !unfreezeWalletDto.accountNumber) {
+      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    }
+
+    const result = await this.adminService.unfreezeWallet(
+      unfreezeWalletDto,
+      req.user.id,
+      req.user.email,
+    );
+
+    console.log('✅ [ADMIN API] Wallet unfrozen successfully');
+    console.log('📄 Response Data:', {
+      success: result.success,
+      userId: result.userId,
+      isFrozen: result.isFrozen,
+      reason: result.reason,
     });
 
     return result;

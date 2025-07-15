@@ -372,6 +372,7 @@ export class WalletService {
       providerName,
       bankName,
       isActive: wallet.isActive,
+      isFrozen: wallet.isFrozen,
       dailyLimit: wallet.dailyLimit,
       monthlyLimit: wallet.monthlyLimit,
       lastTransactionAt: wallet.lastTransactionAt?.toISOString(),
@@ -517,6 +518,10 @@ export class WalletService {
 
     if (!wallet.isActive) {
       throw new ForbiddenException('Wallet is inactive');
+    }
+
+    if (wallet.isFrozen) {
+      throw new ForbiddenException('Wallet is frozen. Please contact support for assistance.');
     }
 
     // Verify PIN
@@ -1133,15 +1138,15 @@ export class WalletService {
       }
 
              return {
-         id: transaction.id,
-         amount: transaction.amount,
+      id: transaction.id,
+      amount: transaction.amount,
          type: transaction.type === 'DEPOSIT' && metadata.adminFunding ? 'FUNDING' : transaction.type,
-         status: transaction.status,
-         reference: transaction.reference,
-         description: transaction.description,
+      status: transaction.status,
+      reference: transaction.reference,
+      description: transaction.description,
          fee: metadata.fee || 0,
-         createdAt: transaction.createdAt.toISOString(),
-         metadata: transaction.metadata,
+      createdAt: transaction.createdAt.toISOString(),
+      metadata: transaction.metadata,
          sender,
          receiver,
          bankAccount: transaction.fromAccount || transaction.toAccount || null,

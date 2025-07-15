@@ -2545,13 +2545,27 @@ export class AdminService {
     try {
       // Use transaction for atomicity
       const result = await this.prisma.$transaction(async (prisma) => {
-        // Update wallet balance
-        const updatedWallet = await prisma.wallet.update({
-          where: { id: user.wallet.id },
-          data: { balance: newBalance },
+        // Create wallet transaction record first (for balance validation)
+        const walletTransaction = await prisma.walletTransaction.create({
+          data: {
+            amount: dto.amount,
+            type: 'FUNDING',
+            status: 'COMPLETED',
+            reference,
+            description: dto.description || 'Admin wallet funding',
+            fee: 0, // No fee for admin funding
+            receiverWalletId: user.wallet.id,
+            receiverBalanceBefore: previousBalance,
+            receiverBalanceAfter: newBalance,
+            metadata: {
+              adminFunding: true,
+              adminUser: user.id,
+              fundedAt: new Date().toISOString(),
+            },
+          },
         });
 
-        // Create transaction record
+        // Create transaction record for admin queries
         await prisma.transaction.create({
           data: {
             userId: user.id,
@@ -2565,11 +2579,21 @@ export class AdminService {
               adminFunding: true,
               previousBalance,
               newBalance,
+              walletTransactionId: walletTransaction.id,
             },
           },
         });
 
-        return updatedWallet;
+        // Update wallet balance
+        const updatedWallet = await prisma.wallet.update({
+          where: { id: user.wallet.id },
+          data: { 
+            balance: newBalance,
+            lastTransactionAt: new Date(),
+          },
+        });
+
+        return { updatedWallet, walletTransaction };
       });
 
       console.log('✅ [ADMIN SERVICE] Wallet funded successfully');
@@ -2579,7 +2603,7 @@ export class AdminService {
         // Wallet balance update notification
         this.notificationsGateway.emitWalletBalanceUpdate(user.id, {
           oldBalance: previousBalance,
-          newBalance,
+          newBalance: result.updatedWallet.balance,
           change: dto.amount,
           currency: 'NGN',
           provider: 'ADMIN',
@@ -2622,12 +2646,12 @@ export class AdminService {
         try {
           await this.pushNotificationsService.sendPushNotificationToUser(user.id, {
             title: 'Wallet Funded',
-            body: `₦${dto.amount.toLocaleString()} has been credited to your wallet. Your new balance is ₦${newBalance.toLocaleString()}.`,
+            body: `₦${dto.amount.toLocaleString()} has been added to your wallet. Your new balance is ₦${result.updatedWallet.balance.toLocaleString()}.`,
             data: {
               type: 'funding',
               amount: dto.amount,
               reference,
-              newBalance,
+              newBalance: result.updatedWallet.balance,
             },
             priority: 'high',
           });
@@ -2644,7 +2668,7 @@ export class AdminService {
         userId: user.id,
         userEmail: user.email,
         previousBalance,
-        newBalance,
+        newBalance: result.updatedWallet.balance,
         amount: dto.amount,
         reference,
         timestamp: new Date().toISOString(),
@@ -2704,13 +2728,27 @@ export class AdminService {
     try {
       // Use transaction for atomicity
       const result = await this.prisma.$transaction(async (prisma) => {
-        // Update wallet balance
-        const updatedWallet = await prisma.wallet.update({
-          where: { id: user.wallet.id },
-          data: { balance: newBalance },
+        // Create wallet transaction record first (for balance validation)
+        const walletTransaction = await prisma.walletTransaction.create({
+          data: {
+            amount: dto.amount,
+            type: 'WITHDRAWAL',
+            status: 'COMPLETED',
+            reference,
+            description: dto.description || 'Admin wallet debit',
+            fee: 0, // No fee for admin debit
+            senderWalletId: user.wallet.id,
+            senderBalanceBefore: previousBalance,
+            senderBalanceAfter: newBalance,
+            metadata: {
+              adminDebit: true,
+              adminUser: user.id,
+              debitedAt: new Date().toISOString(),
+            },
+          },
         });
 
-        // Create transaction record
+        // Create transaction record for admin queries
         await prisma.transaction.create({
           data: {
             userId: user.id,
@@ -2724,11 +2762,21 @@ export class AdminService {
               adminDebit: true,
               previousBalance,
               newBalance,
+              walletTransactionId: walletTransaction.id,
             },
           },
         });
 
-        return updatedWallet;
+        // Update wallet balance
+        const updatedWallet = await prisma.wallet.update({
+          where: { id: user.wallet.id },
+          data: { 
+            balance: newBalance,
+            lastTransactionAt: new Date(),
+          },
+        });
+
+        return { updatedWallet, walletTransaction };
       });
 
       console.log('✅ [ADMIN SERVICE] Wallet debited successfully');
@@ -2738,7 +2786,7 @@ export class AdminService {
         // Wallet balance update notification
         this.notificationsGateway.emitWalletBalanceUpdate(user.id, {
           oldBalance: previousBalance,
-          newBalance,
+          newBalance: result.updatedWallet.balance,
           change: -dto.amount,
           currency: 'NGN',
           provider: 'ADMIN',
@@ -2781,12 +2829,12 @@ export class AdminService {
         try {
           await this.pushNotificationsService.sendPushNotificationToUser(user.id, {
             title: 'Wallet Debited',
-            body: `₦${dto.amount.toLocaleString()} has been debited from your wallet. Your new balance is ₦${newBalance.toLocaleString()}.`,
+            body: `₦${dto.amount.toLocaleString()} has been debited from your wallet. Your new balance is ₦${result.updatedWallet.balance.toLocaleString()}.`,
             data: {
               type: 'withdrawal',
               amount: dto.amount,
               reference,
-              newBalance,
+              newBalance: result.updatedWallet.balance,
             },
             priority: 'high',
           });
@@ -2803,7 +2851,7 @@ export class AdminService {
         userId: user.id,
         userEmail: user.email,
         previousBalance,
-        newBalance,
+        newBalance: result.updatedWallet.balance,
         amount: dto.amount,
         reference,
         timestamp: new Date().toISOString(),
@@ -3628,4 +3676,273 @@ export class AdminService {
       provider: user.wallet.provider,
     };
   }
+
+  /**
+   * Get total wallet balance across all users
+   */
+  async getTotalWalletBalance(): Promise<{
+    success: boolean;
+    message: string;
+    totalBalance: number;
+    formattedTotalBalance: string;
+    totalWallets: number;
+    activeWallets: number;
+    frozenWallets: number;
+    averageBalance: number;
+    formattedAverageBalance: string;
+    timestamp: string;
+  }> {
+    console.log('💰 [ADMIN SERVICE] Getting total wallet balance');
+
+    try {
+      // Get wallet statistics
+      const walletStats = await this.prisma.wallet.aggregate({
+        _sum: {
+          balance: true,
+        },
+        _count: {
+          id: true,
+        },
+        where: {
+          isActive: true,
+        },
+      });
+
+      // Get frozen wallets count
+      const frozenWalletsCount = await this.prisma.wallet.count({
+        where: {
+          isFrozen: true,
+          isActive: true,
+        },
+      });
+
+      // Get active wallets count
+      const activeWalletsCount = await this.prisma.wallet.count({
+        where: {
+          isActive: true,
+          isFrozen: false,
+        },
+      });
+
+      const totalBalance = walletStats._sum.balance || 0;
+      const totalWallets = walletStats._count.id || 0;
+      const activeWallets = activeWalletsCount;
+      const frozenWallets = frozenWalletsCount;
+      const averageBalance = totalWallets > 0 ? totalBalance / totalWallets : 0;
+
+      console.log('✅ [ADMIN SERVICE] Total wallet balance calculated successfully');
+
+      return {
+        success: true,
+        message: 'Total wallet balance retrieved successfully',
+        totalBalance,
+        formattedTotalBalance: `₦${totalBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        totalWallets,
+        activeWallets,
+        frozenWallets,
+        averageBalance,
+        formattedAverageBalance: `₦${averageBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to get total wallet balance:', error);
+      throw new BadRequestException('Failed to get total wallet balance');
+    }
+  }
+
+  /**
+   * Freeze a user wallet
+   */
+  async freezeWallet(
+    freezeWalletDto: {
+      userId?: string;
+      email?: string;
+      accountNumber?: string;
+      reason?: string;
+    },
+    adminId: string,
+    adminEmail: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    userId: string;
+    userEmail: string;
+    walletId: string;
+    accountNumber: string;
+    isFrozen: boolean;
+    reason?: string;
+    timestamp: string;
+  }> {
+    console.log('❄️ [ADMIN SERVICE] Freezing wallet for:', freezeWalletDto);
+
+    // Find user by provided identifier
+    let user;
+    if (freezeWalletDto.userId) {
+      user = await this.prisma.user.findUnique({
+        where: { id: freezeWalletDto.userId },
+        include: { wallet: true },
+      });
+    } else if (freezeWalletDto.email) {
+      user = await this.prisma.user.findUnique({
+        where: { email: freezeWalletDto.email },
+        include: { wallet: true },
+      });
+    } else if (freezeWalletDto.accountNumber) {
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { virtualAccountNumber: freezeWalletDto.accountNumber },
+        include: { user: true },
+      });
+      user = wallet ? { ...wallet.user, wallet } : null;
+    } else {
+      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    }
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.wallet) {
+      throw new NotFoundException('User does not have a wallet');
+    }
+
+    if (user.wallet.isFrozen) {
+      throw new BadRequestException('Wallet is already frozen');
+    }
+
+    // Update wallet to frozen status
+    const updatedWallet = await this.prisma.wallet.update({
+      where: { id: user.wallet.id },
+      data: { isFrozen: true },
+    });
+
+    // Log admin action
+    await this.logAdminAction(
+      adminId,
+      adminEmail,
+      'FREEZE_WALLET',
+      'WALLET',
+      user.wallet.id,
+      user.email,
+      {
+        reason: freezeWalletDto.reason,
+        previousStatus: 'ACTIVE',
+        newStatus: 'FROZEN',
+        userEmail: user.email,
+        accountNumber: user.wallet.virtualAccountNumber,
+      },
+    );
+
+    console.log('✅ [ADMIN SERVICE] Wallet frozen successfully');
+
+    return {
+      success: true,
+      message: 'Wallet frozen successfully',
+      userId: user.id,
+      userEmail: user.email,
+      walletId: user.wallet.id,
+      accountNumber: user.wallet.virtualAccountNumber,
+      isFrozen: true,
+      reason: freezeWalletDto.reason,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Unfreeze a user wallet
+   */
+  async unfreezeWallet(
+    unfreezeWalletDto: {
+      userId?: string;
+      email?: string;
+      accountNumber?: string;
+      reason?: string;
+    },
+    adminId: string,
+    adminEmail: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    userId: string;
+    userEmail: string;
+    walletId: string;
+    accountNumber: string;
+    isFrozen: boolean;
+    reason?: string;
+    timestamp: string;
+  }> {
+    console.log('🔥 [ADMIN SERVICE] Unfreezing wallet for:', unfreezeWalletDto);
+
+    // Find user by provided identifier
+    let user;
+    if (unfreezeWalletDto.userId) {
+      user = await this.prisma.user.findUnique({
+        where: { id: unfreezeWalletDto.userId },
+        include: { wallet: true },
+      });
+    } else if (unfreezeWalletDto.email) {
+      user = await this.prisma.user.findUnique({
+        where: { email: unfreezeWalletDto.email },
+        include: { wallet: true },
+      });
+    } else if (unfreezeWalletDto.accountNumber) {
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { virtualAccountNumber: unfreezeWalletDto.accountNumber },
+        include: { user: true },
+      });
+      user = wallet ? { ...wallet.user, wallet } : null;
+    } else {
+      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    }
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.wallet) {
+      throw new NotFoundException('User does not have a wallet');
+    }
+
+    if (!user.wallet.isFrozen) {
+      throw new BadRequestException('Wallet is not frozen');
+    }
+
+    // Update wallet to unfrozen status
+    const updatedWallet = await this.prisma.wallet.update({
+      where: { id: user.wallet.id },
+      data: { isFrozen: false },
+    });
+
+    // Log admin action
+    await this.logAdminAction(
+      adminId,
+      adminEmail,
+      'UNFREEZE_WALLET',
+      'WALLET',
+      user.wallet.id,
+      user.email,
+      {
+        reason: unfreezeWalletDto.reason,
+        previousStatus: 'FROZEN',
+        newStatus: 'ACTIVE',
+        userEmail: user.email,
+        accountNumber: user.wallet.virtualAccountNumber,
+      },
+    );
+
+    console.log('✅ [ADMIN SERVICE] Wallet unfrozen successfully');
+
+    return {
+      success: true,
+      message: 'Wallet unfrozen successfully',
+      userId: user.id,
+      userEmail: user.email,
+      walletId: user.wallet.id,
+      accountNumber: user.wallet.virtualAccountNumber,
+      isFrozen: false,
+      reason: unfreezeWalletDto.reason,
+      timestamp: new Date().toISOString(),
+    };
+  }
 }
+
+

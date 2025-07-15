@@ -20,6 +20,17 @@ export class ResolveAccountDto {
   bank_name: string;
 }
 
+// Request DTO for super resolve (account number only)
+export class SuperResolveAccountDto {
+  @ApiProperty({
+    example: '3089415578',
+    description: 'Bank account number to resolve across multiple banks',
+  })
+  @IsString()
+  @IsNotEmpty()
+  account_number: string;
+}
+
 // Response DTO for single bank
 export class BankDto {
   @ApiProperty({ example: '000016' })
@@ -57,6 +68,36 @@ export class ResolveAccountResponseDto {
 
   @ApiProperty({ example: 'Account resolved successfully' })
   message?: string;
+
+  @ApiProperty({ required: false })
+  error?: string;
+}
+
+// Response DTO for super resolve
+export class SuperResolveAccountResponseDto {
+  @ApiProperty()
+  success: boolean;
+
+  @ApiProperty({ example: 'Account resolved successfully' })
+  message: string;
+
+  @ApiProperty({ example: 'OBAJE GOODNESS ENYO' })
+  account_name?: string;
+
+  @ApiProperty({ example: '3089415578' })
+  account_number?: string;
+
+  @ApiProperty({ example: 'First Bank of Nigeria' })
+  bank_name?: string;
+
+  @ApiProperty({ example: '011' })
+  bank_code?: string;
+
+  @ApiProperty({ example: 4 })
+  banks_tested?: number;
+
+  @ApiProperty({ example: 0.16 })
+  execution_time?: number;
 
   @ApiProperty({ required: false })
   error?: string;

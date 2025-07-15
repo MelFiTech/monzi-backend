@@ -301,7 +301,7 @@ export class AuthService {
 
         if (user) {
           await this.emailService.sendDeviceChangeEmail({
-            email: user.email,
+        email: user.email,
             name: user.firstName || user.email.split('@')[0],
             deviceName: deviceInfo?.deviceName || 'New Device',
             platform: deviceInfo?.platform || 'Unknown',
@@ -344,7 +344,7 @@ export class AuthService {
         success: false,
         message: 'Failed to update device token',
         deviceUpdated: false,
-      };
+    };
     }
   }
 

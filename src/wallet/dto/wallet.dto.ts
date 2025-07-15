@@ -78,6 +78,9 @@ export class WalletDetailsResponse {
   @ApiProperty({ example: true, description: 'Whether wallet is active' })
   isActive: boolean;
 
+  @ApiProperty({ example: false, description: 'Whether wallet is frozen' })
+  isFrozen: boolean;
+
   @ApiProperty({ example: 100000, description: 'Daily spending limit' })
   dailyLimit: number;
 

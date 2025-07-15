@@ -1769,3 +1769,195 @@ export class GetAdminLogsQueryDto {
   @IsNumber()
   offset?: number;
 }
+
+// ==================== WALLET FREEZE/UNFREEZE DTOs ====================
+
+export class FreezeWalletDto {
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID to freeze wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email to freeze wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({
+    example: '9038123456',
+    description: 'Account number to freeze wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  accountNumber?: string;
+
+  @ApiProperty({
+    example: 'Suspicious activity detected',
+    description: 'Reason for freezing the wallet',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class UnfreezeWalletDto {
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID to unfreeze wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email to unfreeze wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({
+    example: '9038123456',
+    description: 'Account number to unfreeze wallet for',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  accountNumber?: string;
+
+  @ApiProperty({
+    example: 'Issue resolved',
+    description: 'Reason for unfreezing the wallet',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class WalletFreezeResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Wallet frozen successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+    description: 'User ID',
+  })
+  userId: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email',
+  })
+  userEmail: string;
+
+  @ApiProperty({
+    example: 'wallet123',
+    description: 'Wallet ID',
+  })
+  walletId: string;
+
+  @ApiProperty({
+    example: '9038123456',
+    description: 'Virtual account number',
+  })
+  accountNumber: string;
+
+  @ApiProperty({
+    example: true,
+    description: 'New freeze status',
+  })
+  isFrozen: boolean;
+
+  @ApiProperty({
+    example: 'Suspicious activity detected',
+    description: 'Freeze reason',
+  })
+  reason?: string;
+
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Operation timestamp',
+  })
+  timestamp: string;
+}
+
+// ==================== TOTAL WALLET BALANCE DTOs ====================
+
+export class TotalWalletBalanceResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Total wallet balance retrieved successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 25000000.00,
+    description: 'Total balance across all wallets',
+  })
+  totalBalance: number;
+
+  @ApiProperty({
+    example: '₦25,000,000.00',
+    description: 'Formatted total balance',
+  })
+  formattedTotalBalance: string;
+
+  @ApiProperty({
+    example: 1200,
+    description: 'Total number of wallets',
+  })
+  totalWallets: number;
+
+  @ApiProperty({
+    example: 1150,
+    description: 'Number of active wallets',
+  })
+  activeWallets: number;
+
+  @ApiProperty({
+    example: 50,
+    description: 'Number of frozen wallets',
+  })
+  frozenWallets: number;
+
+  @ApiProperty({
+    example: 20833.33,
+    description: 'Average balance per wallet',
+  })
+  averageBalance: number;
+
+  @ApiProperty({
+    example: '₦20,833.33',
+    description: 'Formatted average balance',
+  })
+  formattedAverageBalance: string;
+
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Calculation timestamp',
+  })
+  timestamp: string;
+}

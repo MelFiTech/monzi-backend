@@ -29,11 +29,12 @@ model User {
   otpCode                         String?
   otpExpiresAt                    DateTime?
   isActive                        Boolean               @default(true)
-  role                            UserRole              @default(USER)
-  metadata                        Json?
   notificationsEnabled            Boolean               @default(true)
   promotionalNotificationsEnabled Boolean               @default(true)
   transactionNotificationsEnabled Boolean               @default(true)
+  role                            UserRole              @default(USER)
+  metadata                        Json?
+  adminActionLogs                 AdminActionLog[]
   aiApprovals                     AiApproval[]
   aiQueries                       AiQuery[]
   notificationHistory             NotificationHistory[]
@@ -41,7 +42,6 @@ model User {
   pushTokens                      PushToken[]
   transactions                    Transaction[]
   wallet                          Wallet?
-  adminActionLogs                 AdminActionLog[]
 
   @@map("users")
 }
@@ -58,6 +58,7 @@ model Wallet {
   bankName             String?
   pin                  String?
   isActive             Boolean             @default(true)
+  isFrozen             Boolean             @default(false)
   dailyLimit           Float               @default(100000)
   monthlyLimit         Float               @default(1000000)
   lastTransactionAt    DateTime?
@@ -380,18 +381,18 @@ model AuditorMetrics {
 }
 
 model AdminActionLog {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   adminId     String
   adminEmail  String
-  action      String    // e.g., "CREATE_ADMIN", "UPDATE_ADMIN", "DELETE_ADMIN", "FUND_WALLET"
-  targetType  String?   // e.g., "USER", "WALLET", "TRANSACTION"
-  targetId    String?   // ID of the affected resource
-  targetEmail String?   // Email of affected user
-  details     Json?     // Additional action details
+  action      String
+  targetType  String?
+  targetId    String?
+  targetEmail String?
+  details     Json?
   ipAddress   String?
   userAgent   String?
-  createdAt   DateTime  @default(now())
-  admin       User      @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  admin       User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([adminId])
   @@index([action])
