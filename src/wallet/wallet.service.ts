@@ -911,10 +911,18 @@ export class WalletService {
       walletId,
     );
 
-    // Get all transactions for this wallet (both as sender and receiver)
+    // Get all COMPLETED transactions for this wallet (both as sender and receiver)
+    // Failed transactions should not affect the balance calculation
     const transactions = await this.prisma.walletTransaction.findMany({
       where: {
-        OR: [{ senderWalletId: walletId }, { receiverWalletId: walletId }],
+        AND: [
+          {
+            OR: [{ senderWalletId: walletId }, { receiverWalletId: walletId }],
+          },
+          {
+            status: 'COMPLETED', // Only count completed transactions
+          },
+        ],
       },
       orderBy: { createdAt: 'asc' },
     });
