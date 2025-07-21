@@ -19,10 +19,10 @@ export class AccountsService {
   // Common Nigerian banks to try first (most likely to have accounts)
   private readonly COMMON_BANKS = [
     // Digital Banks First
-    { name: 'Kuda Bank', code: '50211' },
     { name: 'OPay', code: '100004' },
-    { name: 'PalmPay', code: '100033' },
     { name: 'Moniepoint', code: '50515' },
+    { name: 'PalmPay', code: '100033' },
+    { name: 'Kuda Bank', code: '50211' },
     { name: 'VFD Microfinance Bank', code: '566' },
     { name: 'Carbon', code: '565' },
     { name: 'Fairmoney', code: '51318' },
@@ -45,6 +45,22 @@ export class AccountsService {
     { name: 'Providus Bank', code: '101' },
     { name: 'Sterling Bank', code: '232' },
     { name: 'Unity Bank', code: '215' }
+  ];
+
+  // List of digital banks to prioritize (by name or code)
+  private readonly DIGITAL_BANKS = [
+    { name: 'OPay', code: '100004' },
+    { name: 'Moniepoint', code: '50515' },
+    { name: 'PalmPay', code: '100033' },
+    { name: 'Kuda', code: '50211' },
+    { name: 'VFD Microfinance Bank', code: '566' },
+    { name: 'VBank', code: '566' },
+    { name: 'Carbon', code: '565' },
+    { name: 'Fairmoney', code: '51318' },
+    { name: 'Sparkle', code: '51310' },
+    { name: 'Rubies', code: '125' },
+    { name: 'Mint', code: '50304' },
+    { name: 'ALAT', code: '035A' },
   ];
 
   // NUBAN API configuration
@@ -108,7 +124,7 @@ export class AccountsService {
   }
 
   /**
-   * Super resolve account number across multiple banks using NUBAN API
+   * Super resolve account number across multiple banks using transfer provider
    */
   async superResolveAccount(
     superResolveDto: SuperResolveAccountDto,
@@ -118,77 +134,101 @@ export class AccountsService {
 
     try {
       console.log('🔍 [SUPER RESOLVE] Starting super resolve for account:', accountNumber);
-      console.log(`🏦 [SUPER RESOLVE] Testing ${this.COMMON_BANKS.length} common banks...`);
+      console.log('🏦 [SUPER RESOLVE] Using transfer provider for reliable resolution...');
 
-      let foundMatch = null;
-      let attempts = 0;
-
-      for (const bank of this.COMMON_BANKS) {
-        attempts++;
-        console.log(`\n🧪 [SUPER RESOLVE] Attempt ${attempts}/${this.COMMON_BANKS.length}: ${bank.name} (${bank.code})`);
-
-        try {
-          const url = `${this.NUBAN_BASE_URL}?acc_no=${accountNumber}&bank_code=${bank.code}`;
-          console.log(`📡 [SUPER RESOLVE] URL: ${url}`);
-
-          const response = await fetch(url);
-          console.log(`📊 [SUPER RESOLVE] Response status: ${response.status}`);
-
-          if (response.ok) {
-            const data = await response.json();
-            console.log('📄 [SUPER RESOLVE] Response:', JSON.stringify(data, null, 2));
-
-            // Check if resolution was successful (NUBAN returns array on success)
-            if (Array.isArray(data) && data.length > 0 && !data[0].error) {
-              const accountData = data[0];
-              console.log(`✅ [SUPER RESOLVE] SUCCESS! Found account in ${bank.name}`);
-              
-              foundMatch = {
-                success: true,
-                message: 'Account resolved successfully',
-                account_name: accountData.account_name,
-                account_number: accountData.account_number,
-                bank_name: accountData.bank_name,
-                bank_code: accountData.bank_code,
-                banks_tested: attempts,
-                execution_time: (Date.now() - startTime) / 1000,
-              };
-              break;
-            } else {
-              console.log(`❌ [SUPER RESOLVE] Not found in ${bank.name}: ${data.message || 'Unknown error'}`);
-            }
-          } else {
-            const errorText = await response.text();
-            console.log(`❌ [SUPER RESOLVE] Error with ${bank.name}: ${errorText}`);
-          }
-
-          // Rate limiting - wait 500ms between requests
-          if (attempts < this.COMMON_BANKS.length) {
-            console.log('⏳ [SUPER RESOLVE] Waiting 500ms before next attempt...');
-            await this.delay(500);
-          }
-
-        } catch (error) {
-          console.error(`❌ [SUPER RESOLVE] Error testing ${bank.name}:`, error.message);
-        }
+      // Get banks list from transfer provider
+      const banksResponse = await this.getBanks();
+      if (!banksResponse.status || !banksResponse.banks || banksResponse.banks.length === 0) {
+        throw new HttpException(
+          'Failed to fetch banks list from transfer provider',
+          HttpStatus.BAD_GATEWAY,
+        );
       }
 
-      const executionTime = (Date.now() - startTime) / 1000;
+      let banks = banksResponse.banks;
 
-      if (foundMatch) {
-        console.log('✅ [SUPER RESOLVE] Resolution successful!');
-        console.log('📄 [SUPER RESOLVE] Final result:', JSON.stringify(foundMatch, null, 2));
-        return foundMatch;
-      } else {
+      // Prioritize digital banks first
+      const digitalBankCodes = this.DIGITAL_BANKS.map(b => b.code);
+      const digitalBankNames = this.DIGITAL_BANKS.map(b => b.name.toLowerCase());
+      const digitalBanks = banks.filter(
+        b => digitalBankCodes.includes(b.code) || digitalBankNames.some(name => b.name.toLowerCase().includes(name))
+      );
+      const otherBanks = banks.filter(
+        b => !digitalBankCodes.includes(b.code) && !digitalBankNames.some(name => b.name.toLowerCase().includes(name))
+      );
+      // Sort digital banks in preferred order
+      digitalBanks.sort((a, b) => {
+        const aIdx = digitalBankCodes.indexOf(a.code);
+        const bIdx = digitalBankCodes.indexOf(b.code);
+        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+      });
+      banks = [...digitalBanks, ...otherBanks];
+      console.log(`🏦 [SUPER RESOLVE] Digital banks prioritized. Testing ${banks.length} banks from transfer provider...`);
+
+      // Create a promise that resolves when we find the first match
+      const findFirstMatch = async (): Promise<SuperResolveAccountResponseDto> => {
+        for (let i = 0; i < banks.length; i++) {
+          const bank = banks[i];
+          const attemptNumber = i + 1;
+          
+          try {
+            console.log(`🚀 [SUPER RESOLVE] Testing attempt ${attemptNumber}/${banks.length}: ${bank.name} (${bank.code})`);
+            
+            // Use transfer provider's account verification
+            const verificationResponse = await this.transferProviderManager.verifyAccount({
+              accountNumber,
+              bankCode: bank.code,
+            });
+
+            if (verificationResponse.success && verificationResponse.data?.accountName) {
+              console.log(`✅ [SUPER RESOLVE] SUCCESS! Found account in ${bank.name} (Attempt ${attemptNumber})`);
+              
+              const result = {
+                success: true,
+                message: 'Account resolved successfully',
+                account_name: verificationResponse.data.accountName,
+                account_number: accountNumber,
+                bank_name: bank.name,
+                bank_code: bank.code,
+                banks_tested: attemptNumber,
+                execution_time: (Date.now() - startTime) / 1000,
+              };
+
+              console.log(`🛑 [SUPER RESOLVE] Stopping search after ${attemptNumber} attempts`);
+              return result;
+            } else {
+              console.log(`❌ [SUPER RESOLVE] Not found in ${bank.name} (Attempt ${attemptNumber}): ${verificationResponse.message || 'Account not found'}`);
+            }
+
+          } catch (error) {
+            console.error(`❌ [SUPER RESOLVE] Error testing ${bank.name} (Attempt ${attemptNumber}):`, error.message);
+          }
+        }
+
+        // If we get here, no match was found
+        const executionTime = (Date.now() - startTime) / 1000;
         console.log('❌ [SUPER RESOLVE] NO MATCH FOUND');
+        console.log(`📊 [SUPER RESOLVE] Tested ${banks.length} banks in ${executionTime.toFixed(2)}s`);
+        
         return {
           success: false,
           message: 'Account not found in any of the tested banks',
-          banks_tested: attempts,
+          banks_tested: banks.length,
           execution_time: executionTime,
-          error: 'Account number not found in common banks. Please try with a specific bank.',
+          error: 'Account number not found in available banks. Please try with a specific bank.',
         };
+      };
+
+      // Execute the search
+      const result = await findFirstMatch();
+      
+      if (result.success) {
+        console.log('✅ [SUPER RESOLVE] Resolution successful!');
+        console.log('📄 [SUPER RESOLVE] Final result:', JSON.stringify(result, null, 2));
+        console.log(`⚡ [SUPER RESOLVE] Completed in ${result.execution_time.toFixed(2)}s (${result.banks_tested} banks tested)`);
       }
+      
+      return result;
 
     } catch (error) {
       console.error('🚨 [SUPER RESOLVE] Error in superResolveAccount:', error.message);

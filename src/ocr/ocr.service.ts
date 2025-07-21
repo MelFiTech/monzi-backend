@@ -1,6 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExtractTextDto, ProcessedOcrDataDto } from './dto/ocr.dto';
+import { OcrProviderManagerService } from '../providers/ocr-provider-manager.service';
+import { extname } from 'path';
 
 // Type definition for multer file
 interface MulterFile {
@@ -17,33 +19,53 @@ interface MulterFile {
 
 @Injectable()
 export class OcrService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(OcrService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private ocrProviderManager: OcrProviderManagerService,
+  ) {}
 
   async processImage(file: MulterFile, userId: string) {
     if (!file) {
       throw new BadRequestException('No image file provided');
     }
 
-    // In a real implementation, you would:
-    // 1. Upload file to cloud storage (AWS S3, Google Cloud Storage, etc.)
-    // 2. Use OCR service like Google Vision API or AWS Textract
-    // For demo purposes, we'll simulate OCR processing
+    this.logger.log(`Processing OCR image for user: ${userId}`);
 
+    // Generate filename for storage
+    const randomName = Array(32)
+      .fill(null)
+      .map(() => Math.round(Math.random() * 16).toString(16))
+      .join('');
+    const filename = `${randomName}${extname(file.originalname)}`;
+    const imageUrl = `uploads/${filename}`;
+
+    // Save file to disk for reference
+    const fs = require('fs');
+    const path = require('path');
+    const uploadDir = './uploads';
+    
+    // Ensure uploads directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    fs.writeFileSync(path.join(uploadDir, filename), file.buffer);
+
+    // Create initial OCR scan record
     const ocrScan = await this.prisma.ocrScan.create({
       data: {
-        originalText:
-          'Simulated OCR text - Transfer to John Doe Account: 1234567890 Amount: 50000 Bank: GTBank',
-        imageUrl: `uploads/${file.filename}`, // In real app, this would be cloud storage URL
-        confidence: 0.95,
+        originalText: '', // Will be populated after OCR processing
+        imageUrl,
+        confidence: 0,
         status: 'PROCESSING',
         userId,
       },
     });
 
-    // Simulate processing delay
-    setTimeout(() => {
-      this.processOcrText(ocrScan.id);
-    }, 1000);
+    // Process OCR asynchronously to avoid blocking the response
+    this.processOcrTextAsync(ocrScan.id, file.buffer);
 
     return ocrScan;
   }
@@ -75,23 +97,66 @@ export class OcrService {
     return updatedScan;
   }
 
-  private async processOcrText(scanId: string) {
-    const scan = await this.prisma.ocrScan.findUnique({
-      where: { id: scanId },
-    });
+  private async processOcrTextAsync(scanId: string, imageBuffer: Buffer) {
+    try {
+      this.logger.debug(`Starting OCR processing for scan: ${scanId}`);
+      
+      // Validate image buffer
+      if (!imageBuffer || !Buffer.isBuffer(imageBuffer)) {
+        this.logger.error(`Invalid image buffer for scan ${scanId}`);
+        await this.updateOcrScanStatus(scanId, 'FAILED', '', 0);
+        return;
+      }
+      
+      this.logger.debug(`Image buffer size: ${imageBuffer.length} bytes`);
 
-    if (!scan) return;
+      // Use OCR provider manager to extract text
+      const ocrResult = await this.ocrProviderManager.extractText(imageBuffer, {
+        preprocess: true,
+        language: 'eng',
+      });
 
-    const processedData = this.extractStructuredData(scan.originalText);
+      if (!ocrResult.success) {
+        this.logger.error(`OCR failed for scan ${scanId}:`, ocrResult.error);
+        await this.updateOcrScanStatus(scanId, 'FAILED', '', 0);
+        return;
+      }
 
-    await this.prisma.ocrScan.update({
-      where: { id: scanId },
-      data: {
-        cleanedText: this.cleanText(scan.originalText),
-        extractedData: { ...processedData } as any,
-        status: 'COMPLETED',
-      },
-    });
+      // Extract structured data from OCR text
+      const processedData = this.extractStructuredData(ocrResult.text);
+
+      // Update OCR scan with results
+      await this.prisma.ocrScan.update({
+        where: { id: scanId },
+        data: {
+          originalText: ocrResult.text,
+          cleanedText: this.cleanText(ocrResult.text),
+          extractedData: { ...processedData } as any,
+          confidence: ocrResult.confidence,
+          status: 'COMPLETED',
+        },
+      });
+
+      this.logger.log(`OCR processing completed for scan: ${scanId}`);
+    } catch (error) {
+      this.logger.error(`Error processing OCR for scan ${scanId}:`, error);
+      await this.updateOcrScanStatus(scanId, 'FAILED', '', 0);
+    }
+  }
+
+  private async updateOcrScanStatus(scanId: string, status: 'PROCESSING' | 'COMPLETED' | 'FAILED', text: string, confidence: number) {
+    try {
+      await this.prisma.ocrScan.update({
+        where: { id: scanId },
+        data: {
+          originalText: text,
+          confidence,
+          status,
+        },
+      });
+    } catch (error) {
+      this.logger.error(`Failed to update OCR scan status for ${scanId}:`, error);
+    }
   }
 
   private cleanText(rawText: string): string {
@@ -184,5 +249,14 @@ export class OcrService {
     }
 
     return scan;
+  }
+
+  async getOcrHealth() {
+    return {
+      available: this.ocrProviderManager.isOcrAvailable(),
+      providers: this.ocrProviderManager.getAvailableProviders(),
+      fallbackEnabled: true,
+      timestamp: new Date().toISOString(),
+    };
   }
 }

@@ -209,6 +209,56 @@ export class WebhooksController {
   }
 
   /**
+   * Nyra webhook endpoint
+   */
+  @Post('nyra')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Handle Nyra webhooks' })
+  @ApiHeader({
+    name: 'X-Nyra-Signature',
+    description: 'Nyra webhook signature',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid webhook data' })
+  async handleNyraWebhook(
+    @Body() payload: any,
+    @Headers('x-nyra-signature') signature?: string,
+    @Req() req?: Request,
+  ) {
+    this.logger.log('🔔 [NYRA] Webhook received');
+    this.logger.log('📊 [NYRA] Headers:', req?.headers);
+    this.logger.log('💾 [NYRA] Payload:', JSON.stringify(payload, null, 2));
+
+    try {
+      const result = await this.webhooksService.processWebhook(
+        WebhookProvider.NYRA,
+        payload,
+        signature,
+      );
+
+      this.logger.log(`✅ [NYRA] Webhook processed: ${result.success}`);
+
+      return {
+        success: result.success,
+        message: result.message,
+        processed: result.success,
+        walletUpdated: result.walletUpdated,
+        transaction: result.transaction,
+        wallet: result.wallet,
+        error: result.error,
+        warning: result.warning,
+        balanceValidation: result.balanceValidation,
+      };
+    } catch (error) {
+      this.logger.error('❌ [NYRA] Webhook processing failed:', error);
+      throw new BadRequestException(
+        `Nyra webhook processing failed: ${error.message}`,
+      );
+    }
+  }
+
+  /**
    * Generic webhook endpoint (fallback for unknown providers)
    */
   @Post('generic/:provider')

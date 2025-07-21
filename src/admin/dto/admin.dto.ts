@@ -1227,6 +1227,7 @@ export enum WalletProvider {
   BUDPAY = 'BUDPAY',
   SMEPLUG = 'SMEPLUG',
   POLARIS = 'POLARIS',
+  NYRA = 'NYRA',
 }
 
 export class CreateWalletDto {
@@ -1960,4 +1961,88 @@ export class TotalWalletBalanceResponse {
     description: 'Calculation timestamp',
   })
   timestamp: string;
+}
+
+// ==================== PROVIDER WALLET DETAILS DTOs ====================
+
+export class ProviderWalletDetailsResponse {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Provider wallet details retrieved successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 'NYRA',
+    description: 'Current wallet provider',
+  })
+  provider: string;
+
+  @ApiProperty({
+    example: '2c0a64ab4da2c10abfff0971',
+    description: 'Business ID',
+  })
+  businessId: string;
+
+  @ApiProperty({
+    example: 'wallet_123456789',
+    description: 'Wallet ID',
+  })
+  walletId: string;
+
+  @ApiProperty({
+    example: '9011188538',
+    description: 'Account number',
+  })
+  accountNumber: string;
+
+  @ApiProperty({
+    example: 'MONZI Business Account',
+    description: 'Account owner full name',
+  })
+  ownersFullname: string;
+
+  @ApiProperty({
+    example: 5000000.00,
+    description: 'Current wallet balance',
+  })
+  balance: number;
+
+  @ApiProperty({
+    example: '₦5,000,000.00',
+    description: 'Formatted balance',
+  })
+  formattedBalance: string;
+
+  @ApiProperty({
+    example: false,
+    description: 'Whether wallet is frozen',
+  })
+  frozen: boolean;
+
+  @ApiProperty({
+    example: 'NGN',
+    description: 'Currency',
+  })
+  currency: string;
+
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Last updated timestamp',
+  })
+  lastUpdated: string;
+}
+
+export class GetProviderWalletDetailsQueryDto {
+  @ApiProperty({
+    example: 'NYRA',
+    description: 'Provider to get wallet details for (optional - uses current provider if not specified)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  provider?: string;
 }

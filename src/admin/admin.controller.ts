@@ -63,6 +63,8 @@ import {
   UnfreezeWalletDto,
   WalletFreezeResponse,
   TotalWalletBalanceResponse,
+  ProviderWalletDetailsResponse,
+  GetProviderWalletDetailsQueryDto,
 } from './dto/admin.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -2120,6 +2122,87 @@ export class AdminController {
       userId: result.userId,
       isFrozen: result.isFrozen,
       reason: result.reason,
+    });
+
+    return result;
+  }
+
+  @Get('wallet/provider-details')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get provider wallet details',
+    description: 'Retrieve detailed information about the current wallet provider account including balance and status',
+  })
+  @ApiQuery({
+    name: 'provider',
+    required: false,
+    type: String,
+    description: 'Provider to get wallet details for (optional - uses current provider if not specified)',
+    example: 'NYRA',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Provider wallet details retrieved successfully',
+    type: ProviderWalletDetailsResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Provider wallet not found',
+  })
+  async getProviderWalletDetails(
+    @Query(ValidationPipe) query: GetProviderWalletDetailsQueryDto,
+  ): Promise<ProviderWalletDetailsResponse> {
+    console.log('🏦 [ADMIN API] GET /admin/wallet/provider-details - Retrieving provider wallet details');
+    console.log('📊 Query params:', query);
+
+    const result = await this.adminService.getProviderWalletDetails(query.provider);
+
+    console.log('✅ [ADMIN API] Provider wallet details retrieved successfully');
+    console.log('📄 Response Data:', result);
+
+    return result;
+  }
+
+  @Get('webhooks/logs')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get webhook logs',
+    description: 'Retrieve webhook processing logs with filtering options',
+  })
+  @ApiQuery({ name: 'provider', required: false, description: 'Filter by provider' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by status (processed, pending, error)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of logs to return' })
+  @ApiQuery({ name: 'offset', required: false, description: 'Number of logs to skip' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Webhook logs retrieved successfully',
+  })
+  async getWebhookLogs(
+    @Query('provider') provider?: string,
+    @Query('status') status?: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    console.log('📋 [ADMIN API] GET /admin/webhooks/logs - Retrieving webhook logs');
+    console.log('📊 Query params:', { provider, status, limit, offset });
+
+    const result = await this.adminService.getWebhookLogs({
+      provider,
+      status,
+      limit: limit || 50,
+      offset: offset || 0,
+    });
+
+    console.log('✅ [ADMIN API] Webhook logs retrieved successfully');
+    console.log('📄 Response Data:', {
+      total: result.total,
+      processed: result.processed,
+      pending: result.pending,
+      errors: result.errors,
     });
 
     return result;

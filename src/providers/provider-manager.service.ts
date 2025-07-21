@@ -8,6 +8,7 @@ import {
 import { PolarisWalletProvider } from './polaris/polaris-wallet.provider';
 import { SmePlugWalletProvider } from './smeplug/smeplug-wallet.provider';
 import { BudPayWalletProvider } from './budpay/budpay-wallet.provider';
+import { NyraWalletProvider } from './nyra/nyra-wallet.provider';
 
 export interface ProviderConfiguration {
   id: string;
@@ -31,6 +32,7 @@ export class ProviderManagerService {
     private polarisWalletProvider: PolarisWalletProvider,
     private smePlugWalletProvider: SmePlugWalletProvider,
     private budPayWalletProvider: BudPayWalletProvider,
+    private nyraWalletProvider: NyraWalletProvider,
   ) {
     this.initializeProviders();
   }
@@ -40,6 +42,7 @@ export class ProviderManagerService {
     this.providers.set(WalletProvider.POLARIS, this.polarisWalletProvider);
     this.providers.set(WalletProvider.SMEPLUG, this.smePlugWalletProvider);
     this.providers.set(WalletProvider.BUDPAY, this.budPayWalletProvider);
+    this.providers.set(WalletProvider.NYRA, this.nyraWalletProvider);
 
     this.logger.log(`Initialized ${this.providers.size} wallet providers`);
   }

@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://7fb1e0a8e412.ngrok-free.app';
 
 async function loginAdmin() {
   console.log('🔐 Logging in as admin...\n');

@@ -93,4 +93,5 @@ export enum WalletProvider {
   SMEPLUG = 'SMEPLUG',
   POLARIS = 'POLARIS',
   BUDPAY = 'BUDPAY',
+  NYRA = 'NYRA',
 }

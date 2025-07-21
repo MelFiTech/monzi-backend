@@ -34,6 +34,13 @@ export enum WebhookEventType {
   POLARIS_TRANSACTION_SUCCESS = 'transaction.success',
   POLARIS_TRANSACTION_FAILED = 'transaction.failed',
 
+  // Nyra specific events
+  NYRA_WALLET_CREDITED = 'wallet.credited',
+  NYRA_WALLET_DEBITED = 'wallet.debited',
+  NYRA_TRANSFER_SUCCESSFUL = 'transfer.successful',
+  NYRA_TRANSFER_FAILED = 'transfer.failed',
+  NYRA_TRANSFER_PENDING = 'transfer.pending',
+
   // Generic fallback
   OTHER = 'other',
 }
@@ -42,6 +49,7 @@ export enum WebhookProvider {
   BUDPAY = 'BUDPAY',
   SMEPLUG = 'SMEPLUG',
   POLARIS = 'POLARIS',
+  NYRA = 'NYRA',
 }
 
 // Base webhook payload interface
@@ -144,6 +152,24 @@ export interface PolarisWebhookPayload extends BaseWebhookPayload {
     account_number?: string;
     account_name?: string;
     bank_code?: string;
+    description?: string;
+    timestamp?: string;
+    metadata?: any;
+  };
+}
+
+// Nyra webhook payload structure
+export interface NyraWebhookPayload extends BaseWebhookPayload {
+  event: string;
+  data: {
+    wallet_id?: string;
+    account_number?: string;
+    owners_fullname?: string;
+    amount?: number;
+    currency?: string;
+    status?: string;
+    transaction_type?: string; // 'credit' | 'debit'
+    reference?: string;
     description?: string;
     timestamp?: string;
     metadata?: any;

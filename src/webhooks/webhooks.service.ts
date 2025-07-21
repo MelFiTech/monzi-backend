@@ -12,6 +12,7 @@ import {
   BudPayWebhookPayload,
   SmePlugWebhookPayload,
   PolarisWebhookPayload,
+  NyraWebhookPayload,
   WebhookVerificationResult,
   WebhookProcessingResult,
   BaseWebhookPayload,
@@ -237,16 +238,19 @@ export class WebhooksService {
         case WebhookProvider.SMEPLUG:
           return this.verifySmePlugWebhook(payload, signature);
 
-        case WebhookProvider.POLARIS:
-          return this.verifyPolarisWebhook(payload, signature);
+              case WebhookProvider.POLARIS:
+        return this.verifyPolarisWebhook(payload, signature);
 
-        default:
-          return {
-            isValid: false,
-            provider,
-            eventType: WebhookEventType.OTHER,
-            error: `Unsupported provider: ${provider}`,
-          };
+      case WebhookProvider.NYRA:
+        return this.verifyNyraWebhook(payload, signature);
+
+      default:
+        return {
+          isValid: false,
+          provider,
+          eventType: WebhookEventType.OTHER,
+          error: `Unsupported provider: ${provider}`,
+        };
       }
     } catch (error) {
       return {
@@ -467,6 +471,63 @@ export class WebhooksService {
   }
 
   /**
+   * Verify Nyra webhook signature
+   */
+  private verifyNyraWebhook(
+    payload: any,
+    signature?: string,
+  ): WebhookVerificationResult {
+    try {
+      this.logger.log('🔍 [NYRA] Verifying webhook signature...');
+
+      // Basic payload validation
+      if (!payload || typeof payload !== 'object') {
+        return {
+          isValid: false,
+          provider: WebhookProvider.NYRA,
+          eventType: WebhookEventType.OTHER,
+          error: 'Invalid payload structure',
+        };
+      }
+
+      // Check for required fields
+      if (!payload.event || !payload.data) {
+        return {
+          isValid: false,
+          provider: WebhookProvider.NYRA,
+          eventType: WebhookEventType.OTHER,
+          error: 'Missing required fields: event or data',
+        };
+      }
+
+      // TODO: Implement signature verification when Nyra provides webhook secret
+      if (signature) {
+        this.logger.log('🔐 [NYRA] Signature provided, verification needed');
+        // Add signature verification logic here when available
+      } else {
+        this.logger.warn(
+          '⚠️ [NYRA] No signature provided - relying on basic validation',
+        );
+      }
+
+      this.logger.log('✅ [NYRA] Webhook verification passed (basic validation)');
+      return {
+        isValid: true,
+        provider: WebhookProvider.NYRA,
+        eventType: this.mapNyraEvent(payload.event),
+      };
+    } catch (error) {
+      this.logger.error('❌ [NYRA] Webhook verification failed:', error);
+      return {
+        isValid: false,
+        provider: WebhookProvider.NYRA,
+        eventType: WebhookEventType.OTHER,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
    * Normalize webhook data from different providers into a standard format
    */
   private async normalizeWebhookData(
@@ -488,6 +549,9 @@ export class WebhooksService {
 
         case WebhookProvider.POLARIS:
           return this.normalizePolarisData(payload as PolarisWebhookPayload);
+
+        case WebhookProvider.NYRA:
+          return this.normalizeNyraData(payload as NyraWebhookPayload);
 
         default:
           return null;
@@ -631,6 +695,38 @@ export class WebhooksService {
       description:
         data.description || `${event} - ${data.transaction_reference}`,
       metadata: data.metadata,
+      timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+      rawPayload: payload,
+    };
+  }
+
+  /**
+   * Normalize Nyra webhook data
+   */
+  private normalizeNyraData(
+    payload: NyraWebhookPayload,
+  ): ProcessedWebhookData {
+    const { event, data } = payload;
+
+    this.logger.log(`🔄 [NYRA] Normalizing Nyra webhook data...`);
+    this.logger.log(`📋 [NYRA] Event: ${event}`);
+    this.logger.log(`📋 [NYRA] Data keys: ${Object.keys(data).join(', ')}`);
+
+    return {
+      provider: WebhookProvider.NYRA,
+      eventType: this.mapNyraEvent(event),
+      transactionReference: data.reference || '',
+      accountNumber: data.account_number,
+      accountName: data.owners_fullname,
+      amount: data.amount,
+      currency: data.currency || 'NGN',
+      status: data.status,
+      description: data.description || `${event} - ${data.reference}`,
+      metadata: {
+        ...data.metadata,
+        wallet_id: data.wallet_id,
+        transaction_type: data.transaction_type,
+      },
       timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
       rawPayload: payload,
     };
@@ -1037,6 +1133,7 @@ export class WebhooksService {
       WebhookEventType.BUDPAY_TRANSACTION_SUCCESSFUL,
       WebhookEventType.SMEPLUG_WALLET_CREDITED,
       WebhookEventType.POLARIS_ACCOUNT_FUNDED,
+      WebhookEventType.NYRA_WALLET_CREDITED,
       WebhookEventType.TRANSFER_SUCCESSFUL,
     ];
 
@@ -1385,6 +1482,24 @@ export class WebhooksService {
   }
 
   /**
+   * Map Nyra events to standard event types
+   */
+  private mapNyraEvent(event: string): WebhookEventType {
+    const eventMap: Record<string, WebhookEventType> = {
+      'wallet.credited': WebhookEventType.NYRA_WALLET_CREDITED,
+      'wallet.debited': WebhookEventType.NYRA_WALLET_DEBITED,
+      'transfer.successful': WebhookEventType.NYRA_TRANSFER_SUCCESSFUL,
+      'transfer.failed': WebhookEventType.NYRA_TRANSFER_FAILED,
+      'transfer.pending': WebhookEventType.NYRA_TRANSFER_PENDING,
+      'account.credited': WebhookEventType.ACCOUNT_CREDITED,
+      'account.debited': WebhookEventType.ACCOUNT_DEBITED,
+      'managed_wallet.funded': WebhookEventType.NYRA_WALLET_CREDITED,
+    };
+
+    return eventMap[event] || WebhookEventType.OTHER;
+  }
+
+  /**
    * Calculate provider-specific funding fee
    */
   private async calculateProviderFundingFee(
@@ -1394,6 +1509,12 @@ export class WebhooksService {
     this.logger.log(
       `💸 [FEE CALCULATION] Calculating funding fee for ${provider} on amount: ₦${amount}`,
     );
+
+    // NYRA has no funding fees
+    if (provider === WebhookProvider.NYRA) {
+      this.logger.log(`✅ [FEE CALCULATION] NYRA has no funding fees: ₦0`);
+      return 0;
+    }
 
     try {
       // Determine fee type based on provider
@@ -1483,6 +1604,7 @@ export class WebhooksService {
       [WebhookProvider.BUDPAY]: `${baseUrl}/webhooks/budpay`,
       [WebhookProvider.SMEPLUG]: `${baseUrl}/webhooks/smeplug`,
       [WebhookProvider.POLARIS]: `${baseUrl}/webhooks/polaris`,
+      [WebhookProvider.NYRA]: `${baseUrl}/webhooks/nyra`,
     };
   }
 }

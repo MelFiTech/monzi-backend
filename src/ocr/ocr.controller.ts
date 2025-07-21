@@ -20,7 +20,7 @@ import {
 import { OcrService } from './ocr.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ExtractTextDto, OcrResponseDto, UploadImageDto } from './dto/ocr.dto';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname } from 'path';
 
 // Type definition for multer file
@@ -53,16 +53,7 @@ export class OcrController {
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('image', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          cb(null, `${randomName}${extname(file.originalname)}`);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
           return cb(new Error('Only image files are allowed!'), false);
@@ -93,6 +84,16 @@ export class OcrController {
     return this.ocrService.extractText(extractTextDto, req.user.id);
   }
 
+  @ApiOperation({ summary: 'Get OCR system health and available providers' })
+  @ApiResponse({
+    status: 200,
+    description: 'OCR system health information',
+  })
+  @Get('health')
+  async getOcrHealth() {
+    return this.ocrService.getOcrHealth();
+  }
+
   @ApiOperation({ summary: 'Get OCR scan history for current user' })
   @ApiResponse({
     status: 200,
@@ -110,8 +111,19 @@ export class OcrController {
     description: 'OCR scan retrieved successfully',
     type: OcrResponseDto,
   })
-  @Get(':id')
+  @Get('scan/:id')
   async getOcrScan(@Param('id') id: string, @Request() req) {
+    return this.ocrService.getOcrScan(id, req.user.id);
+  }
+
+  @ApiOperation({ summary: 'Get specific OCR scan by ID (alternative route)' })
+  @ApiResponse({
+    status: 200,
+    description: 'OCR scan retrieved successfully',
+    type: OcrResponseDto,
+  })
+  @Get(':id')
+  async getOcrScanById(@Param('id') id: string, @Request() req) {
     return this.ocrService.getOcrScan(id, req.user.id);
   }
 }

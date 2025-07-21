@@ -11,7 +11,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ClaudeAiService } from './services/claude-ai.service';
+import { GeminiAiOrchestratorService } from './services/gemini-ai-orchestrator.service';
 import { MetricsCollectorService } from './services/metrics-collector.service';
 import {
   CreateAuditorConfigurationDto,
@@ -36,7 +36,7 @@ export class AuditorController {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly claudeAiService: ClaudeAiService,
+    private readonly geminiAiService: GeminiAiOrchestratorService,
     private readonly metricsCollectorService: MetricsCollectorService,
   ) {}
 
@@ -214,7 +214,7 @@ export class AuditorController {
             data: {
               name: 'Default Prime Configuration',
               description: 'Default configuration for Prime AI auditor',
-              model: 'claude-3-5-sonnet-20241022',
+              model: 'gemini-1.5-flash',
               temperature: 0.7,
               maxTokens: 8000,
               isActive: true,
@@ -255,8 +255,8 @@ export class AuditorController {
         metrics = await this.metricsCollectorService.getRealTimeMetrics();
       }
 
-      // Process message with Claude
-      const claudeResponse = await this.claudeAiService.processPrimeChatMessage(
+      // Process message with enhanced Gemini AI
+      const geminiResponse = await this.geminiAiService.processSmartMessage(
         dto.message,
         sessionId,
         {
@@ -265,14 +265,14 @@ export class AuditorController {
         },
       );
 
-      // Store Claude response
+      // Store Gemini response
       await this.prisma.auditorMessage.create({
         data: {
           chatId: chat.id,
           role: AuditorMessageRole.ASSISTANT,
-          content: claudeResponse.response,
-          metadata: claudeResponse.metadata,
-          tokens: claudeResponse.metadata.tokens?.input_tokens + claudeResponse.metadata.tokens?.output_tokens,
+          content: geminiResponse.response,
+          metadata: geminiResponse.metadata,
+          tokens: geminiResponse.metadata.tokens?.input_tokens + geminiResponse.metadata.tokens?.output_tokens,
         },
       });
 
@@ -283,7 +283,7 @@ export class AuditorController {
             chatId: chat.id,
             type: AuditorReportType.SYSTEM_HEALTH,
             title: 'Prime Chat Report',
-            content: claudeResponse.response,
+            content: geminiResponse.response,
             summary: 'Report generated from Prime chat interaction',
             riskLevel: AuditorRiskLevel.LOW,
           },
@@ -295,10 +295,10 @@ export class AuditorController {
       return {
         success: true,
         message: 'Prime chat response generated successfully',
-        response: claudeResponse.response,
+        response: geminiResponse.response,
         sessionId,
         chatId: chat.id,
-        metadata: claudeResponse.metadata,
+        metadata: geminiResponse.metadata,
         timestamp: new Date(),
       };
     } catch (error) {
@@ -366,9 +366,8 @@ export class AuditorController {
           dto.timeframe || 'last_30_days',
           'daily',
         );
-        analysisResult = await this.claudeAiService.generateFinancialAnalysis(
+        analysisResult = await this.geminiAiService.generateFinancialAnalysis(
           metrics,
-          dto.timeframe || 'last 30 days',
         );
       } else if (dto.type === AuditorReportType.RISK_ASSESSMENT) {
         // Get user and transaction data
@@ -376,21 +375,53 @@ export class AuditorController {
         const transactionData = dto.transactionIds ? 
           await this.getTransactionData(dto.transactionIds) : null;
         
-        analysisResult = await this.claudeAiService.generateRiskAssessment(
-          userData,
-          transactionData,
+        analysisResult = await this.geminiAiService.generateRiskAssessment(
+          { userData, transactionData },
         );
       } else if (dto.type === AuditorReportType.COMPLIANCE_AUDIT) {
         const systemData = await this.getSystemData();
-        analysisResult = await this.claudeAiService.generateComplianceAudit(systemData);
+        analysisResult = await this.geminiAiService.generateComplianceAudit(systemData);
       } else {
         throw new HttpException('Unsupported analysis type', HttpStatus.BAD_REQUEST);
       }
 
+      // Create a temporary system chat for this report
+      // Get or create default configuration first
+      let config = await this.prisma.auditorConfiguration.findFirst({
+        where: { isActive: true },
+      });
+
+      if (!config) {
+        config = await this.prisma.auditorConfiguration.create({
+          data: {
+            name: 'System Reports Configuration',
+            description: 'Configuration for system-generated reports',
+            model: 'gemini-1.5-flash',
+            temperature: 0.3,
+            maxTokens: 8000,
+            isActive: true,
+          },
+        });
+      }
+
+      // Create a unique session ID for this report
+      const reportSessionId = `system-report-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Create a system chat for this report
+      const systemChat = await this.prisma.auditorChat.create({
+        data: {
+          title: `${dto.type} Report - ${new Date().toLocaleDateString()}`,
+          configId: config.id,
+          adminUserId: 'system-generated', // Simple string, no FK constraint
+          sessionId: reportSessionId,
+          isActive: true,
+        },
+      });
+
       // Store report
       const report = await this.prisma.auditorReport.create({
         data: {
-          chatId: 'system', // System generated
+          chatId: systemChat.id,
           type: dto.type,
           title: `${dto.type} Report - ${new Date().toLocaleDateString()}`,
           content: analysisResult.summary,
@@ -569,8 +600,8 @@ export class AuditorController {
       await this.prisma.$queryRaw`SELECT 1`;
       const dbLatency = Date.now() - dbStartTime;
 
-      // Check Claude API
-      const claudeHealth = await this.claudeAiService.checkHealth();
+      // Check Gemini API
+      const geminiHealth = await this.geminiAiService.checkHealth();
 
       // Get system metrics
       const systemHealth = await this.metricsCollectorService.getSystemHealthSummary();
@@ -591,7 +622,7 @@ export class AuditorController {
           connected: true,
           latency: dbLatency,
         },
-        claude: claudeHealth,
+        claude: geminiHealth,
         timestamp: new Date(),
       };
     } catch (error) {

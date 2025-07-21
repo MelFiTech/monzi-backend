@@ -6,10 +6,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BudPayModule } from './budpay/budpay.module';
 import { SmePlugModule } from './smeplug/smeplug.module';
 import { PolarisModule } from './polaris/polaris.module';
+import { NyraModule } from './nyra/nyra.module';
 
 @Global()
 @Module({
-  imports: [ConfigModule, BudPayModule, SmePlugModule, PolarisModule],
+  imports: [ConfigModule, BudPayModule, SmePlugModule, PolarisModule, NyraModule],
   providers: [
     PrismaService,
     TransferProviderManagerService,

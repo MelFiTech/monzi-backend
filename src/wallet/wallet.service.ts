@@ -21,7 +21,7 @@ import { ProviderManagerService } from '../providers/provider-manager.service';
 import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
-import { WalletCreationData } from '../providers/base/wallet-provider.interface';
+import { WalletCreationData, WalletProvider } from '../providers/base/wallet-provider.interface';
 import { BankTransferData } from '../providers/base/transfer-provider.interface';
 import * as bcrypt from 'bcrypt';
 import axios from 'axios';
@@ -271,16 +271,49 @@ export class WalletService {
 
       console.log('✅ [WALLET DETAILS] Wallet details retrieved successfully');
 
+      // If it's a Nyra wallet, fetch fresh bank information from the provider (with rate limiting protection)
+      let bankName = wallet.bankName;
+      if (wallet.provider === 'NYRA' && wallet.virtualAccountNumber) {
+        try {
+          // Only fetch fresh bank info if the stored bank name is missing or outdated
+          if (!bankName || bankName === 'Unknown Bank') {
+            console.log('🔄 [WALLET DETAILS] Fetching fresh bank info from Nyra API...');
+            const nyraProvider = await this.providerManager.getWalletProvider(WalletProvider.NYRA);
+            if (nyraProvider && 'getWalletDetails' in nyraProvider) {
+              const freshDetails = await (nyraProvider as any).getWalletDetails(wallet.virtualAccountNumber);
+              if (freshDetails.success && freshDetails.data) {
+                bankName = freshDetails.data.bankName;
+                console.log('✅ [WALLET DETAILS] Updated bank name from Nyra API:', bankName);
+                
+                // Update the stored bank name in the database
+                await this.prisma.wallet.update({
+                  where: { id: wallet.id },
+                  data: { bankName: bankName },
+                });
+              }
+            }
+          } else {
+            console.log('✅ [WALLET DETAILS] Using cached bank name:', bankName);
+          }
+        } catch (error) {
+          console.log('⚠️ [WALLET DETAILS] Could not fetch fresh bank info, using stored value:', error.message);
+          // Don't fail the request if bank info fetch fails
+        }
+      }
+
       return {
         id: wallet.id,
         balance: wallet.balance,
         accountNumber: wallet.virtualAccountNumber,
         accountName: wallet.providerAccountName,
-        bankName: wallet.bankName,
+        bankName: bankName,
         provider: wallet.provider,
         currency: wallet.currency,
         status: 'active',
         createdAt: wallet.createdAt.toISOString(),
+        isActive: wallet.isActive,
+        virtualAccountNumber: wallet.virtualAccountNumber,
+        providerAccountName: wallet.providerAccountName,
       };
     } catch (error) {
       console.error('❌ [WALLET DETAILS] Error getting wallet details:', error);

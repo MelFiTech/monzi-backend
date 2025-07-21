@@ -58,6 +58,7 @@ import {
   GetAdminsResponse,
   AdminDto,
   GetAdminLogsResponse,
+  ProviderWalletDetailsResponse,
 } from './dto/admin.dto';
 import { KycStatus, Prisma, FeeType as PrismaFeeType } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
@@ -3942,6 +3943,197 @@ export class AdminService {
       reason: unfreezeWalletDto.reason,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  async getProviderWalletDetails(provider?: string): Promise<ProviderWalletDetailsResponse> {
+    console.log('🏦 [ADMIN SERVICE] Getting provider wallet details');
+    console.log('📋 [ADMIN SERVICE] Provider:', provider || 'current');
+
+    try {
+      // Get the provider to use
+      const targetProvider = provider || (await this.getCurrentProvider()).provider;
+      
+      // Get the provider instance
+      const providerInstance = await this.providerManager.getWalletProvider(targetProvider as WalletProvider);
+      
+      if (!providerInstance) {
+        throw new NotFoundException(`Provider ${targetProvider} not found`);
+      }
+
+      // For NYRA provider, get business wallet details
+      if (targetProvider === 'NYRA') {
+        const businessId = '2c0a64ab4da2c10abfff0971'; // MONZI business ID
+        const accountNumber = '9011188538'; // MONZI business account number
+        
+        // Get wallet balance from NYRA API
+        const balanceResult = await providerInstance.getWalletBalance({
+          accountNumber: accountNumber,
+        });
+        
+        if (!balanceResult.success) {
+          throw new NotFoundException('Failed to retrieve provider wallet balance');
+        }
+
+        const formattedBalance = new Intl.NumberFormat('en-NG', {
+          style: 'currency',
+          currency: 'NGN',
+        }).format(balanceResult.balance);
+
+        return {
+          success: true,
+          message: 'Provider wallet details retrieved successfully',
+          provider: targetProvider,
+          businessId: businessId,
+          walletId: 'MONZI_BUSINESS_WALLET',
+          accountNumber: accountNumber,
+          ownersFullname: 'MONZI Business Account',
+          balance: balanceResult.balance,
+          formattedBalance: formattedBalance,
+          frozen: false, // Assuming business wallet is not frozen
+          currency: 'NGN',
+          lastUpdated: new Date().toISOString(),
+        };
+      }
+
+      // For other providers, return a generic response
+      return {
+        success: true,
+        message: 'Provider wallet details retrieved successfully',
+        provider: targetProvider,
+        businessId: 'N/A',
+        walletId: 'N/A',
+        accountNumber: 'N/A',
+        ownersFullname: 'MONZI Business Account',
+        balance: 0,
+        formattedBalance: '₦0.00',
+        frozen: false,
+        currency: 'NGN',
+        lastUpdated: new Date().toISOString(),
+      };
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error getting provider wallet details:', error);
+      
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      
+      throw new BadRequestException('Failed to retrieve provider wallet details');
+    }
+  }
+
+  async getWebhookLogs(params: {
+    provider?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    success: boolean;
+    total: number;
+    processed: number;
+    pending: number;
+    errors: number;
+    logs: Array<{
+      id: string;
+      provider: string;
+      eventType: string;
+      reference: string;
+      accountNumber?: string;
+      amount?: number;
+      currency?: string;
+      status?: string;
+      processed: boolean;
+      walletUpdated: boolean;
+      transactionId?: string;
+      error?: string;
+      receivedAt: Date;
+      processedAt?: Date;
+    }>;
+  }> {
+    console.log('📋 [ADMIN SERVICE] Getting webhook logs');
+    console.log('📊 Params:', params);
+
+    try {
+      const { provider, status, limit = 50, offset = 0 } = params;
+
+      // Build where clause
+      const where: any = {};
+      
+      if (provider) {
+        where.provider = provider.toUpperCase();
+      }
+
+      if (status) {
+        switch (status.toLowerCase()) {
+          case 'processed':
+            where.processed = true;
+            break;
+          case 'pending':
+            where.processed = false;
+            break;
+          case 'error':
+            where.error = { not: null };
+            break;
+        }
+      }
+
+      // Get total counts
+      const totalCount = await this.prisma.webhookLog.count({ where });
+      const processedCount = await this.prisma.webhookLog.count({ 
+        where: { ...where, processed: true } 
+      });
+      const pendingCount = await this.prisma.webhookLog.count({ 
+        where: { ...where, processed: false } 
+      });
+      const errorCount = await this.prisma.webhookLog.count({ 
+        where: { ...where, error: { not: null } } 
+      });
+
+      // Get logs with pagination
+      const logs = await this.prisma.webhookLog.findMany({
+        where,
+        orderBy: { receivedAt: 'desc' },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          provider: true,
+          eventType: true,
+          reference: true,
+          accountNumber: true,
+          amount: true,
+          currency: true,
+          status: true,
+          processed: true,
+          walletUpdated: true,
+          transactionId: true,
+          error: true,
+          receivedAt: true,
+          processedAt: true,
+        },
+      });
+
+      console.log('✅ [ADMIN SERVICE] Webhook logs retrieved successfully');
+      console.log('📊 Stats:', {
+        total: totalCount,
+        processed: processedCount,
+        pending: pendingCount,
+        errors: errorCount,
+        returned: logs.length,
+      });
+
+      return {
+        success: true,
+        total: totalCount,
+        processed: processedCount,
+        pending: pendingCount,
+        errors: errorCount,
+        logs,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to get webhook logs:', error);
+      throw new BadRequestException(`Failed to get webhook logs: ${error.message}`);
+    }
   }
 }
 
