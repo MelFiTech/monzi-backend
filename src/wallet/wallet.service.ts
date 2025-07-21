@@ -331,6 +331,16 @@ export class WalletService {
     );
 
     try {
+      // For TRANSFER fees, prioritize tiered fee system
+      if (feeType === 'TRANSFER' as any || feeType.toString().startsWith('TRANSFER_')) {
+        const tierResult = await this.calculateTransferFeeFromTiers(amount);
+        if (tierResult.fee > 0) {
+          console.log('✅ [FEE CALCULATION] Using tiered fee:', tierResult.fee);
+          return tierResult.fee;
+        }
+      }
+
+      // Fallback to traditional fee configuration
       const feeConfig = await this.prisma.feeConfiguration.findUnique({
         where: { feeType: feeType, isActive: true },
       });
@@ -371,6 +381,72 @@ export class WalletService {
     } catch (error) {
       console.error('❌ [FEE CALCULATION] Error calculating fee:', error);
       return 25; // Default ₦25 fee on error
+    }
+  }
+
+  // Tiered fee calculation method
+  private async calculateTransferFeeFromTiers(amount: number, provider?: string): Promise<{
+    fee: number;
+    tier?: any;
+  }> {
+    console.log('💰 [TIERED FEE] Calculating transfer fee for amount:', amount, 'provider:', provider);
+
+    try {
+      // First try to find provider-specific tier
+      let tier = null;
+      if (provider) {
+        tier = await this.prisma.transferFeeTier.findFirst({
+          where: {
+            provider: provider.toUpperCase(),
+            minAmount: { lte: amount },
+            OR: [
+              { maxAmount: null },
+              { maxAmount: { gte: amount } },
+            ],
+            isActive: true,
+          },
+          orderBy: { minAmount: 'desc' },
+        });
+      }
+
+      // If no provider-specific tier found, try global tiers
+      if (!tier) {
+        tier = await this.prisma.transferFeeTier.findFirst({
+          where: {
+            provider: null,
+            minAmount: { lte: amount },
+            OR: [
+              { maxAmount: null },
+              { maxAmount: { gte: amount } },
+            ],
+            isActive: true,
+          },
+          orderBy: { minAmount: 'desc' },
+        });
+      }
+
+      if (tier) {
+        console.log('✅ [TIERED FEE] Found matching tier:', tier.name, 'Fee:', tier.feeAmount);
+        return {
+          fee: tier.feeAmount,
+          tier: {
+            id: tier.id,
+            name: tier.name,
+            minAmount: tier.minAmount,
+            maxAmount: tier.maxAmount,
+            feeAmount: tier.feeAmount,
+            provider: tier.provider,
+            isActive: tier.isActive,
+            description: tier.description,
+          },
+        };
+      }
+
+      console.log('⚠️ [TIERED FEE] No matching tier found, returning 0 fee');
+      return { fee: 0 };
+    } catch (error) {
+      console.error('❌ [TIERED FEE] Failed to calculate transfer fee:', error);
+      return { fee: 0 };
     }
   }
 

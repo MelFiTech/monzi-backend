@@ -238,19 +238,19 @@ export class WebhooksService {
         case WebhookProvider.SMEPLUG:
           return this.verifySmePlugWebhook(payload, signature);
 
-              case WebhookProvider.POLARIS:
-        return this.verifyPolarisWebhook(payload, signature);
+        case WebhookProvider.POLARIS:
+          return this.verifyPolarisWebhook(payload, signature);
 
       case WebhookProvider.NYRA:
         return this.verifyNyraWebhook(payload, signature);
 
-      default:
-        return {
-          isValid: false,
-          provider,
-          eventType: WebhookEventType.OTHER,
-          error: `Unsupported provider: ${provider}`,
-        };
+        default:
+          return {
+            isValid: false,
+            provider,
+            eventType: WebhookEventType.OTHER,
+            error: `Unsupported provider: ${provider}`,
+          };
       }
     } catch (error) {
       return {

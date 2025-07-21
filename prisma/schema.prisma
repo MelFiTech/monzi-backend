@@ -198,17 +198,34 @@ model WebhookLog {
 
 model FeeConfiguration {
   id          String   @id @default(cuid())
-  feeType     FeeType  @unique
+  feeType     FeeType
   percentage  Float?
   fixedAmount Float?
   minAmount   Float?
   maxAmount   Float?
+  description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  description String?
 
+  @@unique([feeType])
   @@map("fee_configurations")
+}
+
+model TransferFeeTier {
+  id           String   @id @default(cuid())
+  name         String   // e.g., "Small Transfer", "Medium Transfer", "Large Transfer"
+  minAmount    Float    // Minimum amount for this tier (inclusive)
+  maxAmount    Float?   // Maximum amount for this tier (inclusive), null for unlimited
+  feeAmount    Float    // Fixed fee amount for this tier
+  provider     String?  // Optional: provider-specific tier (null for global)
+  isActive     Boolean  @default(true)
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([minAmount, maxAmount, provider])
+  @@map("transfer_fee_tiers")
 }
 
 model SystemConfiguration {
@@ -486,6 +503,11 @@ enum FeeType {
   FUNDING_BUDPAY
   FUNDING_SMEPLUG
   FUNDING_POLARIS
+  FUNDING_NYRA
+  TRANSFER_BUDPAY
+  TRANSFER_SMEPLUG
+  TRANSFER_POLARIS
+  TRANSFER_NYRA
 }
 
 enum Gender {

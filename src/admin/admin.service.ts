@@ -1608,12 +1608,33 @@ export class AdminService {
           { feeType: FeeType.FUNDING_BUDPAY },
           { feeType: FeeType.FUNDING_SMEPLUG },
           { feeType: FeeType.FUNDING_POLARIS },
+          { feeType: 'FUNDING_NYRA' as any },
         ],
       },
       orderBy: { feeType: 'asc' },
     });
 
     return fundingFees;
+  }
+
+  /**
+   * Get provider-specific transfer fees
+   */
+  async getTransferProviderFees() {
+    const transferFees = await this.prisma.feeConfiguration.findMany({
+      where: {
+        OR: [
+          { feeType: 'TRANSFER' as any },
+          { feeType: 'TRANSFER_BUDPAY' as any },
+          { feeType: 'TRANSFER_SMEPLUG' as any },
+          { feeType: 'TRANSFER_POLARIS' as any },
+          { feeType: 'TRANSFER_NYRA' as any },
+        ],
+      },
+      orderBy: { feeType: 'asc' },
+    });
+
+    return transferFees;
   }
 
   /**
@@ -1665,6 +1686,61 @@ export class AdminService {
       // Fallback to generic FUNDING fee
       return this.prisma.feeConfiguration.findUnique({
         where: { feeType: FeeType.FUNDING },
+      });
+    }
+
+    return feeConfig;
+  }
+
+  /**
+   * Create or update transfer fee for a specific provider
+   */
+  async setProviderTransferFee(
+    provider: string,
+    dto: CreateFeeConfigurationDto,
+  ) {
+    const feeType = `TRANSFER_${provider.toUpperCase()}` as FeeType;
+
+    // Check if fee configuration already exists
+    const existing = await this.prisma.feeConfiguration.findUnique({
+      where: { feeType: feeType },
+    });
+
+    if (existing) {
+      // Update existing
+      return this.prisma.feeConfiguration.update({
+        where: { id: existing.id },
+        data: {
+          ...dto,
+          feeType: feeType,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      // Create new
+      return this.prisma.feeConfiguration.create({
+        data: {
+          ...dto,
+          feeType: feeType,
+        },
+      });
+    }
+  }
+
+  /**
+   * Get transfer fee for a specific provider
+   */
+  async getProviderTransferFee(provider: string) {
+    const feeType = `TRANSFER_${provider.toUpperCase()}` as FeeType;
+
+    const feeConfig = await this.prisma.feeConfiguration.findUnique({
+      where: { feeType: feeType },
+    });
+
+    if (!feeConfig) {
+      // Fallback to generic TRANSFER fee
+      return this.prisma.feeConfiguration.findUnique({
+        where: { feeType: FeeType.TRANSFER },
       });
     }
 
@@ -4133,6 +4209,310 @@ export class AdminService {
     } catch (error) {
       console.error('❌ [ADMIN SERVICE] Failed to get webhook logs:', error);
       throw new BadRequestException(`Failed to get webhook logs: ${error.message}`);
+    }
+  }
+
+  // ==================== TRANSFER FEE TIERS METHODS ====================
+
+  async getTransferFeeTiers(): Promise<{
+    success: boolean;
+    tiers: any[];
+    total: number;
+  }> {
+    console.log('📊 [ADMIN SERVICE] Getting transfer fee tiers');
+    
+    try {
+      const tiers = await this.prisma.transferFeeTier.findMany({
+        orderBy: [{ minAmount: 'asc' }],
+      });
+
+      const formattedTiers = tiers.map(tier => ({
+        id: tier.id,
+        name: tier.name,
+        minAmount: tier.minAmount,
+        maxAmount: tier.maxAmount,
+        feeAmount: tier.feeAmount,
+        provider: tier.provider,
+        isActive: tier.isActive,
+        description: tier.description,
+        createdAt: tier.createdAt.toISOString(),
+        updatedAt: tier.updatedAt.toISOString(),
+      }));
+
+      console.log('✅ [ADMIN SERVICE] Retrieved transfer fee tiers successfully');
+      return {
+        success: true,
+        tiers: formattedTiers,
+        total: tiers.length,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to get transfer fee tiers:', error);
+      throw new BadRequestException(`Failed to get transfer fee tiers: ${error.message}`);
+    }
+  }
+
+  async createTransferFeeTier(dto: any) {
+    console.log('➕ [ADMIN SERVICE] Creating transfer fee tier');
+    console.log('📋 [ADMIN SERVICE] Tier data:', dto);
+
+    try {
+      // Validate that max amount is greater than min amount
+      if (dto.maxAmount && dto.maxAmount <= dto.minAmount) {
+        throw new BadRequestException('Maximum amount must be greater than minimum amount');
+      }
+
+      // Check for overlapping tiers
+      const overlapping = await this.prisma.transferFeeTier.findFirst({
+        where: {
+          provider: dto.provider || null,
+          isActive: true,
+          OR: [
+            {
+              AND: [
+                { minAmount: { lte: dto.minAmount } },
+                { OR: [{ maxAmount: null }, { maxAmount: { gte: dto.minAmount } }] },
+              ],
+            },
+            ...(dto.maxAmount ? [{
+              AND: [
+                { minAmount: { lte: dto.maxAmount } },
+                { OR: [{ maxAmount: null }, { maxAmount: { gte: dto.maxAmount } }] },
+              ],
+            }] : []),
+          ],
+        },
+      });
+
+      if (overlapping) {
+        throw new BadRequestException(`Tier overlaps with existing tier: ${overlapping.name}`);
+      }
+
+      const tier = await this.prisma.transferFeeTier.create({
+        data: {
+          name: dto.name,
+          minAmount: dto.minAmount,
+          maxAmount: dto.maxAmount,
+          feeAmount: dto.feeAmount,
+          provider: dto.provider,
+          description: dto.description,
+          isActive: dto.isActive ?? true,
+        },
+      });
+
+      console.log('✅ [ADMIN SERVICE] Transfer fee tier created successfully');
+      return {
+        id: tier.id,
+        name: tier.name,
+        minAmount: tier.minAmount,
+        maxAmount: tier.maxAmount,
+        feeAmount: tier.feeAmount,
+        provider: tier.provider,
+        isActive: tier.isActive,
+        description: tier.description,
+        createdAt: tier.createdAt.toISOString(),
+        updatedAt: tier.updatedAt.toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to create transfer fee tier:', error);
+      throw new BadRequestException(`Failed to create transfer fee tier: ${error.message}`);
+    }
+  }
+
+  async updateTransferFeeTier(id: string, dto: any) {
+    console.log('🔄 [ADMIN SERVICE] Updating transfer fee tier:', id);
+
+    try {
+      const existing = await this.prisma.transferFeeTier.findUnique({
+        where: { id },
+      });
+
+      if (!existing) {
+        throw new NotFoundException('Transfer fee tier not found');
+      }
+
+      const tier = await this.prisma.transferFeeTier.update({
+        where: { id },
+        data: {
+          ...(dto.name && { name: dto.name }),
+          ...(dto.minAmount !== undefined && { minAmount: dto.minAmount }),
+          ...(dto.maxAmount !== undefined && { maxAmount: dto.maxAmount }),
+          ...(dto.feeAmount !== undefined && { feeAmount: dto.feeAmount }),
+          ...(dto.provider !== undefined && { provider: dto.provider }),
+          ...(dto.description !== undefined && { description: dto.description }),
+          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+          updatedAt: new Date(),
+        },
+      });
+
+      console.log('✅ [ADMIN SERVICE] Transfer fee tier updated successfully');
+      return {
+        id: tier.id,
+        name: tier.name,
+        minAmount: tier.minAmount,
+        maxAmount: tier.maxAmount,
+        feeAmount: tier.feeAmount,
+        provider: tier.provider,
+        isActive: tier.isActive,
+        description: tier.description,
+        createdAt: tier.createdAt.toISOString(),
+        updatedAt: tier.updatedAt.toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to update transfer fee tier:', error);
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to update transfer fee tier: ${error.message}`);
+    }
+  }
+
+  async deleteTransferFeeTier(id: string) {
+    console.log('🗑️ [ADMIN SERVICE] Deleting transfer fee tier:', id);
+
+    try {
+      const existing = await this.prisma.transferFeeTier.findUnique({
+        where: { id },
+      });
+
+      if (!existing) {
+        throw new NotFoundException('Transfer fee tier not found');
+      }
+
+      await this.prisma.transferFeeTier.delete({
+        where: { id },
+      });
+
+      console.log('✅ [ADMIN SERVICE] Transfer fee tier deleted successfully');
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to delete transfer fee tier:', error);
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to delete transfer fee tier: ${error.message}`);
+    }
+  }
+
+  async seedDefaultTransferFeeTiers() {
+    console.log('🌱 [ADMIN SERVICE] Seeding default transfer fee tiers');
+
+    const defaultTiers = [
+      {
+        name: 'Small Transfer',
+        minAmount: 100,
+        maxAmount: 9999,
+        feeAmount: 5,
+        description: 'Fee for transfers between ₦100 - ₦9,999',
+      },
+      {
+        name: 'Medium Transfer',
+        minAmount: 10000,
+        maxAmount: 50000,
+        feeAmount: 15,
+        description: 'Fee for transfers between ₦10,000 - ₦50,000',
+      },
+      {
+        name: 'Large Transfer',
+        minAmount: 51000,
+        maxAmount: null,
+        feeAmount: 25,
+        description: 'Fee for transfers ₦51,000 and above',
+      },
+    ];
+
+    try {
+      for (const tierData of defaultTiers) {
+        const existing = await this.prisma.transferFeeTier.findFirst({
+          where: {
+            minAmount: tierData.minAmount,
+            maxAmount: tierData.maxAmount,
+            provider: null,
+          },
+        });
+
+        if (!existing) {
+          await this.prisma.transferFeeTier.create({
+            data: {
+              name: tierData.name,
+              minAmount: tierData.minAmount,
+              maxAmount: tierData.maxAmount,
+              feeAmount: tierData.feeAmount,
+              description: tierData.description,
+              isActive: true,
+            },
+          });
+          console.log('✅ [ADMIN SERVICE] Created default tier:', tierData.name);
+        } else {
+          console.log('⚠️ [ADMIN SERVICE] Tier already exists:', tierData.name);
+        }
+      }
+
+      console.log('🌱 [ADMIN SERVICE] Default transfer fee tiers seeding completed');
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to seed default transfer fee tiers:', error);
+      throw new BadRequestException(`Failed to seed default transfer fee tiers: ${error.message}`);
+    }
+  }
+
+  async calculateTransferFeeFromTiers(amount: number, provider?: string): Promise<{
+    fee: number;
+    tier?: any;
+  }> {
+    console.log('💰 [ADMIN SERVICE] Calculating transfer fee for amount:', amount, 'provider:', provider);
+
+    try {
+      // First try to find provider-specific tier
+      let tier = null;
+      if (provider) {
+        tier = await this.prisma.transferFeeTier.findFirst({
+          where: {
+            provider: provider.toUpperCase(),
+            minAmount: { lte: amount },
+            OR: [
+              { maxAmount: null },
+              { maxAmount: { gte: amount } },
+            ],
+            isActive: true,
+          },
+          orderBy: { minAmount: 'desc' },
+        });
+      }
+
+      // If no provider-specific tier found, try global tiers
+      if (!tier) {
+        tier = await this.prisma.transferFeeTier.findFirst({
+          where: {
+            provider: null,
+            minAmount: { lte: amount },
+            OR: [
+              { maxAmount: null },
+              { maxAmount: { gte: amount } },
+            ],
+            isActive: true,
+          },
+          orderBy: { minAmount: 'desc' },
+        });
+      }
+
+      if (tier) {
+        console.log('✅ [ADMIN SERVICE] Found matching tier:', tier.name, 'Fee:', tier.feeAmount);
+        return {
+          fee: tier.feeAmount,
+          tier: {
+            id: tier.id,
+            name: tier.name,
+            minAmount: tier.minAmount,
+            maxAmount: tier.maxAmount,
+            feeAmount: tier.feeAmount,
+            provider: tier.provider,
+            isActive: tier.isActive,
+            description: tier.description,
+            createdAt: tier.createdAt.toISOString(),
+            updatedAt: tier.updatedAt.toISOString(),
+          },
+        };
+      }
+
+      console.log('⚠️ [ADMIN SERVICE] No matching tier found, returning 0 fee');
+      return { fee: 0 };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Failed to calculate transfer fee:', error);
+      return { fee: 0 };
     }
   }
 }

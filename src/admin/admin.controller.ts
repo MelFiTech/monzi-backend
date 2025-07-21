@@ -65,6 +65,10 @@ import {
   TotalWalletBalanceResponse,
   ProviderWalletDetailsResponse,
   GetProviderWalletDetailsQueryDto,
+  CreateTransferFeeTierDto,
+  UpdateTransferFeeTierDto,
+  TransferFeeTierResponse,
+  GetTransferFeeTiersResponse,
 } from './dto/admin.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -1005,6 +1009,7 @@ export class AdminController {
           fees.find((f) => f.feeType === FeeType.FUNDING_SMEPLUG) || null,
         POLARIS:
           fees.find((f) => f.feeType === FeeType.FUNDING_POLARIS) || null,
+        NYRA: fees.find((f) => f.feeType === 'FUNDING_NYRA') || null,
         GENERIC: fees.find((f) => f.feeType === FeeType.FUNDING) || null,
       },
     };
@@ -1020,6 +1025,258 @@ export class AdminController {
       message: `Funding fee for ${provider} retrieved successfully`,
       data: feeConfig,
       provider: provider.toUpperCase(),
+    };
+  }
+
+  // ==================== TRANSFER FEES ENDPOINTS ====================
+
+  @Get('transfer-fees')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get all transfer provider fees',
+    description: 'Retrieve transfer fee configurations for all providers',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transfer fees retrieved successfully',
+  })
+  async getTransferProviderFees() {
+    const fees = await this.adminService.getTransferProviderFees();
+    return {
+      success: true,
+      message: 'Transfer fees retrieved successfully',
+      data: fees,
+      providers: {
+        BUDPAY: fees.find((f) => f.feeType === 'TRANSFER_BUDPAY') || null,
+        SMEPLUG: fees.find((f) => f.feeType === 'TRANSFER_SMEPLUG') || null,
+        POLARIS: fees.find((f) => f.feeType === 'TRANSFER_POLARIS') || null,
+        NYRA: fees.find((f) => f.feeType === 'TRANSFER_NYRA') || null,
+        GENERIC: fees.find((f) => f.feeType === FeeType.TRANSFER) || null,
+      },
+    };
+  }
+
+  @Get('transfer-fees/:provider')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get transfer fee for specific provider',
+    description: 'Retrieve transfer fee configuration for a specific provider',
+  })
+  @ApiParam({
+    name: 'provider',
+    description: 'Provider name (BUDPAY, SMEPLUG, POLARIS, NYRA)',
+    example: 'BUDPAY',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transfer fee retrieved successfully',
+  })
+  async getProviderTransferFee(@Param('provider') provider: string) {
+    const feeConfig = await this.adminService.getProviderTransferFee(provider);
+    return {
+      success: true,
+      message: `Transfer fee for ${provider} retrieved successfully`,
+      data: feeConfig,
+      provider: provider.toUpperCase(),
+    };
+  }
+
+  @Post('transfer-fees/:provider')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Set transfer fee for specific provider',
+    description: 'Create or update transfer fee configuration for a specific provider',
+  })
+  @ApiParam({
+    name: 'provider',
+    description: 'Provider name (BUDPAY, SMEPLUG, POLARIS, NYRA)',
+    example: 'BUDPAY',
+  })
+  @ApiBody({ type: CreateFeeConfigurationDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Transfer fee set successfully',
+  })
+  async setProviderTransferFee(
+    @Param('provider') provider: string,
+    @Body() dto: CreateFeeConfigurationDto,
+  ) {
+    const validProviders = ['BUDPAY', 'SMEPLUG', 'POLARIS', 'NYRA'];
+    const providerUpper = provider.toUpperCase();
+
+    if (!validProviders.includes(providerUpper)) {
+      throw new BadRequestException(
+        `Invalid provider. Must be one of: ${validProviders.join(', ')}`,
+      );
+    }
+
+    const result = await this.adminService.setProviderTransferFee(
+      providerUpper,
+      dto,
+    );
+
+    return {
+      success: true,
+      message: `Transfer fee for ${providerUpper} set successfully`,
+      data: result,
+      provider: providerUpper,
+      feeDetails: {
+        fixedAmount: result.fixedAmount,
+        percentage: result.percentage,
+        minAmount: result.minAmount,
+        maxAmount: result.maxAmount,
+        isActive: result.isActive,
+      },
+    };
+  }
+
+  // ==================== TRANSFER FEE TIERS ENDPOINTS ====================
+
+  @Get('transfer-fee-tiers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get all transfer fee tiers',
+    description: 'Retrieve all transfer fee tiers with amount-based pricing',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transfer fee tiers retrieved successfully',
+    type: GetTransferFeeTiersResponse,
+  })
+  async getTransferFeeTiers(): Promise<GetTransferFeeTiersResponse> {
+    return this.adminService.getTransferFeeTiers();
+  }
+
+  @Post('transfer-fee-tiers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Create transfer fee tier',
+    description: 'Create a new transfer fee tier with amount range and fee',
+  })
+  @ApiBody({ type: CreateTransferFeeTierDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Transfer fee tier created successfully',
+    type: TransferFeeTierResponse,
+  })
+  async createTransferFeeTier(
+    @Body() dto: CreateTransferFeeTierDto,
+  ): Promise<{ success: boolean; data: TransferFeeTierResponse }> {
+    const result = await this.adminService.createTransferFeeTier(dto);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Put('transfer-fee-tiers/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Update transfer fee tier',
+    description: 'Update an existing transfer fee tier',
+  })
+  @ApiParam({ name: 'id', description: 'Tier ID' })
+  @ApiBody({ type: UpdateTransferFeeTierDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transfer fee tier updated successfully',
+    type: TransferFeeTierResponse,
+  })
+  async updateTransferFeeTier(
+    @Param('id') id: string,
+    @Body() dto: UpdateTransferFeeTierDto,
+  ): Promise<{ success: boolean; data: TransferFeeTierResponse }> {
+    const result = await this.adminService.updateTransferFeeTier(id, dto);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Delete('transfer-fee-tiers/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Delete transfer fee tier',
+    description: 'Delete a transfer fee tier',
+  })
+  @ApiParam({ name: 'id', description: 'Tier ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transfer fee tier deleted successfully',
+  })
+  async deleteTransferFeeTier(
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; message: string }> {
+    await this.adminService.deleteTransferFeeTier(id);
+    return {
+      success: true,
+      message: 'Transfer fee tier deleted successfully',
+    };
+  }
+
+  @Post('transfer-fee-tiers/seed')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Seed default transfer fee tiers',
+    description: 'Create default transfer fee tiers (₦100-₦9,999: ₦5, ₦10,000-₦50,000: ₦15, ₦51,000+: ₦25)',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Default transfer fee tiers seeded successfully',
+  })
+  async seedDefaultTransferFeeTiers(): Promise<{ success: boolean; message: string }> {
+    await this.adminService.seedDefaultTransferFeeTiers();
+    return {
+      success: true,
+      message: 'Default transfer fee tiers seeded successfully',
+    };
+  }
+
+  @Post('transfer-fee-tiers/calculate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Calculate transfer fee for amount',
+    description: 'Calculate the transfer fee based on amount and tier structure',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', example: 5000, description: 'Transfer amount' },
+        provider: { type: 'string', example: 'BUDPAY', description: 'Provider (optional)' },
+      },
+      required: ['amount'],
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transfer fee calculated successfully',
+  })
+  async calculateTransferFee(
+    @Body() body: { amount: number; provider?: string },
+  ): Promise<{
+    success: boolean;
+    amount: number;
+    fee: number;
+    totalAmount: number;
+    tier?: TransferFeeTierResponse;
+  }> {
+    const result = await this.adminService.calculateTransferFeeFromTiers(body.amount, body.provider);
+    return {
+      success: true,
+      amount: body.amount,
+      fee: result.fee,
+      totalAmount: body.amount + result.fee,
+      tier: result.tier,
     };
   }
 

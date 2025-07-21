@@ -63,6 +63,25 @@ export class AccountsService {
     { name: 'ALAT', code: '035A' },
   ];
 
+  // List of commercial banks to try after digital banks
+  private readonly COMMERCIAL_BANKS = [
+    { name: 'GTBank', code: '058' },
+    { name: 'Zenith Bank', code: '057' },
+    { name: 'Access Bank', code: '044' },
+    { name: 'First Bank', code: '011' },
+    { name: 'UBA', code: '033' },
+    { name: 'Stanbic IBTC', code: '221' },
+    { name: 'Ecobank', code: '050' },
+    { name: 'Fidelity Bank', code: '070' },
+    { name: 'Union Bank', code: '032' },
+    { name: 'Wema Bank', code: '035' },
+    { name: 'Polaris Bank', code: '076' },
+    { name: 'Keystone Bank', code: '082' },
+    { name: 'Providus Bank', code: '101' },
+    { name: 'Sterling Bank', code: '232' },
+    { name: 'Unity Bank', code: '215' },
+  ];
+
   // NUBAN API configuration
   private readonly NUBAN_API_KEY = 'NUBAN-ODDOGOGF3226';
   private readonly NUBAN_BASE_URL = 'https://app.nuban.com.ng/api/NUBAN-ODDOGOGF3226';
@@ -147,42 +166,42 @@ export class AccountsService {
 
       let banks = banksResponse.banks;
 
-      // Prioritize digital banks first
+      // Prioritize digital and commercial banks
       const digitalBankCodes = this.DIGITAL_BANKS.map(b => b.code);
       const digitalBankNames = this.DIGITAL_BANKS.map(b => b.name.toLowerCase());
+      const commercialBankCodes = this.COMMERCIAL_BANKS.map(b => b.code);
+      const commercialBankNames = this.COMMERCIAL_BANKS.map(b => b.name.toLowerCase());
       const digitalBanks = banks.filter(
         b => digitalBankCodes.includes(b.code) || digitalBankNames.some(name => b.name.toLowerCase().includes(name))
       );
-      const otherBanks = banks.filter(
-        b => !digitalBankCodes.includes(b.code) && !digitalBankNames.some(name => b.name.toLowerCase().includes(name))
+      const commercialBanks = banks.filter(
+        b => commercialBankCodes.includes(b.code) || commercialBankNames.some(name => b.name.toLowerCase().includes(name))
       );
-      // Sort digital banks in preferred order
+      // Sort digital and commercial banks in preferred order
       digitalBanks.sort((a, b) => {
         const aIdx = digitalBankCodes.indexOf(a.code);
         const bIdx = digitalBankCodes.indexOf(b.code);
         return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
       });
-      banks = [...digitalBanks, ...otherBanks];
-      console.log(`🏦 [SUPER RESOLVE] Digital banks prioritized. Testing ${banks.length} banks from transfer provider...`);
+      commercialBanks.sort((a, b) => {
+        const aIdx = commercialBankCodes.indexOf(a.code);
+        const bIdx = commercialBankCodes.indexOf(b.code);
+        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+      });
 
-      // Create a promise that resolves when we find the first match
-      const findFirstMatch = async (): Promise<SuperResolveAccountResponseDto> => {
-        for (let i = 0; i < banks.length; i++) {
-          const bank = banks[i];
+      // Helper to try a list of banks and return on first match
+      const tryBanks = async (banksToTry: any[]): Promise<SuperResolveAccountResponseDto | null> => {
+        for (let i = 0; i < banksToTry.length; i++) {
+          const bank = banksToTry[i];
           const attemptNumber = i + 1;
-          
           try {
-            console.log(`🚀 [SUPER RESOLVE] Testing attempt ${attemptNumber}/${banks.length}: ${bank.name} (${bank.code})`);
-            
-            // Use transfer provider's account verification
+            console.log(`🚀 [SUPER RESOLVE] Testing attempt ${attemptNumber}/${banksToTry.length}: ${bank.name} (${bank.code})`);
             const verificationResponse = await this.transferProviderManager.verifyAccount({
               accountNumber,
               bankCode: bank.code,
             });
-
             if (verificationResponse.success && verificationResponse.data?.accountName) {
               console.log(`✅ [SUPER RESOLVE] SUCCESS! Found account in ${bank.name} (Attempt ${attemptNumber})`);
-              
               const result = {
                 success: true,
                 message: 'Account resolved successfully',
@@ -193,42 +212,35 @@ export class AccountsService {
                 banks_tested: attemptNumber,
                 execution_time: (Date.now() - startTime) / 1000,
               };
-
               console.log(`🛑 [SUPER RESOLVE] Stopping search after ${attemptNumber} attempts`);
               return result;
             } else {
               console.log(`❌ [SUPER RESOLVE] Not found in ${bank.name} (Attempt ${attemptNumber}): ${verificationResponse.message || 'Account not found'}`);
             }
-
           } catch (error) {
             console.error(`❌ [SUPER RESOLVE] Error testing ${bank.name} (Attempt ${attemptNumber}):`, error.message);
           }
         }
-
-        // If we get here, no match was found
-        const executionTime = (Date.now() - startTime) / 1000;
-        console.log('❌ [SUPER RESOLVE] NO MATCH FOUND');
-        console.log(`📊 [SUPER RESOLVE] Tested ${banks.length} banks in ${executionTime.toFixed(2)}s`);
-        
-        return {
-          success: false,
-          message: 'Account not found in any of the tested banks',
-          banks_tested: banks.length,
-          execution_time: executionTime,
-          error: 'Account number not found in available banks. Please try with a specific bank.',
-        };
+        return null;
       };
 
-      // Execute the search
-      const result = await findFirstMatch();
-      
-      if (result.success) {
-        console.log('✅ [SUPER RESOLVE] Resolution successful!');
-        console.log('📄 [SUPER RESOLVE] Final result:', JSON.stringify(result, null, 2));
-        console.log(`⚡ [SUPER RESOLVE] Completed in ${result.execution_time.toFixed(2)}s (${result.banks_tested} banks tested)`);
-      }
-      
-      return result;
+      // Try digital banks first
+      let result = await tryBanks(digitalBanks);
+      if (result) return result;
+      // If not found, try commercial banks
+      result = await tryBanks(commercialBanks);
+      if (result) return result;
+      // If not found in either, stop and return failure
+      const executionTime = (Date.now() - startTime) / 1000;
+      console.log('❌ [SUPER RESOLVE] NO MATCH FOUND in digital or commercial banks');
+      console.log(`📊 [SUPER RESOLVE] Tested ${digitalBanks.length + commercialBanks.length} banks in ${executionTime.toFixed(2)}s`);
+      return {
+        success: false,
+        message: 'Account not found in digital or commercial banks',
+        banks_tested: digitalBanks.length + commercialBanks.length,
+        execution_time: executionTime,
+        error: 'Account number not found in digital or commercial banks. Please try with a specific bank.',
+      };
 
     } catch (error) {
       console.error('🚨 [SUPER RESOLVE] Error in superResolveAccount:', error.message);

@@ -114,6 +114,129 @@ export class UpdateFeeConfigurationDto {
   isActive?: boolean;
 }
 
+// ==================== TRANSFER FEE TIERS DTOs ====================
+
+export class CreateTransferFeeTierDto {
+  @ApiProperty({ example: 'Small Transfer', description: 'Tier name' })
+  @IsNotEmpty()
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: 100, description: 'Minimum amount for this tier (inclusive)' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  minAmount: number;
+
+  @ApiPropertyOptional({ example: 9999, description: 'Maximum amount for this tier (inclusive), null for unlimited' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  maxAmount?: number;
+
+  @ApiProperty({ example: 5, description: 'Fixed fee amount for this tier' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  feeAmount: number;
+
+  @ApiPropertyOptional({ example: 'BUDPAY', description: 'Provider-specific tier (null for global)' })
+  @IsOptional()
+  @IsString()
+  provider?: string;
+
+  @ApiPropertyOptional({ example: 'Fee for small transfers', description: 'Tier description' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ example: true, description: 'Whether tier is active', default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class UpdateTransferFeeTierDto {
+  @ApiPropertyOptional({ example: 'Small Transfer', description: 'Tier name' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ example: 100, description: 'Minimum amount for this tier' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  minAmount?: number;
+
+  @ApiPropertyOptional({ example: 9999, description: 'Maximum amount for this tier' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  maxAmount?: number;
+
+  @ApiPropertyOptional({ example: 5, description: 'Fixed fee amount for this tier' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  feeAmount?: number;
+
+  @ApiPropertyOptional({ example: 'BUDPAY', description: 'Provider-specific tier' })
+  @IsOptional()
+  @IsString()
+  provider?: string;
+
+  @ApiPropertyOptional({ example: 'Fee for small transfers', description: 'Tier description' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ example: true, description: 'Whether tier is active' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class TransferFeeTierResponse {
+  @ApiProperty({ example: 'cuid123', description: 'Tier ID' })
+  id: string;
+
+  @ApiProperty({ example: 'Small Transfer', description: 'Tier name' })
+  name: string;
+
+  @ApiProperty({ example: 100, description: 'Minimum amount' })
+  minAmount: number;
+
+  @ApiProperty({ example: 9999, description: 'Maximum amount' })
+  maxAmount?: number;
+
+  @ApiProperty({ example: 5, description: 'Fee amount' })
+  feeAmount: number;
+
+  @ApiProperty({ example: 'BUDPAY', description: 'Provider' })
+  provider?: string;
+
+  @ApiProperty({ example: true, description: 'Is active' })
+  isActive: boolean;
+
+  @ApiProperty({ example: 'Fee for small transfers', description: 'Description' })
+  description?: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Created at' })
+  createdAt: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Updated at' })
+  updatedAt: string;
+}
+
+export class GetTransferFeeTiersResponse {
+  @ApiProperty({ example: true, description: 'Success status' })
+  success: boolean;
+
+  @ApiProperty({ type: [TransferFeeTierResponse], description: 'Fee tiers' })
+  tiers: TransferFeeTierResponse[];
+
+  @ApiProperty({ example: 3, description: 'Total count' })
+  total: number;
+}
+
 export class FeeConfigurationResponse {
   @ApiProperty({ example: 'cuid123', description: 'Fee configuration ID' })
   id: string;
