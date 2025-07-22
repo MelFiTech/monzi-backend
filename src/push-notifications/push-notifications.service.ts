@@ -1068,7 +1068,7 @@ export class PushNotificationsService {
 
       return this.sendPushNotificationToUser(userId, {
         title: '💰 Wallet Funded',
-        body: `₦${amount.toLocaleString()} received via ${provider}. Net: ₦${netAmount.toLocaleString()}`,
+        body: `Your wallet has been funded with ₦${amount.toLocaleString()}`,
         data: {
           type: 'funding',
           amount,

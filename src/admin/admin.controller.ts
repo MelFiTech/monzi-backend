@@ -12,6 +12,7 @@ import {
   Query,
   UseGuards,
   Request,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -162,24 +163,42 @@ export class AdminController {
     status: HttpStatus.NOT_FOUND,
     description: 'Fee configuration not found',
   })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid fee type',
+  })
   async getFeeByType(
-    @Param('type') type: FeeType,
-  ): Promise<FeeConfigurationResponse | null> {
+    @Param('type') type: string,
+  ): Promise<FeeConfigurationResponse> {
     console.log(
       '🔍 [ADMIN API] GET /admin/fees/:type - Retrieving fee for type:',
       type,
     );
+
+    // Validate fee type first
+    const validFeeTypes = Object.values(FeeType);
+    if (!validFeeTypes.includes(type as FeeType)) {
+      console.log(
+        '❌ [ADMIN API] Invalid fee type:',
+        type,
+        'Valid types:',
+        validFeeTypes,
+      );
+      throw new BadRequestException(
+        `Invalid fee type: ${type}. Valid types are: ${validFeeTypes.join(', ')}`
+      );
+    }
 
     const result = await this.adminService.getFeeByType(type);
 
     if (result) {
       console.log('✅ [ADMIN API] Fee configuration found for type:', type);
       console.log('📄 Response Data:', result);
+      return result;
     } else {
       console.log('⚠️ [ADMIN API] No fee configuration found for type:', type);
+      throw new NotFoundException(`No fee configuration found for type: ${type}`);
     }
-
-    return result;
   }
 
   @Delete('fees/:type')
@@ -1055,6 +1074,24 @@ export class AdminController {
         GENERIC: fees.find((f) => f.feeType === FeeType.TRANSFER) || null,
       },
     };
+  }
+
+  @Get('transfer-fees/stats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get transfer fee stats over time',
+    description: 'Retrieve total transfer fees grouped by period (daily, weekly, monthly, yearly, all)',
+  })
+  @ApiQuery({ name: 'period', required: false, type: String, enum: ['daily', 'weekly', 'monthly', 'yearly', 'all'], example: 'daily' })
+  @ApiQuery({ name: 'from', required: false, type: String, description: 'Start date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'to', required: false, type: String, description: 'End date (YYYY-MM-DD)' })
+  async getTransferFeeStats(
+    @Query('period') period?: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'all',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.adminService.getTransferFeeStats(period, from, to);
   }
 
   @Get('transfer-fees/:provider')

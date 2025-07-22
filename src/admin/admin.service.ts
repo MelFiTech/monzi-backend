@@ -66,6 +66,7 @@ import { PushNotificationsService } from '../push-notifications/push-notificatio
 import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 import axios from 'axios';
+import { subDays, startOfDay, startOfWeek, startOfMonth, startOfYear, format } from 'date-fns';
 
 @Injectable()
 export class AdminService {
@@ -2723,13 +2724,12 @@ export class AdminService {
       if (this.pushNotificationsService) {
         try {
           await this.pushNotificationsService.sendPushNotificationToUser(user.id, {
-            title: 'Wallet Funded',
-            body: `₦${dto.amount.toLocaleString()} has been added to your wallet. Your new balance is ₦${result.updatedWallet.balance.toLocaleString()}.`,
+            title: 'Money Added',
+            body: `₦${dto.amount.toLocaleString()} has been added to your wallet.`,
             data: {
               type: 'funding',
               amount: dto.amount,
               reference,
-              newBalance: result.updatedWallet.balance,
             },
             priority: 'high',
           });
@@ -2906,13 +2906,12 @@ export class AdminService {
       if (this.pushNotificationsService) {
         try {
           await this.pushNotificationsService.sendPushNotificationToUser(user.id, {
-            title: 'Wallet Debited',
-            body: `₦${dto.amount.toLocaleString()} has been debited from your wallet. Your new balance is ₦${result.updatedWallet.balance.toLocaleString()}.`,
+            title: 'Money Debited',
+            body: `₦${dto.amount.toLocaleString()} has been debited from your wallet.`,
             data: {
               type: 'withdrawal',
               amount: dto.amount,
               reference,
-              newBalance: result.updatedWallet.balance,
             },
             priority: 'high',
           });
@@ -4578,6 +4577,58 @@ export class AdminService {
       console.error('❌ [ADMIN SERVICE] Failed to calculate transfer fee:', error);
       return { fee: 0 };
     }
+  }
+
+  /**
+   * Get transfer fee stats grouped by period
+   */
+  async getTransferFeeStats(period: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'all' = 'daily', from?: string, to?: string) {
+    // Build date range
+    let startDate: Date | undefined = from ? new Date(from) : undefined;
+    let endDate: Date | undefined = to ? new Date(to) : undefined;
+    const where: any = { type: 'TRANSFER' };
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = startDate;
+      if (endDate) where.createdAt.lte = endDate;
+    }
+
+    // Helper to format date keys
+    const formatKey = (date: Date) => {
+      switch (period) {
+        case 'yearly': return format(date, 'yyyy');
+        case 'monthly': return format(date, 'yyyy-MM');
+        case 'weekly': return format(date, "yyyy-'W'II");
+        default: return format(date, 'yyyy-MM-dd');
+      }
+    };
+
+    // Fetch all relevant transactions (for flexibility in grouping)
+    const txs = await this.prisma.walletTransaction.findMany({
+      where,
+      select: { fee: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Group and sum fees
+    const stats: Record<string, number> = {};
+    for (const tx of txs) {
+      let key = 'all';
+      if (period !== 'all') {
+        key = formatKey(tx.createdAt);
+      }
+      stats[key] = (stats[key] || 0) + (tx.fee || 0);
+    }
+
+    // Convert to array for API response
+    const data = Object.entries(stats).map(([date, totalFee]) => ({ date, totalFee }));
+    data.sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      success: true,
+      period,
+      data,
+    };
   }
 }
 

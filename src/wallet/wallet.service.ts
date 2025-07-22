@@ -801,13 +801,12 @@ export class WalletService {
       if (this.pushNotificationsService) {
         try {
           await this.pushNotificationsService.sendPushNotificationToUser(userId, {
-            title: '💸 Transfer Completed',
-            body: `₦${transferDto.amount.toLocaleString()} transferred to ${transferDto.accountName}. New balance: ₦${updatedWallet.balance.toLocaleString()}.`,
+            title: '🚀 Transfer Successful',
+            body: `You sent ₦${transferDto.amount.toLocaleString()} to ${transferDto.accountName}`,
             data: {
               type: 'withdrawal',
               amount: transferDto.amount,
               fee: fee,
-              newBalance: updatedWallet.balance,
               reference,
               recipientName: transferDto.accountName,
               recipientAccount: transferDto.accountNumber,
