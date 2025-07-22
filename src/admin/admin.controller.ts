@@ -2550,4 +2550,107 @@ export class AdminController {
 
     return result;
   }
+
+  // ==================== NYRA MIGRATION ENDPOINTS ====================
+
+  @Post('migrate-to-nyra')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN)
+  @ApiOperation({
+    summary: 'Migrate existing users to NYRA accounts',
+    description: 'Creates NYRA accounts for existing users while keeping their original accounts as backup funding sources. Supports dry-run mode for testing.',
+  })
+  @ApiQuery({
+    name: 'dryRun',
+    required: false,
+    type: Boolean,
+    description: 'Run in dry-run mode without making actual changes',
+    example: true,
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    type: String,
+    description: 'Migrate specific user by ID (optional)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Limit number of users to process (default: 100)',
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Migration completed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Migration completed: 15/20 users migrated successfully' },
+        totalUsers: { type: 'number', example: 20 },
+        processedUsers: { type: 'number', example: 20 },
+        successfulMigrations: { type: 'number', example: 15 },
+        failedMigrations: { type: 'number', example: 5 },
+        errors: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              userId: { type: 'string' },
+              email: { type: 'string' },
+              error: { type: 'string' },
+            },
+          },
+        },
+        results: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              userId: { type: 'string' },
+              email: { type: 'string' },
+              status: { type: 'string', enum: ['success', 'failed', 'skipped'] },
+              oldProvider: { type: 'string' },
+              oldAccountNumber: { type: 'string' },
+              nyraAccountNumber: { type: 'string' },
+              nyraAccountName: { type: 'string' },
+              nyraBankName: { type: 'string' },
+              error: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Migration failed',
+  })
+  async migrateUsersToNyra(
+    @Query('dryRun') dryRun?: boolean,
+    @Query('userId') userId?: string,
+    @Query('limit') limit?: number,
+  ) {
+    console.log('🔄 [ADMIN API] POST /admin/migrate-to-nyra - Request received');
+    console.log('⚙️ [ADMIN API] Options:', { dryRun, userId, limit });
+
+    const result = await this.adminService.migrateUsersToNyra({
+      dryRun: dryRun === true || (dryRun as any) === 'true',
+      userId,
+      limit: limit ? Number(limit) : undefined,
+    });
+
+    console.log('✅ [ADMIN API] Migration completed');
+    console.log('📄 [ADMIN API] Summary:', {
+      success: result.success,
+      total: result.totalUsers,
+      successful: result.successfulMigrations,
+      failed: result.failedMigrations,
+    });
+
+    return result;
+  }
+
+  // ==================== RESET AND MAINTENANCE ENDPOINTS ====================
 }

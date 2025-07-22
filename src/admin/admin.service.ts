@@ -4630,6 +4630,236 @@ export class AdminService {
       data,
     };
   }
+
+  // ==================== NYRA MIGRATION METHODS ====================
+
+  /**
+   * Migrate existing users to NYRA accounts
+   * Creates NYRA accounts for all existing users while keeping their original accounts as backup
+   */
+  async migrateUsersToNyra(options?: {
+    dryRun?: boolean;
+    userId?: string;
+    limit?: number;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    totalUsers: number;
+    processedUsers: number;
+    successfulMigrations: number;
+    failedMigrations: number;
+    errors: Array<{ userId: string; email: string; error: string }>;
+    results: Array<{
+      userId: string;
+      email: string;
+      status: 'success' | 'failed' | 'skipped';
+      oldProvider: string;
+      oldAccountNumber: string;
+      nyraAccountNumber?: string;
+      nyraAccountName?: string;
+      nyraBankName?: string;
+      error?: string;
+    }>;
+  }> {
+    console.log('🔄 [ADMIN SERVICE] Starting NYRA migration for existing users');
+    console.log('⚙️ [ADMIN SERVICE] Options:', options);
+
+    const dryRun = options?.dryRun || false;
+    const targetUserId = options?.userId;
+    const limit = options?.limit || 100;
+
+    try {
+      // Build query for users to migrate
+      const whereClause: any = {
+        wallet: {
+          isNot: null, // Only users with existing wallets
+        },
+        kycStatus: 'APPROVED', // Only KYC approved users
+      };
+
+      if (targetUserId) {
+        whereClause.id = targetUserId;
+      }
+
+      // Get users that need migration
+      const users = await this.prisma.user.findMany({
+        where: whereClause,
+        include: {
+          wallet: true,
+        },
+        orderBy: { createdAt: 'asc' },
+        take: limit,
+      });
+
+      console.log(`🔍 [ADMIN SERVICE] Found ${users.length} users to migrate`);
+
+      const results = [];
+      const errors = [];
+      let processedUsers = 0;
+      let successfulMigrations = 0;
+      let failedMigrations = 0;
+
+      for (const user of users) {
+        processedUsers++;
+        console.log(`\n👤 [MIGRATION ${processedUsers}/${users.length}] Processing user: ${user.email}`);
+
+        try {
+          // Skip if user already has NYRA account
+          const currentMetadata = user.wallet.metadata as any || {};
+          if (currentMetadata.nyraAccount) {
+            console.log('⏭️ [MIGRATION] User already has NYRA account, skipping');
+            results.push({
+              userId: user.id,
+              email: user.email,
+              status: 'skipped',
+              oldProvider: user.wallet.provider || 'UNKNOWN',
+              oldAccountNumber: user.wallet.virtualAccountNumber || 'N/A',
+            });
+            continue;
+          }
+
+          if (dryRun) {
+            console.log('🧪 [MIGRATION] DRY RUN - Would create NYRA account for:', user.email);
+            results.push({
+              userId: user.id,
+              email: user.email,
+              status: 'success',
+              oldProvider: user.wallet.provider || 'UNKNOWN',
+              oldAccountNumber: user.wallet.virtualAccountNumber || 'N/A',
+              nyraAccountNumber: 'DRY_RUN_ACCOUNT',
+              nyraAccountName: `${user.firstName} ${user.lastName}`,
+              nyraBankName: 'DRY_RUN_BANK',
+            });
+            successfulMigrations++;
+            continue;
+          }
+
+          // Create NYRA account for this user
+          const nyraProvider = await this.providerManager.getWalletProvider('NYRA' as any);
+          
+          const nyraResult = await nyraProvider.createWallet({
+            firstName: user.firstName || 'User',
+            lastName: user.lastName || 'User',
+            email: user.email,
+            phoneNumber: user.phone,
+            dateOfBirth: user.dateOfBirth?.toISOString().split('T')[0] || '1990-01-01',
+            gender: (user.gender as 'M' | 'F') || 'M',
+            address: 'Lagos, Nigeria',
+            city: 'Lagos',
+            state: 'Lagos State',
+            country: 'Nigeria',
+            bvn: user.bvn,
+            accountName: `${user.firstName || 'User'} ${user.lastName || 'User'}`,
+          });
+
+          if (!nyraResult.success) {
+            throw new Error(nyraResult.error || 'Failed to create NYRA account');
+          }
+
+          // Store old account info and new NYRA account info in metadata
+          const updatedMetadata = {
+            ...currentMetadata,
+            // Store original account as backup
+            originalAccount: {
+              provider: user.wallet.provider,
+              accountNumber: user.wallet.virtualAccountNumber,
+              customerId: user.wallet.providerId,
+              accountName: user.wallet.providerAccountName,
+              bankName: user.wallet.bankName,
+            },
+            // Store NYRA account info
+            nyraAccount: {
+              accountNumber: nyraResult.data.accountNumber,
+              customerId: nyraResult.data.customerId,
+              accountName: nyraResult.data.accountName,
+              bankName: nyraResult.data.bankName,
+              bankCode: nyraResult.data.bankCode,
+              status: nyraResult.data.status,
+            },
+            migratedAt: new Date().toISOString(),
+          };
+
+          // Update wallet to prioritize NYRA
+          await this.prisma.wallet.update({
+            where: { id: user.wallet.id },
+            data: {
+              // Update primary fields to NYRA
+              virtualAccountNumber: nyraResult.data.accountNumber,
+              providerId: nyraResult.data.customerId,
+              providerAccountName: nyraResult.data.accountName,
+              provider: 'NYRA',
+              bankName: nyraResult.data.bankName,
+              metadata: updatedMetadata,
+              updatedAt: new Date(),
+            },
+          });
+
+          console.log('✅ [MIGRATION] Successfully migrated user to NYRA');
+          console.log('🏦 [MIGRATION] NYRA Account:', nyraResult.data.accountNumber);
+
+          results.push({
+            userId: user.id,
+            email: user.email,
+            status: 'success',
+            oldProvider: currentMetadata.originalAccount?.provider || user.wallet.provider || 'UNKNOWN',
+            oldAccountNumber: currentMetadata.originalAccount?.accountNumber || 'N/A',
+            nyraAccountNumber: nyraResult.data.accountNumber,
+            nyraAccountName: nyraResult.data.accountName,
+            nyraBankName: nyraResult.data.bankName,
+          });
+
+          successfulMigrations++;
+
+        } catch (error) {
+          console.error(`❌ [MIGRATION] Failed to migrate user ${user.email}:`, error.message);
+          
+          errors.push({
+            userId: user.id,
+            email: user.email,
+            error: error.message,
+          });
+
+          results.push({
+            userId: user.id,
+            email: user.email,
+            status: 'failed',
+            oldProvider: user.wallet?.provider || 'UNKNOWN',
+            oldAccountNumber: user.wallet?.virtualAccountNumber || 'N/A',
+            error: error.message,
+          });
+
+          failedMigrations++;
+        }
+
+        // Add small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      const summary = {
+        success: true,
+        message: dryRun 
+          ? `Dry run completed: ${successfulMigrations}/${processedUsers} users would be migrated successfully`
+          : `Migration completed: ${successfulMigrations}/${processedUsers} users migrated successfully`,
+        totalUsers: users.length,
+        processedUsers,
+        successfulMigrations,
+        failedMigrations,
+        errors,
+        results,
+      };
+
+      console.log('📊 [ADMIN SERVICE] NYRA Migration Summary:');
+      console.log('✅ [ADMIN SERVICE] Successful migrations:', successfulMigrations);
+      console.log('❌ [ADMIN SERVICE] Failed migrations:', failedMigrations);
+      console.log('⏭️ [ADMIN SERVICE] Skipped users:', results.filter(r => r.status === 'skipped').length);
+
+      return summary;
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error during NYRA migration:', error);
+      throw new BadRequestException('Failed to migrate users to NYRA: ' + error.message);
+    }
+  }
 }
 
 

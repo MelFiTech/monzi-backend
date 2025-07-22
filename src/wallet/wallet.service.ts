@@ -247,6 +247,7 @@ export class WalletService {
 
   /**
    * Get wallet details with automatic recovery for verified users
+   * Prioritizes NYRA account details while keeping original accounts as backup
    */
   async getWalletDetailsWithRecovery(userId: string): Promise<any> {
     console.log('💳 [WALLET DETAILS] Getting wallet details for user:', userId);
@@ -271,49 +272,130 @@ export class WalletService {
 
       console.log('✅ [WALLET DETAILS] Wallet details retrieved successfully');
 
-      // If it's a Nyra wallet, fetch fresh bank information from the provider (with rate limiting protection)
-      let bankName = wallet.bankName;
-      if (wallet.provider === 'NYRA' && wallet.virtualAccountNumber) {
-        try {
-          // Only fetch fresh bank info if the stored bank name is missing or outdated
-          if (!bankName || bankName === 'Unknown Bank') {
-            console.log('🔄 [WALLET DETAILS] Fetching fresh bank info from Nyra API...');
+      // Check if user has been migrated to NYRA (stored in metadata)
+      const metadata = wallet.metadata as any || {};
+      let primaryAccountDetails;
+      let additionalAccounts = [];
+
+      if (metadata.nyraAccount) {
+        // User has been migrated - prioritize NYRA account
+        console.log('🏦 [WALLET DETAILS] User has NYRA account, prioritizing NYRA details');
+        
+        primaryAccountDetails = {
+          accountNumber: metadata.nyraAccount.accountNumber,
+          accountName: metadata.nyraAccount.accountName,
+          bankName: metadata.nyraAccount.bankName,
+          provider: 'NYRA',
+          bankCode: metadata.nyraAccount.bankCode,
+        };
+
+        // Add original account as additional funding source
+        if (metadata.originalAccount) {
+          additionalAccounts.push({
+            provider: metadata.originalAccount.provider,
+            accountNumber: metadata.originalAccount.accountNumber,
+            accountName: metadata.originalAccount.accountName,
+            bankName: metadata.originalAccount.bankName,
+            status: 'backup_funding_source',
+          });
+        }
+
+        // Try to get fresh bank info for NYRA if needed
+        let bankName = primaryAccountDetails.bankName;
+        if (!bankName || bankName === 'Unknown Bank') {
+          try {
+            console.log('🔄 [WALLET DETAILS] Fetching fresh NYRA bank info...');
             const nyraProvider = await this.providerManager.getWalletProvider(WalletProvider.NYRA);
             if (nyraProvider && 'getWalletDetails' in nyraProvider) {
-              const freshDetails = await (nyraProvider as any).getWalletDetails(wallet.virtualAccountNumber);
+              const freshDetails = await (nyraProvider as any).getWalletDetails(primaryAccountDetails.accountNumber);
               if (freshDetails.success && freshDetails.data) {
                 bankName = freshDetails.data.bankName;
-                console.log('✅ [WALLET DETAILS] Updated bank name from Nyra API:', bankName);
+                console.log('✅ [WALLET DETAILS] Updated NYRA bank name:', bankName);
                 
-                // Update the stored bank name in the database
+                // Update metadata with fresh bank name
+                const updatedMetadata = {
+                  ...metadata,
+                  nyraAccount: {
+                    ...metadata.nyraAccount,
+                    bankName: bankName,
+                  },
+                };
                 await this.prisma.wallet.update({
                   where: { id: wallet.id },
-                  data: { bankName: bankName },
+                  data: { 
+                    bankName: bankName,
+                    metadata: updatedMetadata,
+                  },
                 });
+                primaryAccountDetails.bankName = bankName;
               }
             }
-          } else {
-            console.log('✅ [WALLET DETAILS] Using cached bank name:', bankName);
+          } catch (error) {
+            console.log('⚠️ [WALLET DETAILS] Could not fetch fresh NYRA bank info:', error.message);
           }
-        } catch (error) {
-          console.log('⚠️ [WALLET DETAILS] Could not fetch fresh bank info, using stored value:', error.message);
-          // Don't fail the request if bank info fetch fails
+        }
+
+      } else {
+        // User not migrated yet - use current account details
+        console.log('🏦 [WALLET DETAILS] User not migrated, using current account details');
+        
+        primaryAccountDetails = {
+          accountNumber: wallet.virtualAccountNumber,
+          accountName: wallet.providerAccountName,
+          bankName: wallet.bankName,
+          provider: wallet.provider,
+        };
+
+        // Try to fetch fresh bank info if it's a NYRA wallet
+        if (wallet.provider === 'NYRA' && wallet.virtualAccountNumber) {
+          let bankName = wallet.bankName;
+          if (!bankName || bankName === 'Unknown Bank') {
+            try {
+              console.log('🔄 [WALLET DETAILS] Fetching fresh bank info from Nyra API...');
+              const nyraProvider = await this.providerManager.getWalletProvider(WalletProvider.NYRA);
+              if (nyraProvider && 'getWalletDetails' in nyraProvider) {
+                const freshDetails = await (nyraProvider as any).getWalletDetails(wallet.virtualAccountNumber);
+                if (freshDetails.success && freshDetails.data) {
+                  bankName = freshDetails.data.bankName;
+                  console.log('✅ [WALLET DETAILS] Updated bank name from Nyra API:', bankName);
+                  
+                  await this.prisma.wallet.update({
+                    where: { id: wallet.id },
+                    data: { bankName: bankName },
+                  });
+                  primaryAccountDetails.bankName = bankName;
+                }
+              }
+            } catch (error) {
+              console.log('⚠️ [WALLET DETAILS] Could not fetch fresh bank info:', error.message);
+            }
+          }
         }
       }
 
       return {
         id: wallet.id,
         balance: wallet.balance,
-        accountNumber: wallet.virtualAccountNumber,
-        accountName: wallet.providerAccountName,
-        bankName: bankName,
-        provider: wallet.provider,
         currency: wallet.currency,
         status: 'active',
         createdAt: wallet.createdAt.toISOString(),
         isActive: wallet.isActive,
-        virtualAccountNumber: wallet.virtualAccountNumber,
-        providerAccountName: wallet.providerAccountName,
+        
+        // Primary account details (NYRA if migrated, otherwise current)
+        accountNumber: primaryAccountDetails.accountNumber,
+        accountName: primaryAccountDetails.accountName,
+        bankName: primaryAccountDetails.bankName,
+        provider: primaryAccountDetails.provider,
+        virtualAccountNumber: primaryAccountDetails.accountNumber,
+        providerAccountName: primaryAccountDetails.accountName,
+        bankCode: primaryAccountDetails.bankCode,
+        
+        // Additional funding sources
+        additionalAccounts,
+        
+        // Migration info
+        isMigrated: !!metadata.nyraAccount,
+        migratedAt: metadata.migratedAt,
       };
     } catch (error) {
       console.error('❌ [WALLET DETAILS] Error getting wallet details:', error);

@@ -62,6 +62,7 @@ model Wallet {
   dailyLimit           Float               @default(100000)
   monthlyLimit         Float               @default(1000000)
   lastTransactionAt    DateTime?
+  metadata             Json?               // For storing additional account info and migration data
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   receivedTransactions WalletTransaction[] @relation("ReceiverWallet")

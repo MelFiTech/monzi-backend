@@ -712,22 +712,33 @@ export class WebhooksService {
     this.logger.log(`📋 [NYRA] Event: ${event}`);
     this.logger.log(`📋 [NYRA] Data keys: ${Object.keys(data).join(', ')}`);
 
+    // Handle nested data structure - NYRA webhooks have data.data
+    const actualData = data.data || data;
+    this.logger.log(`📋 [NYRA] Actual data keys: ${Object.keys(actualData).join(', ')}`);
+    this.logger.log(`💰 [NYRA] Extracted amount: ${(actualData as any).amount}`);
+    this.logger.log(`🏦 [NYRA] Extracted account: ${(actualData as any).account_number}`);
+
     return {
       provider: WebhookProvider.NYRA,
       eventType: this.mapNyraEvent(event),
-      transactionReference: data.reference || '',
-      accountNumber: data.account_number,
-      accountName: data.owners_fullname,
-      amount: data.amount,
-      currency: data.currency || 'NGN',
-      status: data.status,
-      description: data.description || `${event} - ${data.reference}`,
+      transactionReference: (actualData as any).reference || '',
+      accountNumber: (actualData as any).account_number,
+      accountName: (actualData as any).credit_account_name || (actualData as any).owners_fullname,
+      amount: (actualData as any).amount,
+      currency: (actualData as any).currency || 'NGN',
+      status: (actualData as any).status,
+      description: (actualData as any).narration || (actualData as any).description || `${event} - ${(actualData as any).reference}`,
       metadata: {
-        ...data.metadata,
-        wallet_id: data.wallet_id,
-        transaction_type: data.transaction_type,
+        ...(actualData as any).metadata,
+        wallet_id: (actualData as any).wallet_id,
+        transaction_type: (actualData as any).transaction_type,
+        sender_name: (actualData as any).sender_name,
+        sender_account_number: (actualData as any).sender_account_number,
+        sender_bank: (actualData as any).sender_bank,
+        business_id: (actualData as any).business_id,
+        transaction_date: (actualData as any).transaction_date,
       },
-      timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+      timestamp: (actualData as any).timestamp ? new Date((actualData as any).timestamp) : new Date(),
       rawPayload: payload,
     };
   }

@@ -162,16 +162,45 @@ export interface PolarisWebhookPayload extends BaseWebhookPayload {
 export interface NyraWebhookPayload extends BaseWebhookPayload {
   event: string;
   data: {
+    // NYRA webhooks have nested data structure
+    data?: {
+      wallet_id?: string;
+      account_number?: string;
+      owners_fullname?: string;
+      credit_account_name?: string;
+      amount?: number;
+      currency?: string;
+      status?: string;
+      transaction_type?: string; // 'credit' | 'debit'
+      reference?: string;
+      description?: string;
+      narration?: string;
+      timestamp?: string;
+      transaction_date?: string;
+      sender_name?: string;
+      sender_account_number?: string;
+      sender_bank?: string;
+      business_id?: string;
+      metadata?: any;
+    };
+    // Also support flat structure for backwards compatibility
     wallet_id?: string;
     account_number?: string;
     owners_fullname?: string;
+    credit_account_name?: string;
     amount?: number;
     currency?: string;
     status?: string;
-    transaction_type?: string; // 'credit' | 'debit'
+    transaction_type?: string;
     reference?: string;
     description?: string;
+    narration?: string;
     timestamp?: string;
+    transaction_date?: string;
+    sender_name?: string;
+    sender_account_number?: string;
+    sender_bank?: string;
+    business_id?: string;
     metadata?: any;
   };
 }
