@@ -65,6 +65,7 @@ import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
+import axios from 'axios';
 
 @Injectable()
 export class AdminService {
@@ -4038,7 +4039,6 @@ export class AdminService {
 
       // For NYRA provider, get business wallet details
       if (targetProvider === 'NYRA') {
-        const businessId = '2c0a64ab4da2c10abfff0971'; // MONZI business ID
         const accountNumber = '9011188538'; // MONZI business account number
         
         // Get wallet balance from NYRA API
@@ -4059,7 +4059,7 @@ export class AdminService {
           success: true,
           message: 'Provider wallet details retrieved successfully',
           provider: targetProvider,
-          businessId: businessId,
+          businessId: 'N/A', // No business ID needed with client auth
           walletId: 'MONZI_BUSINESS_WALLET',
           accountNumber: accountNumber,
           ownersFullname: 'MONZI Business Account',
@@ -4095,6 +4095,70 @@ export class AdminService {
       }
       
       throw new BadRequestException('Failed to retrieve provider wallet details');
+    }
+  }
+
+  async getNyraBusinessWalletBalance(): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      businessId: string;
+      businessName: string;
+      balance: number;
+      formattedBalance: string;
+      currency: string;
+      lastUpdated: string;
+    };
+  }> {
+    console.log('🏦 [ADMIN SERVICE] Getting NYRA business wallet balance');
+
+    try {
+      // Make direct API call to NYRA business wallet balance endpoint
+      const axiosInstance = axios.create({
+        baseURL: this.configService.get<string>('NYRA_BASE_URL'),
+        timeout: 30000,
+      });
+
+      const response = await axiosInstance.get('/business/wallets/wallet_balance', {
+        headers: {
+          'x-client-id': this.configService.get<string>('NYRA_CLIENT_ID'),
+          'Authorization': `Bearer ${this.configService.get<string>('NYRA_CLIENT_SECRET')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error('Failed to retrieve NYRA business wallet balance');
+      }
+
+      const balance = parseFloat(response.data.data.balance);
+      const formattedBalance = new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency: 'NGN',
+      }).format(balance);
+
+      const result = {
+        success: true,
+        message: 'NYRA business wallet balance retrieved successfully',
+        data: {
+          businessId: response.data.data.businessId,
+          businessName: response.data.data.businessName,
+          balance: balance,
+          formattedBalance: formattedBalance,
+          currency: 'NGN',
+          lastUpdated: new Date().toISOString(),
+        },
+      };
+
+      console.log('✅ [ADMIN SERVICE] NYRA business wallet balance retrieved successfully');
+      console.log('📊 Balance:', formattedBalance);
+
+      return result;
+
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error getting NYRA business wallet balance:', error);
+      
+      throw new BadRequestException('Failed to retrieve NYRA business wallet balance');
     }
   }
 

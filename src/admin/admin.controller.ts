@@ -2422,6 +2422,55 @@ export class AdminController {
     return result;
   }
 
+  @Get('wallet/nyra-business-balance')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get NYRA Business Wallet Balance',
+    description: 'Retrieve the current balance of the NYRA business wallet',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'NYRA business wallet balance retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: {
+          type: 'object',
+          properties: {
+            businessId: { type: 'string' },
+            businessName: { type: 'string' },
+            balance: { type: 'number' },
+            formattedBalance: { type: 'string' },
+            currency: { type: 'string' },
+            lastUpdated: { type: 'string' }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Invalid or missing authentication token',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Forbidden - Insufficient permissions',
+  })
+  async getNyraBusinessWalletBalance() {
+    console.log('🏦 [ADMIN API] GET /admin/wallet/nyra-business-balance - Retrieving NYRA business wallet balance');
+
+    const result = await this.adminService.getNyraBusinessWalletBalance();
+
+    console.log('✅ [ADMIN API] NYRA business wallet balance retrieved successfully');
+    console.log('📄 Response Data:', result);
+
+    return result;
+  }
+
   @Get('webhooks/logs')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)

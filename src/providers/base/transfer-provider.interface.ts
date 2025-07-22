@@ -81,4 +81,5 @@ export enum TransferProvider {
   BUDPAY = 'BUDPAY',
   SMEPLUG = 'SMEPLUG',
   POLARIS = 'POLARIS',
+  NYRA = 'NYRA',
 }

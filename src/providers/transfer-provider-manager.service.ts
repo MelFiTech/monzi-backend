@@ -12,6 +12,7 @@ import {
 } from './base/transfer-provider.interface';
 import { BudPayTransferProvider } from './budpay/budpay-transfer.provider';
 import { SmePlugTransferProvider } from './smeplug/smeplug-transfer.provider';
+import { NyraTransferProvider } from './nyra/nyra-transfer.provider';
 
 @Injectable()
 export class TransferProviderManagerService {
@@ -24,6 +25,7 @@ export class TransferProviderManagerService {
     private prismaService: PrismaService,
     private budPayTransferProvider: BudPayTransferProvider,
     private smePlugTransferProvider: SmePlugTransferProvider,
+    private nyraTransferProvider: NyraTransferProvider,
   ) {
     this.initializeProviders();
   }
@@ -32,6 +34,7 @@ export class TransferProviderManagerService {
     // Register all available transfer providers
     this.providers.set(TransferProvider.BUDPAY, this.budPayTransferProvider);
     this.providers.set(TransferProvider.SMEPLUG, this.smePlugTransferProvider);
+    this.providers.set(TransferProvider.NYRA, this.nyraTransferProvider);
 
     this.logger.log(`Initialized ${this.providers.size} transfer providers`);
   }

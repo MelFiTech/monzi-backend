@@ -46,7 +46,7 @@ export class NyraWalletProvider implements IWalletProvider {
     this.logger.log('Nyra Wallet Provider initialized');
   }
 
-  private getAuthHeaders() {
+  private getAuthHeaders(): { [key: string]: string } {
     return {
       'x-client-id': this.clientId,
       'Authorization': `Bearer ${this.clientSecret}`,
@@ -57,7 +57,7 @@ export class NyraWalletProvider implements IWalletProvider {
   async isAvailable(): Promise<boolean> {
     try {
       // Test the connection by making a simple API call
-      const response = await this.axiosInstance.get('/business/1/2c0a64ab4da2c10abfff0971', {
+      const response = await this.axiosInstance.get('/business', {
         headers: this.getAuthHeaders(),
       });
       return response.status === 200;
@@ -70,8 +70,6 @@ export class NyraWalletProvider implements IWalletProvider {
   async createWallet(data: WalletCreationData): Promise<WalletCreationResult> {
     try {
       this.logger.log(`Creating wallet for user: ${data.email}`);
-
-      const businessId = '2c0a64ab4da2c10abfff0971'; // Your MONZI business ID
       
       const requestBody: any = {
         first_name: data.firstName,
@@ -95,7 +93,7 @@ export class NyraWalletProvider implements IWalletProvider {
         this.logger.log(`Including BVN in wallet creation for user: ${data.email}`);
       }
 
-      const response = await this.axiosInstance.post(`/business/${businessId}/wallets`, requestBody, {
+      const response = await this.axiosInstance.post('/business/wallets', requestBody, {
         headers: this.getAuthHeaders(),
       });
 
@@ -128,26 +126,32 @@ export class NyraWalletProvider implements IWalletProvider {
   async getWalletBalance(data: WalletBalanceData): Promise<WalletBalanceResult> {
     try {
       this.logger.log(`Getting balance for account: ${data.accountNumber}`);
-
-      const businessId = '2c0a64ab4da2c10abfff0971'; // Your MONZI business ID
       
-      // First get all wallets to find the one with matching account number
-      const walletsResponse = await this.axiosInstance.get(`/business/${businessId}/wallets/all`, {
+      // Get wallet balance by account number - first get all wallets to find the wallet ID
+      const allWalletsResponse = await this.axiosInstance.get('/business/wallets/all', {
         headers: this.getAuthHeaders(),
       });
 
-      const wallet = walletsResponse.data.data.find(w => w.account_number === data.accountNumber);
-      
+      // Find the wallet with matching account number
+      const wallet = allWalletsResponse.data.data.find(
+        (w: any) => w.account_number === data.accountNumber
+      );
+
       if (!wallet) {
-        throw new Error('Wallet not found');
+        throw new Error(`Wallet with account number ${data.accountNumber} not found`);
       }
+
+      // Get specific wallet details
+      const response = await this.axiosInstance.get(`/business/wallets/${wallet.wallet_id}`, {
+        headers: this.getAuthHeaders(),
+      });
 
       this.logger.log(`Balance retrieved successfully for account: ${data.accountNumber}`);
       return {
         success: true,
-        balance: wallet.balance,
+        balance: response.data.balance,
         currency: 'NGN',
-        accountNumber: wallet.account_number,
+        accountNumber: data.accountNumber,
       };
     } catch (error) {
       this.logger.error(`Failed to get balance for account ${data.accountNumber}:`, error.message);
@@ -175,30 +179,36 @@ export class NyraWalletProvider implements IWalletProvider {
   }> {
     try {
       this.logger.log(`Getting wallet details for account: ${accountNumber}`);
-
-      const businessId = '2c0a64ab4da2c10abfff0971'; // Your MONZI business ID
       
-      // Get all wallets to find the one with matching account number
-      const walletsResponse = await this.axiosInstance.get(`/business/${businessId}/wallets/all`, {
+      // Get wallet details by account number - first get all wallets to find the wallet ID
+      const allWalletsResponse = await this.axiosInstance.get('/business/wallets/all', {
         headers: this.getAuthHeaders(),
       });
 
-      const wallet = walletsResponse.data.data.find(w => w.account_number === accountNumber);
-      
+      // Find the wallet with matching account number
+      const wallet = allWalletsResponse.data.data.find(
+        (w: any) => w.account_number === accountNumber
+      );
+
       if (!wallet) {
-        throw new Error('Wallet not found');
+        throw new Error(`Wallet with account number ${accountNumber} not found`);
       }
+
+      // Get specific wallet details
+      const response = await this.axiosInstance.get(`/business/wallets/${wallet.wallet_id}`, {
+        headers: this.getAuthHeaders(),
+      });
 
       this.logger.log(`Wallet details retrieved successfully for account: ${accountNumber}`);
       return {
         success: true,
         data: {
-          accountNumber: wallet.account_number,
-          accountName: wallet.owners_fullname,
-          bankName: wallet.bank_name,
-          balance: parseFloat(wallet.balance),
-          status: wallet.frozen ? 'FROZEN' : 'ACTIVE',
-          providerReference: wallet.wallet_id,
+          accountNumber: response.data.account_number,
+          accountName: response.data.owners_fullname,
+          bankName: response.data.bank_name,
+          balance: parseFloat(response.data.balance),
+          status: response.data.frozen ? 'FROZEN' : 'ACTIVE',
+          providerReference: response.data.wallet_id,
         },
       };
     } catch (error: any) {

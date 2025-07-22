@@ -50,7 +50,7 @@ export class NyraTransferProvider implements TransferProviderInterface {
     this.logger.log('Nyra Transfer Provider initialized');
   }
 
-  private getAuthHeaders() {
+  private getAuthHeaders(): { [key: string]: string } {
     return {
       'x-client-id': this.clientId,
       'Authorization': `Bearer ${this.clientSecret}`,
@@ -61,7 +61,7 @@ export class NyraTransferProvider implements TransferProviderInterface {
   async isAvailable(): Promise<boolean> {
     try {
       // Test the connection by making a simple API call
-      const response = await this.axiosInstance.get('/business/1/2c0a64ab4da2c10abfff0971', {
+      const response = await this.axiosInstance.get('/business', {
         headers: this.getAuthHeaders(),
       });
       return response.status === 200;
