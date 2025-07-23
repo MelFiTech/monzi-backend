@@ -4451,34 +4451,36 @@ export class AdminService {
     }
   }
 
-  async seedDefaultTransferFeeTiers() {
+  async seedDefaultTransferFeeTiers(): Promise<{ success: boolean; message: string; data: any[] }> {
     console.log('🌱 [ADMIN SERVICE] Seeding default transfer fee tiers');
 
     const defaultTiers = [
       {
         name: 'Small Transfer',
-        minAmount: 100,
+        minAmount: 10,
         maxAmount: 9999,
-        feeAmount: 5,
-        description: 'Fee for transfers between ₦100 - ₦9,999',
+        feeAmount: 25,
+        description: 'Fee for transfers between ₦10 - ₦9,999',
       },
       {
         name: 'Medium Transfer',
         minAmount: 10000,
-        maxAmount: 50000,
-        feeAmount: 15,
-        description: 'Fee for transfers between ₦10,000 - ₦50,000',
+        maxAmount: 49999,
+        feeAmount: 50,
+        description: 'Fee for transfers between ₦10,000 - ₦49,999',
       },
       {
         name: 'Large Transfer',
-        minAmount: 51000,
+        minAmount: 50000,
         maxAmount: null,
-        feeAmount: 25,
-        description: 'Fee for transfers ₦51,000 and above',
+        feeAmount: 100,
+        description: 'Fee for transfers ₦50,000 and above',
       },
     ];
 
     try {
+      const createdTiers = [];
+      
       for (const tierData of defaultTiers) {
         const existing = await this.prisma.transferFeeTier.findFirst({
           where: {
@@ -4489,7 +4491,7 @@ export class AdminService {
         });
 
         if (!existing) {
-          await this.prisma.transferFeeTier.create({
+          const newTier = await this.prisma.transferFeeTier.create({
             data: {
               name: tierData.name,
               minAmount: tierData.minAmount,
@@ -4499,6 +4501,7 @@ export class AdminService {
               isActive: true,
             },
           });
+          createdTiers.push(newTier);
           console.log('✅ [ADMIN SERVICE] Created default tier:', tierData.name);
         } else {
           console.log('⚠️ [ADMIN SERVICE] Tier already exists:', tierData.name);
@@ -4506,25 +4509,37 @@ export class AdminService {
       }
 
       console.log('🌱 [ADMIN SERVICE] Default transfer fee tiers seeding completed');
+      
+      return {
+        success: true,
+        message: `Successfully seeded ${createdTiers.length} transfer fee tiers`,
+        data: createdTiers.map(tier => ({
+          id: tier.id,
+          name: tier.name,
+          minAmount: tier.minAmount,
+          maxAmount: tier.maxAmount,
+          feeAmount: tier.feeAmount,
+          description: tier.description,
+          isActive: tier.isActive,
+        })),
+      };
     } catch (error) {
       console.error('❌ [ADMIN SERVICE] Failed to seed default transfer fee tiers:', error);
       throw new BadRequestException(`Failed to seed default transfer fee tiers: ${error.message}`);
     }
   }
 
-  async calculateTransferFeeFromTiers(amount: number, provider?: string): Promise<{
+  async calculateTransferFeeFromTiers(amount: number): Promise<{
     fee: number;
     tier?: any;
   }> {
-    console.log('💰 [ADMIN SERVICE] Calculating transfer fee for amount:', amount, 'provider:', provider);
+    console.log('💰 [ADMIN SERVICE] Calculating transfer fee for amount:', amount, '(universal tiers only)');
 
     try {
-      // First try to find provider-specific tier
-      let tier = null;
-      if (provider) {
-        tier = await this.prisma.transferFeeTier.findFirst({
+      // Find the best matching tier for this amount (universal tiers only)
+      const tier = await this.prisma.transferFeeTier.findFirst({
           where: {
-            provider: provider.toUpperCase(),
+          provider: null, // Only universal tiers (not provider-specific)
             minAmount: { lte: amount },
             OR: [
               { maxAmount: null },
@@ -4532,25 +4547,8 @@ export class AdminService {
             ],
             isActive: true,
           },
-          orderBy: { minAmount: 'desc' },
-        });
-      }
-
-      // If no provider-specific tier found, try global tiers
-      if (!tier) {
-        tier = await this.prisma.transferFeeTier.findFirst({
-          where: {
-            provider: null,
-            minAmount: { lte: amount },
-            OR: [
-              { maxAmount: null },
-              { maxAmount: { gte: amount } },
-            ],
-            isActive: true,
-          },
-          orderBy: { minAmount: 'desc' },
-        });
-      }
+        orderBy: { minAmount: 'desc' }, // Get the highest minAmount that still fits
+      });
 
       if (tier) {
         console.log('✅ [ADMIN SERVICE] Found matching tier:', tier.name, 'Fee:', tier.feeAmount);
@@ -4562,7 +4560,6 @@ export class AdminService {
             minAmount: tier.minAmount,
             maxAmount: tier.maxAmount,
             feeAmount: tier.feeAmount,
-            provider: tier.provider,
             isActive: tier.isActive,
             description: tier.description,
             createdAt: tier.createdAt.toISOString(),

@@ -81,257 +81,7 @@ import { UserRole } from '../auth/roles.decorator';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  @Post('fees')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Set or update fee configuration',
-    description:
-      'Configure fees for different transaction types. Can set percentage-based or fixed amount fees with optional minimum and maximum limits.',
-  })
-  @ApiBody({ type: SetFeeDto })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Fee configuration created or updated successfully',
-    type: SetFeeResponse,
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid fee configuration data',
-  })
-  async setFee(
-    @Body(ValidationPipe) setFeeDto: SetFeeDto,
-  ): Promise<SetFeeResponse> {
-    console.log('⚙️ [ADMIN API] POST /admin/fees - Setting fee configuration');
-    console.log('📝 Request Data:', setFeeDto);
-
-    const result = await this.adminService.setFee(setFeeDto);
-
-    console.log('✅ [ADMIN API] Fee configuration set successfully');
-    console.log('📄 Response Data:', result);
-
-    return result;
-  }
-
-  @Get('fees')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Get all fee configurations',
-    description: 'Retrieve all configured fees for different transaction types',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Fee configurations retrieved successfully',
-    type: GetFeesResponse,
-  })
-  async getFees(): Promise<GetFeesResponse> {
-    console.log(
-      '📊 [ADMIN API] GET /admin/fees - Retrieving all fee configurations',
-    );
-
-    const result = await this.adminService.getFees();
-
-    console.log('✅ [ADMIN API] Fee configurations retrieved successfully');
-    console.log('📄 Response Data:', {
-      ...result,
-      fees: `${result.fees.length} fee configurations`,
-    });
-
-    return result;
-  }
-
-  @Get('fees/:type')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Get fee configuration by type',
-    description: 'Retrieve fee configuration for a specific transaction type',
-  })
-  @ApiParam({
-    name: 'type',
-    enum: FeeType,
-    description: 'Fee type to retrieve',
-    example: 'TRANSFER',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Fee configuration retrieved successfully',
-    type: FeeConfigurationResponse,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Fee configuration not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid fee type',
-  })
-  async getFeeByType(
-    @Param('type') type: string,
-  ): Promise<FeeConfigurationResponse> {
-    console.log(
-      '🔍 [ADMIN API] GET /admin/fees/:type - Retrieving fee for type:',
-      type,
-    );
-
-    // Validate fee type first
-    const validFeeTypes = Object.values(FeeType);
-    if (!validFeeTypes.includes(type as FeeType)) {
-      console.log(
-        '❌ [ADMIN API] Invalid fee type:',
-        type,
-        'Valid types:',
-        validFeeTypes,
-      );
-      throw new BadRequestException(
-        `Invalid fee type: ${type}. Valid types are: ${validFeeTypes.join(', ')}`
-      );
-    }
-
-    const result = await this.adminService.getFeeByType(type);
-
-    if (result) {
-      console.log('✅ [ADMIN API] Fee configuration found for type:', type);
-      console.log('📄 Response Data:', result);
-      return result;
-    } else {
-      console.log('⚠️ [ADMIN API] No fee configuration found for type:', type);
-      throw new NotFoundException(`No fee configuration found for type: ${type}`);
-    }
-  }
-
-  @Delete('fees/:type')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Delete fee configuration',
-    description: 'Remove fee configuration for a specific transaction type',
-  })
-  @ApiParam({
-    name: 'type',
-    enum: FeeType,
-    description: 'Fee type to delete',
-    example: 'TRANSFER',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Fee configuration deleted successfully',
-    type: DeleteFeeResponse,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Fee configuration not found',
-  })
-  async deleteFee(@Param('type') type: FeeType): Promise<DeleteFeeResponse> {
-    console.log(
-      '🗑️ [ADMIN API] DELETE /admin/fees/:type - Deleting fee for type:',
-      type,
-    );
-
-    const result = await this.adminService.deleteFee(type);
-
-    console.log('✅ [ADMIN API] Fee configuration deleted successfully');
-    console.log('📄 Response Data:', result);
-
-    return result;
-  }
-
-  @Post('fees/seed')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Seed default fee configurations',
-    description:
-      'Initialize the system with default fee configurations for common transaction types',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Default fee configurations seeded successfully',
-  })
-  async seedDefaultFees(): Promise<{ success: boolean; message: string }> {
-    console.log('🌱 [ADMIN API] POST /admin/fees/seed - Seeding default fees');
-
-    await this.adminService.seedDefaultFees();
-
-    console.log('✅ [ADMIN API] Default fees seeded successfully');
-
-    return {
-      success: true,
-      message: 'Default fee configurations seeded successfully',
-    };
-  }
-
-  @Post('fees/:type/calculate')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Calculate fee for amount',
-    description:
-      'Calculate the fee that would be charged for a specific amount and fee type',
-  })
-  @ApiParam({
-    name: 'type',
-    enum: FeeType,
-    description: 'Fee type to calculate',
-    example: 'TRANSFER',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        amount: {
-          type: 'number',
-          example: 1000,
-          description: 'Amount to calculate fee for',
-        },
-      },
-      required: ['amount'],
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Fee calculated successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: true },
-        amount: { type: 'number', example: 1000 },
-        fee: { type: 'number', example: 25 },
-        totalAmount: { type: 'number', example: 1025 },
-        feeType: { type: 'string', example: 'TRANSFER' },
-      },
-    },
-  })
-  async calculateFee(
-    @Param('type') type: FeeType,
-    @Body() body: { amount: number },
-  ): Promise<{
-    success: boolean;
-    amount: number;
-    fee: number;
-    totalAmount: number;
-    feeType: string;
-  }> {
-    console.log(
-      '🧮 [ADMIN API] POST /admin/fees/:type/calculate - Calculating fee',
-    );
-    console.log('📝 Type:', type, 'Amount:', body.amount);
-
-    const fee = await this.adminService.calculateFee(type, body.amount);
-    const totalAmount = body.amount + fee;
-
-    console.log('✅ [ADMIN API] Fee calculated successfully');
-    console.log('📄 Fee:', fee, 'Total:', totalAmount);
-
-    return {
-      success: true,
-      amount: body.amount,
-      fee,
-      totalAmount,
-      feeType: type,
-    };
-  }
+  // Removed legacy fee system - now using simplified tiered transfer fees only
 
   // ==================== KYC MANAGEMENT ENDPOINTS ====================
 
@@ -971,213 +721,18 @@ export class AdminController {
     return this.adminService.resetWalletByAccountNumber(accountNumber);
   }
 
-  // ==================== FEE CONFIGURATION ENDPOINTS ====================
+  // ==================== REMOVED COMPLEX FEE ENDPOINTS ====================
+  // All complex fee configuration endpoints removed
+  // Only simplified transfer fee tiers remain below
 
-  @Get('fee-configurations')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  async getFeeConfigurations() {
-    return this.adminService.getFeeConfigurations();
-  }
-
-  @Get('fee-configurations/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  async getFeeConfiguration(@Param('id') id: string) {
-    return this.adminService.getFeeConfiguration(id);
-  }
-
-  @Post('fee-configurations')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  async createFeeConfiguration(@Body() dto: CreateFeeConfigurationDto) {
-    return this.adminService.createFeeConfiguration(dto);
-  }
-
-  @Put('fee-configurations/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  async updateFeeConfiguration(
-    @Param('id') id: string,
-    @Body() dto: UpdateFeeConfigurationDto,
-  ) {
-    return this.adminService.updateFeeConfiguration(id, dto);
-  }
-
-  @Delete('fee-configurations/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  async deleteFeeConfiguration(@Param('id') id: string) {
-    return this.adminService.deleteFeeConfiguration(id);
-  }
-
-  // ==================== FUNDING FEES ENDPOINTS ====================
-
-  @Get('funding-fees')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  async getFundingFees() {
-    const fees = await this.adminService.getFundingFees();
-    return {
-      success: true,
-      message: 'Funding fees retrieved successfully',
-      data: fees,
-      providers: {
-        BUDPAY: fees.find((f) => f.feeType === FeeType.FUNDING_BUDPAY) || null,
-        SMEPLUG:
-          fees.find((f) => f.feeType === FeeType.FUNDING_SMEPLUG) || null,
-        POLARIS:
-          fees.find((f) => f.feeType === FeeType.FUNDING_POLARIS) || null,
-        NYRA: fees.find((f) => f.feeType === 'FUNDING_NYRA') || null,
-        GENERIC: fees.find((f) => f.feeType === FeeType.FUNDING) || null,
-      },
-    };
-  }
-
-  @Get('funding-fees/:provider')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  async getProviderFundingFee(@Param('provider') provider: string) {
-    const feeConfig = await this.adminService.getProviderFundingFee(provider);
-    return {
-      success: true,
-      message: `Funding fee for ${provider} retrieved successfully`,
-      data: feeConfig,
-      provider: provider.toUpperCase(),
-    };
-  }
-
-  // ==================== TRANSFER FEES ENDPOINTS ====================
+  // ==================== TRANSFER FEE TIERS (UNIVERSAL) ====================
 
   @Get('transfer-fees')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
-    summary: 'Get all transfer provider fees',
-    description: 'Retrieve transfer fee configurations for all providers',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Transfer fees retrieved successfully',
-  })
-  async getTransferProviderFees() {
-    const fees = await this.adminService.getTransferProviderFees();
-    return {
-      success: true,
-      message: 'Transfer fees retrieved successfully',
-      data: fees,
-      providers: {
-        BUDPAY: fees.find((f) => f.feeType === 'TRANSFER_BUDPAY') || null,
-        SMEPLUG: fees.find((f) => f.feeType === 'TRANSFER_SMEPLUG') || null,
-        POLARIS: fees.find((f) => f.feeType === 'TRANSFER_POLARIS') || null,
-        NYRA: fees.find((f) => f.feeType === 'TRANSFER_NYRA') || null,
-        GENERIC: fees.find((f) => f.feeType === FeeType.TRANSFER) || null,
-      },
-    };
-  }
-
-  @Get('transfer-fees/stats')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Get transfer fee stats over time',
-    description: 'Retrieve total transfer fees grouped by period (daily, weekly, monthly, yearly, all)',
-  })
-  @ApiQuery({ name: 'period', required: false, type: String, enum: ['daily', 'weekly', 'monthly', 'yearly', 'all'], example: 'daily' })
-  @ApiQuery({ name: 'from', required: false, type: String, description: 'Start date (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'to', required: false, type: String, description: 'End date (YYYY-MM-DD)' })
-  async getTransferFeeStats(
-    @Query('period') period?: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'all',
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-  ) {
-    return this.adminService.getTransferFeeStats(period, from, to);
-  }
-
-  @Get('transfer-fees/:provider')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Get transfer fee for specific provider',
-    description: 'Retrieve transfer fee configuration for a specific provider',
-  })
-  @ApiParam({
-    name: 'provider',
-    description: 'Provider name (BUDPAY, SMEPLUG, POLARIS, NYRA)',
-    example: 'BUDPAY',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Transfer fee retrieved successfully',
-  })
-  async getProviderTransferFee(@Param('provider') provider: string) {
-    const feeConfig = await this.adminService.getProviderTransferFee(provider);
-    return {
-      success: true,
-      message: `Transfer fee for ${provider} retrieved successfully`,
-      data: feeConfig,
-      provider: provider.toUpperCase(),
-    };
-  }
-
-  @Post('transfer-fees/:provider')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Set transfer fee for specific provider',
-    description: 'Create or update transfer fee configuration for a specific provider',
-  })
-  @ApiParam({
-    name: 'provider',
-    description: 'Provider name (BUDPAY, SMEPLUG, POLARIS, NYRA)',
-    example: 'BUDPAY',
-  })
-  @ApiBody({ type: CreateFeeConfigurationDto })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Transfer fee set successfully',
-  })
-  async setProviderTransferFee(
-    @Param('provider') provider: string,
-    @Body() dto: CreateFeeConfigurationDto,
-  ) {
-    const validProviders = ['BUDPAY', 'SMEPLUG', 'POLARIS', 'NYRA'];
-    const providerUpper = provider.toUpperCase();
-
-    if (!validProviders.includes(providerUpper)) {
-      throw new BadRequestException(
-        `Invalid provider. Must be one of: ${validProviders.join(', ')}`,
-      );
-    }
-
-    const result = await this.adminService.setProviderTransferFee(
-      providerUpper,
-      dto,
-    );
-
-    return {
-      success: true,
-      message: `Transfer fee for ${providerUpper} set successfully`,
-      data: result,
-      provider: providerUpper,
-      feeDetails: {
-        fixedAmount: result.fixedAmount,
-        percentage: result.percentage,
-        minAmount: result.minAmount,
-        maxAmount: result.maxAmount,
-        isActive: result.isActive,
-      },
-    };
-  }
-
-  // ==================== TRANSFER FEE TIERS ENDPOINTS ====================
-
-  @Get('transfer-fee-tiers')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
     summary: 'Get all transfer fee tiers',
-    description: 'Retrieve all transfer fee tiers with amount-based pricing',
+    description: 'Retrieve all transfer fee tiers with amount-based pricing (applies to all providers)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -1185,15 +740,19 @@ export class AdminController {
     type: GetTransferFeeTiersResponse,
   })
   async getTransferFeeTiers(): Promise<GetTransferFeeTiersResponse> {
-    return this.adminService.getTransferFeeTiers();
+    console.log('📊 [ADMIN API] GET /admin/transfer-fees - Retrieving transfer fee tiers');
+    const result = await this.adminService.getTransferFeeTiers();
+    console.log('✅ [ADMIN API] Transfer fee tiers retrieved successfully');
+    console.log('📄 Response Data:', { totalTiers: result.tiers.length });
+    return result;
   }
 
-  @Post('transfer-fee-tiers')
+  @Post('transfer-fees')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Create transfer fee tier',
-    description: 'Create a new transfer fee tier with amount range and fee',
+    description: 'Create a new transfer fee tier for amount-based pricing (applies to all providers)',
   })
   @ApiBody({ type: CreateTransferFeeTierDto })
   @ApiResponse({
@@ -1203,22 +762,23 @@ export class AdminController {
   })
   async createTransferFeeTier(
     @Body() dto: CreateTransferFeeTierDto,
-  ): Promise<{ success: boolean; data: TransferFeeTierResponse }> {
+  ): Promise<TransferFeeTierResponse> {
+    console.log('➕ [ADMIN API] POST /admin/transfer-fees - Creating transfer fee tier');
+    console.log('📝 Request Data:', dto);
     const result = await this.adminService.createTransferFeeTier(dto);
-    return {
-      success: true,
-      data: result,
-    };
+    console.log('✅ [ADMIN API] Transfer fee tier created successfully');
+    console.log('📄 Response Data:', result);
+    return result;
   }
 
-  @Put('transfer-fee-tiers/:id')
+  @Put('transfer-fees/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Update transfer fee tier',
     description: 'Update an existing transfer fee tier',
   })
-  @ApiParam({ name: 'id', description: 'Tier ID' })
+  @ApiParam({ name: 'id', description: 'Transfer fee tier ID' })
   @ApiBody({ type: UpdateTransferFeeTierDto })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -1228,68 +788,50 @@ export class AdminController {
   async updateTransferFeeTier(
     @Param('id') id: string,
     @Body() dto: UpdateTransferFeeTierDto,
-  ): Promise<{ success: boolean; data: TransferFeeTierResponse }> {
+  ): Promise<TransferFeeTierResponse> {
+    console.log('✏️ [ADMIN API] PUT /admin/transfer-fees/:id - Updating transfer fee tier');
+    console.log('📝 Tier ID:', id, 'Data:', dto);
     const result = await this.adminService.updateTransferFeeTier(id, dto);
-    return {
-      success: true,
-      data: result,
-    };
+    console.log('✅ [ADMIN API] Transfer fee tier updated successfully');
+    console.log('📄 Response Data:', result);
+    return result;
   }
 
-  @Delete('transfer-fee-tiers/:id')
+  @Delete('transfer-fees/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Delete transfer fee tier',
     description: 'Delete a transfer fee tier',
   })
-  @ApiParam({ name: 'id', description: 'Tier ID' })
+  @ApiParam({ name: 'id', description: 'Transfer fee tier ID' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Transfer fee tier deleted successfully',
   })
-  async deleteTransferFeeTier(
-    @Param('id') id: string,
-  ): Promise<{ success: boolean; message: string }> {
+  async deleteTransferFeeTier(@Param('id') id: string): Promise<{ success: boolean; message: string }> {
+    console.log('🗑️ [ADMIN API] DELETE /admin/transfer-fees/:id - Deleting transfer fee tier');
+    console.log('📝 Tier ID:', id);
     await this.adminService.deleteTransferFeeTier(id);
+    console.log('✅ [ADMIN API] Transfer fee tier deleted successfully');
     return {
       success: true,
-      message: 'Transfer fee tier deleted successfully',
+      message: 'Transfer fee tier deleted successfully'
     };
   }
 
-  @Post('transfer-fee-tiers/seed')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Seed default transfer fee tiers',
-    description: 'Create default transfer fee tiers (₦100-₦9,999: ₦5, ₦10,000-₦50,000: ₦15, ₦51,000+: ₦25)',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Default transfer fee tiers seeded successfully',
-  })
-  async seedDefaultTransferFeeTiers(): Promise<{ success: boolean; message: string }> {
-    await this.adminService.seedDefaultTransferFeeTiers();
-    return {
-      success: true,
-      message: 'Default transfer fee tiers seeded successfully',
-    };
-  }
-
-  @Post('transfer-fee-tiers/calculate')
+  @Post('transfer-fees/calculate')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Calculate transfer fee for amount',
-    description: 'Calculate the transfer fee based on amount and tier structure',
+    description: 'Calculate the transfer fee based on amount and tier structure (applies to all providers)',
   })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
         amount: { type: 'number', example: 5000, description: 'Transfer amount' },
-        provider: { type: 'string', example: 'BUDPAY', description: 'Provider (optional)' },
       },
       required: ['amount'],
     },
@@ -1299,7 +841,7 @@ export class AdminController {
     description: 'Transfer fee calculated successfully',
   })
   async calculateTransferFee(
-    @Body() body: { amount: number; provider?: string },
+    @Body() body: { amount: number },
   ): Promise<{
     success: boolean;
     amount: number;
@@ -1307,7 +849,11 @@ export class AdminController {
     totalAmount: number;
     tier?: TransferFeeTierResponse;
   }> {
-    const result = await this.adminService.calculateTransferFeeFromTiers(body.amount, body.provider);
+    console.log('🧮 [ADMIN API] POST /admin/transfer-fees/calculate - Calculating transfer fee');
+    console.log('📝 Amount:', body.amount);
+    const result = await this.adminService.calculateTransferFeeFromTiers(body.amount);
+    console.log('✅ [ADMIN API] Transfer fee calculated successfully');
+    console.log('📄 Fee:', result.fee, 'Total:', body.amount + result.fee);
     return {
       success: true,
       amount: body.amount,
@@ -1317,41 +863,25 @@ export class AdminController {
     };
   }
 
-  @Post('funding-fees/:provider')
+  @Post('transfer-fees/seed')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
-  async setProviderFundingFee(
-    @Param('provider') provider: string,
-    @Body() dto: CreateFeeConfigurationDto,
-  ) {
-    const validProviders = ['BUDPAY', 'SMEPLUG', 'POLARIS'];
-    const providerUpper = provider.toUpperCase();
-
-    if (!validProviders.includes(providerUpper)) {
-      throw new BadRequestException(
-        `Invalid provider. Must be one of: ${validProviders.join(', ')}`,
-      );
-    }
-
-    const result = await this.adminService.setProviderFundingFee(
-      providerUpper,
-      dto,
-    );
-
-    return {
-      success: true,
-      message: `Funding fee for ${providerUpper} set successfully`,
-      data: result,
-      provider: providerUpper,
-      feeDetails: {
-        fixedAmount: result.fixedAmount,
-        percentage: result.percentage,
-        minAmount: result.minAmount,
-        maxAmount: result.maxAmount,
-        isActive: result.isActive,
-      },
-    };
+  @ApiOperation({
+    summary: 'Seed default transfer fee tiers',
+    description: 'Create default universal transfer fee tiers (₦10-₦9,999: ₦25, ₦10,000-₦49,999: ₦50, ₦50,000+: ₦100)',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Default transfer fee tiers seeded successfully',
+  })
+  async seedDefaultTransferFeeTiers(): Promise<{ success: boolean; message: string; data: any[] }> {
+    console.log('🌱 [ADMIN API] POST /admin/transfer-fees/seed - Seeding default transfer fee tiers');
+    const result = await this.adminService.seedDefaultTransferFeeTiers();
+    console.log('✅ [ADMIN API] Default transfer fee tiers seeded successfully');
+    return result;
   }
+
+  // Removed provider-specific funding fees - only universal transfer fee tiers remain
 
   // ==================== USER MANAGEMENT ENDPOINTS ====================
 
