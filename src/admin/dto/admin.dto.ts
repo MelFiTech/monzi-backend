@@ -13,6 +13,7 @@ import {
   IsNotEmpty,
   Length,
   Matches,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -456,6 +457,31 @@ export class KycSubmissionDetailResponse {
     description: 'Full URL to access the selfie image',
   })
   selfieImageUrl?: string;
+
+  @ApiProperty({
+    description: 'BVN provider response data',
+    required: false,
+  })
+  bvnProviderResponse?: any;
+
+  @ApiProperty({
+    example: 'https://res.cloudinary.com/example/image/upload/kyc/bvn/user123',
+    description: 'Cloudinary URL for BVN image from Identity Pass',
+    required: false,
+  })
+  bvnCloudinaryUrl?: string;
+
+  @ApiProperty({
+    description: 'Base64 encoded BVN image from Identity Pass',
+    required: false,
+  })
+  bvnBase64Image?: string;
+
+  @ApiProperty({
+    description: 'Complete BVN data from Identity Pass',
+    required: false,
+  })
+  bvnFullData?: any;
 }
 
 // Legacy SetFeeDto - keeping for backward compatibility
@@ -2168,4 +2194,94 @@ export class GetProviderWalletDetailsQueryDto {
   @IsOptional()
   @IsString()
   provider?: string;
+}
+
+export class AdminTransactionReportDto {
+  @ApiProperty({ example: 'report123', description: 'Report ID' })
+  id: string;
+
+  @ApiProperty({ example: 'user123', description: 'User ID who reported' })
+  userId: string;
+
+  @ApiProperty({ example: 'user@example.com', description: 'User email' })
+  userEmail: string;
+
+  @ApiProperty({ example: 'John Doe', description: 'User full name' })
+  userName: string;
+
+  @ApiProperty({ example: 'txn123', description: 'Transaction ID' })
+  transactionId: string;
+
+  @ApiProperty({ example: 'UNAUTHORIZED_TRANSACTION', description: 'Report reason' })
+  reason: string;
+
+  @ApiProperty({ example: 'I did not authorize this transaction', description: 'Report description' })
+  description: string;
+
+  @ApiProperty({ example: 'PENDING', description: 'Report status' })
+  status: string;
+
+  @ApiProperty({ example: 'Admin notes about resolution', description: 'Admin notes', required: false })
+  adminNotes?: string;
+
+  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Report creation date' })
+  createdAt: string;
+
+  @ApiProperty({ example: '2024-01-15T11:30:00Z', description: 'Report update date' })
+  updatedAt: string;
+
+  @ApiProperty({ 
+    type: AdminTransactionDetailDto, 
+    description: 'Transaction details' 
+  })
+  transaction: AdminTransactionDetailDto;
+}
+
+export class GetAdminTransactionReportsResponseDto {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({ 
+    type: [AdminTransactionReportDto], 
+    description: 'List of transaction reports' 
+  })
+  reports: AdminTransactionReportDto[];
+
+  @ApiProperty({ example: 10, description: 'Total number of reports' })
+  total: number;
+
+  @ApiProperty({ example: 1, description: 'Current page' })
+  page: number;
+
+  @ApiProperty({ example: 20, description: 'Reports per page' })
+  limit: number;
+}
+
+export class UpdateAdminReportStatusDto {
+  @ApiProperty({ 
+    example: 'RESOLVED', 
+    description: 'New status for the report',
+    enum: ['PENDING', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED']
+  })
+  @IsNotEmpty()
+  @IsString()
+  status: string;
+
+  @ApiProperty({ 
+    example: 'Issue resolved. Transaction was legitimate.', 
+    description: 'Admin notes about the resolution',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000, { message: 'Notes cannot exceed 1000 characters' })
+  adminNotes?: string;
+}
+
+export class UpdateAdminReportStatusResponseDto {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({ example: 'Report status updated successfully', description: 'Response message' })
+  message: string;
 }

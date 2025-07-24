@@ -8,9 +8,20 @@ import { ConfigModule } from '@nestjs/config';
 import { RavenModule } from '../providers/raven/raven.module';
 import { GeminiModule } from '../providers/ai/gemini.module';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+import { IdentityPassModule } from '../providers/identity-pass/identity-pass.module';
+import { PayscribeModule } from '../providers/payscribe/payscribe.module';
 
 @Module({
-  imports: [ConfigModule, RavenModule, GeminiModule, WalletModule, AdminModule, CloudinaryModule],
+  imports: [
+    ConfigModule,
+    RavenModule,
+    GeminiModule,
+    WalletModule,
+    AdminModule,
+    CloudinaryModule,
+    IdentityPassModule,
+    PayscribeModule,
+  ],
   controllers: [KycController],
   providers: [KycService, PrismaService],
   exports: [KycService],

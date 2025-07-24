@@ -923,6 +923,11 @@ export class WebhooksService {
               fundingFee: fundingFee, // Our funding fee
               netAmount: netAmount, // Amount credited to user
               feeType: `FUNDING_${data.provider}`, // Fee type used
+              // Sender information for inflow transactions
+              sender_name: data.metadata?.sender_name,
+              sender_account_number: data.metadata?.sender_account_number,
+              sender_bank: data.metadata?.sender_bank,
+              bankCode: data.metadata?.bankCode,
             },
           },
         });
@@ -947,6 +952,11 @@ export class WebhooksService {
               netAmount: netAmount, // Amount credited to user
               feeType: `FUNDING_${data.provider}`, // Fee type used
               walletTransactionId: transaction.id,
+              // Sender information for inflow transactions
+              sender_name: data.metadata?.sender_name,
+              sender_account_number: data.metadata?.sender_account_number,
+              sender_bank: data.metadata?.sender_bank,
+              bankCode: data.metadata?.bankCode,
             },
           },
         });

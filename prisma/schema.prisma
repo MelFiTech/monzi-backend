@@ -41,6 +41,7 @@ model User {
   ocrScans                        OcrScan[]
   pushTokens                      PushToken[]
   transactions                    Transaction[]
+  transactionReports              TransactionReport[]
   wallet                          Wallet?
 
   @@map("users")
@@ -135,6 +136,7 @@ model Transaction {
   ocrScan       OcrScan?          @relation(fields: [ocrScanId], references: [id])
   toAccount     Account?          @relation("ToAccount", fields: [toAccountId], references: [id])
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports       TransactionReport[]
 
   @@map("transactions")
 }
@@ -398,6 +400,28 @@ model AuditorMetrics {
   @@map("auditor_metrics")
 }
 
+model TransactionReport {
+  id          String                    @id @default(cuid())
+  userId      String
+  transactionId String
+  reason      TransactionReportReason
+  description String
+  status      TransactionReportStatus   @default(PENDING)
+  adminNotes  String?
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction               @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([transactionId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("transaction_reports")
+}
+
 model AdminActionLog {
   id          String   @id @default(cuid())
   adminId     String
@@ -550,6 +574,22 @@ enum NotificationStatus {
   READ
   FAILED
   EXPIRED
+}
+
+enum TransactionReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum TransactionReportReason {
+  UNAUTHORIZED_TRANSACTION
+  INCORRECT_AMOUNT
+  DUPLICATE_TRANSACTION
+  TECHNICAL_ISSUE
+  FRAUD_SUSPICION
+  OTHER
 }
 
 enum UserRole {

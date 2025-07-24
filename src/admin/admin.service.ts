@@ -59,6 +59,9 @@ import {
   AdminDto,
   GetAdminLogsResponse,
   ProviderWalletDetailsResponse,
+  GetAdminTransactionReportsResponseDto,
+  UpdateAdminReportStatusDto,
+  UpdateAdminReportStatusResponseDto,
 } from './dto/admin.dto';
 import { KycStatus, Prisma, FeeType as PrismaFeeType } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
@@ -517,6 +520,8 @@ export class AdminService {
           kycStatus: true,
           bvn: true,
           bvnVerifiedAt: true,
+          bvnProviderResponse: true,
+          metadata: true,
           selfieUrl: true,
           createdAt: true,
           updatedAt: true,
@@ -525,6 +530,21 @@ export class AdminService {
 
       if (!user) {
         throw new NotFoundException('User not found');
+      }
+
+      // Parse metadata to get BVN image URLs and data
+      let bvnCloudinaryUrl = null;
+      let bvnBase64Image = null;
+      let bvnFullData = null;
+      
+      if (user.metadata) {
+        const metadata = typeof user.metadata === 'string' 
+          ? JSON.parse(user.metadata) 
+          : user.metadata;
+        
+        bvnCloudinaryUrl = metadata.bvnCloudinaryUrl || null;
+        bvnBase64Image = metadata.bvnBase64Image || null;
+        bvnFullData = metadata.bvnFullData || null;
       }
 
       const submission: KycSubmissionDto = {
@@ -552,6 +572,11 @@ export class AdminService {
         success: true,
         submission,
         selfieImageUrl,
+        // Include Identity Pass BVN data for admin review
+        bvnProviderResponse: user.bvnProviderResponse,
+        bvnCloudinaryUrl,
+        bvnBase64Image,
+        bvnFullData,
       };
     } catch (error) {
       console.error(
@@ -3559,6 +3584,129 @@ export class AdminService {
     return result;
   }
 
+  // Helper methods for building transaction details (copied from auth service)
+  private buildTransactionSource(transaction: any, metadata: any, user: any, wallet: any) {
+    if (transaction.fromAccount) {
+      return {
+        type: 'BANK',
+        name: transaction.fromAccount.accountName,
+        accountNumber: transaction.fromAccount.accountNumber,
+        bankName: transaction.fromAccount.bankName,
+        bankCode: transaction.fromAccount.bankCode,
+      };
+    }
+
+    if (metadata.adminFunding || metadata.adminDebit) {
+      return {
+        type: 'ADMIN',
+        name: 'Monzi Admin',
+        provider: 'MONZI',
+      };
+    }
+
+    if (metadata.provider) {
+      return {
+        type: 'PROVIDER',
+        name: metadata.providerAccountName || 'External Account',
+        provider: metadata.provider,
+        accountNumber: metadata.accountNumber,
+      };
+    }
+
+    if (wallet && (transaction.type === 'WITHDRAWAL' || transaction.type === 'TRANSFER')) {
+      return {
+        type: 'WALLET',
+        name: `${user.firstName} ${user.lastName}`,
+        accountNumber: wallet.virtualAccountNumber,
+        provider: 'MONZI',
+      };
+    }
+
+    // For DEPOSIT/FUNDING transactions, check for sender information
+    if ((transaction.type === 'DEPOSIT' || transaction.type === 'FUNDING') && metadata.sender_name) {
+      return {
+        type: 'BANK',
+        name: metadata.sender_name,
+        accountNumber: metadata.sender_account_number,
+        bankName: metadata.sender_bank,
+        bankCode: metadata.bankCode,
+      };
+    }
+
+    return {
+      type: 'UNKNOWN',
+      name: 'Unknown Source',
+    };
+  }
+
+  private buildTransactionDestination(transaction: any, metadata: any, user: any, wallet: any) {
+    if (transaction.toAccount) {
+      return {
+        type: 'BANK',
+        name: transaction.toAccount.accountName,
+        accountNumber: transaction.toAccount.accountNumber,
+        bankName: transaction.toAccount.bankName,
+        bankCode: transaction.toAccount.bankCode,
+      };
+    }
+
+    if (metadata.recipientName) {
+      return {
+        type: 'BANK',
+        name: metadata.recipientName,
+        accountNumber: metadata.recipientAccount,
+        bankName: metadata.recipientBank,
+        bankCode: metadata.bankCode,
+      };
+    }
+
+    if (wallet && transaction.type === 'DEPOSIT') {
+      return {
+        type: 'WALLET',
+        name: `${user.firstName} ${user.lastName}`,
+        accountNumber: wallet.virtualAccountNumber,
+        provider: 'MONZI',
+      };
+    }
+
+    return {
+      type: 'UNKNOWN',
+      name: 'Unknown Destination',
+    };
+  }
+
+  private buildTransactionFee(transaction: any, metadata: any) {
+    if (metadata.fee) {
+      return metadata.fee;
+    }
+
+    return 0;
+  }
+
+  private buildBalanceImpact(transaction: any, metadata: any) {
+    if (transaction.type === 'DEPOSIT' || transaction.type === 'FUNDING') {
+      return {
+        type: 'CREDIT',
+        amount: metadata.netAmount || transaction.amount,
+        currency: transaction.currency,
+        previousBalance: metadata.previousBalance,
+        newBalance: metadata.newBalance,
+      };
+    }
+
+    if (transaction.type === 'WITHDRAWAL' || transaction.type === 'TRANSFER') {
+      return {
+        type: 'DEBIT',
+        amount: transaction.amount + (metadata.fee || 0),
+        currency: transaction.currency,
+        previousBalance: metadata.previousBalance,
+        newBalance: metadata.newBalance,
+      };
+    }
+
+    return null;
+  }
+
   // ==================== ADMIN ACTION LOGGING ====================
 
   async logAdminAction(
@@ -4856,6 +5004,198 @@ export class AdminService {
       console.error('❌ [ADMIN SERVICE] Error during NYRA migration:', error);
       throw new BadRequestException('Failed to migrate users to NYRA: ' + error.message);
     }
+  }
+
+  // Get all transaction reports (admin)
+  async getTransactionReports(
+    limit: number = 20,
+    offset: number = 0,
+    status?: string,
+  ): Promise<GetAdminTransactionReportsResponseDto> {
+    console.log('📋 [ADMIN] Getting transaction reports');
+
+    const whereClause: any = {};
+    if (status) {
+      whereClause.status = status;
+    }
+
+    const [reports, total] = await Promise.all([
+      this.prisma.transactionReport.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          transaction: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phone: true,
+                  wallet: {
+                    select: {
+                      id: true,
+                      virtualAccountNumber: true,
+                      balance: true,
+                    },
+                  },
+                },
+              },
+              fromAccount: {
+                select: {
+                  id: true,
+                  accountNumber: true,
+                  bankName: true,
+                  bankCode: true,
+                  accountName: true,
+                },
+              },
+              toAccount: {
+                select: {
+                  id: true,
+                  accountNumber: true,
+                  bankName: true,
+                  bankCode: true,
+                  accountName: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.transactionReport.count({
+        where: whereClause,
+      }),
+    ]);
+
+    const formattedReports = reports.map((report) => {
+      const transaction = report.transaction;
+      const user = transaction.user;
+      const wallet = user.wallet;
+      const metadata = transaction.metadata as any || {};
+
+      // Build transaction details using existing methods
+      const source = this.buildTransactionSource(transaction, metadata, user, wallet);
+      const destination = this.buildTransactionDestination(transaction, metadata, user, wallet);
+      const fee = this.buildTransactionFee(transaction, metadata);
+      const balanceImpact = this.buildBalanceImpact(transaction, metadata);
+
+      const timeline = {
+        createdAt: transaction.createdAt.toISOString(),
+        processingAt: metadata.processingAt ? new Date(metadata.processingAt).toISOString() : undefined,
+        completedAt: transaction.status === 'COMPLETED' ? transaction.updatedAt.toISOString() : undefined,
+        updatedAt: transaction.updatedAt.toISOString(),
+      };
+
+      const transactionDetail = {
+        id: transaction.id,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        type: transaction.type,
+        status: transaction.status,
+        reference: transaction.reference,
+        description: transaction.description,
+        source,
+        destination,
+        fee,
+        balanceImpact,
+        timeline,
+        metadata: transaction.metadata,
+        providerReference: null, // Not available in current schema
+        providerResponse: null, // Not available in current schema
+        createdAt: transaction.createdAt.toISOString(),
+        updatedAt: transaction.updatedAt.toISOString(),
+        user: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          wallet: wallet ? {
+            id: wallet.id,
+            virtualAccountNumber: wallet.virtualAccountNumber,
+            balance: wallet.balance,
+          } : null,
+        },
+      };
+
+      return {
+        id: report.id,
+        userId: report.userId,
+        userEmail: report.user.email,
+        userName: `${report.user.firstName} ${report.user.lastName}`,
+        transactionId: report.transactionId,
+        reason: report.reason,
+        description: report.description,
+        status: report.status,
+        adminNotes: report.adminNotes,
+        createdAt: report.createdAt.toISOString(),
+        updatedAt: report.updatedAt.toISOString(),
+        transaction: transactionDetail,
+      };
+    });
+
+    return {
+      success: true,
+      reports: formattedReports,
+      total,
+      page: Math.floor(offset / limit) + 1,
+      limit,
+    };
+  }
+
+  // Update transaction report status (admin)
+  async updateTransactionReportStatus(
+    reportId: string,
+    adminId: string,
+    updateDto: UpdateAdminReportStatusDto,
+  ): Promise<UpdateAdminReportStatusResponseDto> {
+    console.log('🔄 [ADMIN] Updating transaction report status:', reportId);
+
+    const report = await this.prisma.transactionReport.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      throw new NotFoundException('Transaction report not found');
+    }
+
+    const updateData: any = {
+      status: updateDto.status,
+      updatedAt: new Date(),
+    };
+
+    if (updateDto.status === 'RESOLVED' || updateDto.status === 'DISMISSED') {
+      updateData.resolvedAt = new Date();
+      updateData.resolvedBy = adminId;
+    }
+
+    if (updateDto.adminNotes) {
+      updateData.adminNotes = updateDto.adminNotes;
+    }
+
+    await this.prisma.transactionReport.update({
+      where: { id: reportId },
+      data: updateData,
+    });
+
+    console.log('✅ [ADMIN] Transaction report status updated successfully');
+
+    return {
+      success: true,
+      message: 'Transaction report status updated successfully',
+    };
   }
 }
 

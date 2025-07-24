@@ -70,6 +70,9 @@ import {
   UpdateTransferFeeTierDto,
   TransferFeeTierResponse,
   GetTransferFeeTiersResponse,
+  GetAdminTransactionReportsResponseDto,
+  UpdateAdminReportStatusDto,
+  UpdateAdminReportStatusResponseDto,
 } from './dto/admin.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -2179,6 +2182,60 @@ export class AdminController {
       failed: result.failedMigrations,
     });
 
+    return result;
+  }
+
+  // ==================== TRANSACTION REPORTS ENDPOINTS ====================
+
+  @Get('transaction-reports')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUDO_ADMIN, UserRole.CUSTOMER_REP)
+  @ApiOperation({ summary: 'Get all transaction reports' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of reports to return', type: Number })
+  @ApiQuery({ name: 'offset', required: false, description: 'Number of reports to skip', type: Number })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by report status', type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction reports retrieved successfully',
+    type: GetAdminTransactionReportsResponseDto,
+  })
+  async getTransactionReports(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+    @Query('status') status?: string,
+  ): Promise<GetAdminTransactionReportsResponseDto> {
+    console.log('📋 [ADMIN API] GET /admin/transaction-reports - Get transaction reports');
+    
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const offsetNum = offset ? parseInt(offset, 10) : 0;
+
+    const result = await this.adminService.getTransactionReports(limitNum, offsetNum, status);
+    console.log('✅ [ADMIN API] Transaction reports retrieved successfully');
+    return result;
+  }
+
+  @Put('transaction-reports/:id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUDO_ADMIN, UserRole.CUSTOMER_REP)
+  @ApiOperation({ summary: 'Update transaction report status' })
+  @ApiParam({ name: 'id', description: 'Report ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Report status updated successfully',
+    type: UpdateAdminReportStatusResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Report not found' })
+  async updateTransactionReportStatus(
+    @Request() req,
+    @Param('id') reportId: string,
+    @Body() updateDto: UpdateAdminReportStatusDto,
+  ): Promise<UpdateAdminReportStatusResponseDto> {
+    console.log('🔄 [ADMIN API] PUT /admin/transaction-reports/:id/status - Update report status');
+    console.log('🆔 Admin ID:', req.user.id);
+    console.log('📋 Report ID:', reportId);
+
+    const result = await this.adminService.updateTransactionReportStatus(reportId, req.user.id, updateDto);
+    console.log('✅ [ADMIN API] Report status updated successfully');
     return result;
   }
 

@@ -15,6 +15,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiParam,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import {
@@ -42,6 +43,9 @@ import {
   TransactionDetailResponseDto,
   UpdateDeviceTokenOnLoginDto,
   DeviceTokenUpdateResponseDto,
+  ReportTransactionDto,
+  ReportTransactionResponseDto,
+  GetTransactionReportsResponseDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -373,6 +377,59 @@ export class AuthController {
     console.log('✅ [AUTH API] Transaction details retrieved successfully');
     console.log('📄 Response:', result);
 
+    return result;
+  }
+
+  @Post('transactions/:id/report')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Report a transaction' })
+  @ApiParam({ name: 'id', description: 'Transaction ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Transaction reported successfully',
+    type: ReportTransactionResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request or already reported' })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  async reportTransaction(
+    @Request() req,
+    @Param('id') transactionId: string,
+    @Body() reportDto: ReportTransactionDto,
+  ): Promise<ReportTransactionResponseDto> {
+    console.log('🚨 [AUTH API] POST /auth/transactions/:id/report - Report transaction');
+    console.log('🆔 User ID:', req.user.id);
+    console.log('🔗 Transaction ID:', transactionId);
+
+    const result = await this.authService.reportTransaction(req.user.id, transactionId, reportDto);
+    console.log('✅ [AUTH API] Transaction reported successfully');
+    console.log('📄 Response:', result);
+    return result;
+  }
+
+  @Get('transaction-reports')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get user transaction reports' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of reports to return', type: Number })
+  @ApiQuery({ name: 'offset', required: false, description: 'Number of reports to skip', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction reports retrieved successfully',
+    type: GetTransactionReportsResponseDto,
+  })
+  async getUserTransactionReports(
+    @Request() req,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ): Promise<GetTransactionReportsResponseDto> {
+    console.log('📋 [AUTH API] GET /auth/transaction-reports - Get user transaction reports');
+    console.log('🆔 User ID:', req.user.id);
+
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const offsetNum = offset ? parseInt(offset, 10) : 0;
+
+    const result = await this.authService.getUserTransactionReports(req.user.id, limitNum, offsetNum);
+    console.log('✅ [AUTH API] Transaction reports retrieved successfully');
+    console.log('📄 Response:', result);
     return result;
   }
 

@@ -4,6 +4,11 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthRegistrationService } from './services/auth-registration.service';
+import { AuthProfileService } from './services/auth-profile.service';
+import { AuthSecurityService } from './services/auth-security.service';
+import { AuthNotificationsService } from './services/auth-notifications.service';
+import { AuthTransactionReportsService } from './services/auth-transaction-reports.service';
 import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailModule } from '../email/email.module';
@@ -27,7 +32,16 @@ import { PushNotificationsModule } from '../push-notifications/push-notification
     PushNotificationsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PrismaService],
+  providers: [
+    AuthService,
+    AuthRegistrationService,
+    AuthProfileService,
+    AuthSecurityService,
+    AuthNotificationsService,
+    AuthTransactionReportsService,
+    JwtStrategy,
+    PrismaService,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}
