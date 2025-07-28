@@ -23,6 +23,7 @@ import { PushNotificationsService } from '../push-notifications/push-notificatio
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { WalletCreationData, WalletProvider } from '../providers/base/wallet-provider.interface';
 import { BankTransferData } from '../providers/base/transfer-provider.interface';
+import { LocationTransactionService } from '../location/services/location-transaction.service';
 import * as bcrypt from 'bcrypt';
 import axios from 'axios';
 
@@ -35,6 +36,7 @@ export class WalletService {
     private transferProviderManager: TransferProviderManagerService,
     private pushNotificationsService: PushNotificationsService,
     private notificationsGateway: NotificationsGateway,
+    private locationTransactionService: LocationTransactionService,
   ) {}
 
   /**
@@ -738,9 +740,57 @@ export class WalletService {
       wallet.user.lastName,
     );
 
+    // Get bank code for the transfer
+    const bankCode = await this.getBankCode(transferDto.bankName);
+
+    // Check for business account updates and create/find destination account
+    let destinationAccount = await this.prisma.account.findFirst({
+      where: {
+        accountNumber: transferDto.accountNumber,
+        bankCode: bankCode,
+      },
+    });
+
+    if (!destinationAccount) {
+      // Check if this is a business account update (same business, different account number)
+      const businessUpdateResult = await this.findAndUpdateBusinessAccount(
+        transferDto.accountName,
+        transferDto.accountNumber,
+        transferDto.bankName,
+        bankCode,
+        transferDto.locationLatitude,
+        transferDto.locationLongitude
+      );
+
+      if (businessUpdateResult.wasUpdated) {
+        // Use the updated account
+        destinationAccount = businessUpdateResult.account;
+        console.log('🔄 [TRANSFER] Used updated business account for payment suggestions:', {
+          id: destinationAccount.id,
+          accountName: destinationAccount.accountName,
+          accountNumber: destinationAccount.accountNumber,
+          bankName: destinationAccount.bankName,
+        });
+      } else {
+        // Create new account
+        destinationAccount = await this.prisma.account.create({
+          data: {
+            accountName: transferDto.accountName,
+            accountNumber: transferDto.accountNumber,
+            bankName: transferDto.bankName,
+            bankCode: bankCode,
+          },
+        });
+        console.log('🏦 [TRANSFER] Created new destination account record for payment suggestions:', {
+          id: destinationAccount.id,
+          accountName: destinationAccount.accountName,
+          accountNumber: destinationAccount.accountNumber,
+          bankName: destinationAccount.bankName,
+        });
+      }
+    }
+
     try {
-      // Get bank code for the transfer
-      const bankCode = await this.getBankCode(transferDto.bankName);
 
       // Prepare transfer data for provider
       const transferData: BankTransferData = {
@@ -758,6 +808,7 @@ export class WalletService {
           userId: userId,
           walletId: wallet.id,
           fee: fee,
+          sourceAccountNumber: wallet.virtualAccountNumber, // Required for NYRA business transfers
         },
       };
 
@@ -797,7 +848,7 @@ export class WalletService {
       });
 
       // Also create a record in the main Transaction table for admin queries
-      await this.prisma.transaction.create({
+      const mainTransaction = await this.prisma.transaction.create({
         data: {
           amount: transferDto.amount,
           currency: 'NGN',
@@ -806,6 +857,7 @@ export class WalletService {
           reference,
           description: transferDto.description || defaultNarration,
           userId: userId,
+          toAccountId: destinationAccount.id, // Link to destination account for payment suggestions
           metadata: {
             fee,
             recipientBank: transferDto.bankName,
@@ -819,6 +871,32 @@ export class WalletService {
           },
         },
       });
+
+      // Capture location data if provided
+      if (transferDto.locationName && transferDto.locationLatitude && transferDto.locationLongitude) {
+        console.log('📍 [TRANSFER] Capturing location data for payment intelligence');
+        
+        try {
+          await this.locationTransactionService.associateLocationWithTransaction(
+            mainTransaction.id,
+            {
+              name: transferDto.locationName,
+              address: transferDto.locationAddress || transferDto.locationName,
+              city: transferDto.locationCity,
+              state: transferDto.locationState,
+              country: 'Nigeria',
+              latitude: transferDto.locationLatitude,
+              longitude: transferDto.locationLongitude,
+              locationType: transferDto.locationType,
+            }
+          );
+          
+          console.log('✅ [TRANSFER] Location data captured successfully');
+        } catch (locationError) {
+          console.error('❌ [TRANSFER] Failed to capture location data:', locationError);
+          // Don't fail the transfer if location capture fails
+        }
+      }
 
       // Update wallet balance
       const updatedWallet = await this.prisma.wallet.update({
@@ -948,6 +1026,7 @@ export class WalletService {
           reference,
           description: transferDto.description || defaultNarration,
           userId: userId,
+          toAccountId: destinationAccount?.id, // Link to destination account for payment suggestions
           metadata: {
             fee,
             recipientBank: transferDto.bankName,
@@ -994,6 +1073,200 @@ export class WalletService {
         bank = bankListResponse.data.find((bank) =>
           searchTerm.includes(bank.bankName.toLowerCase()),
         );
+      }
+
+      // Handle common variations and abbreviations
+      if (!bank) {
+        const variations = {
+          // Digital Banks & Fintech First
+          kuda: 'Kuda Microfinance bank',
+          'kuda.': 'Kuda Microfinance bank',
+          'kuda bank': 'Kuda Microfinance bank',
+          'kuda microfinance': 'Kuda Microfinance bank',
+          opay: 'OPAY',
+          'o-pay': 'OPAY',
+          'opay digital': 'OPAY',
+          moniepoint: 'Moniepoint Microfinance Bank',
+          'monie point': 'Moniepoint Microfinance Bank',
+          palmpay: 'PALMPAY',
+          'palm pay': 'PALMPAY',
+          palmPay: 'PALMPAY',
+          carbon: 'CARBON',
+          fairmoney: 'FAIRMONEY',
+          'fair money': 'FAIRMONEY',
+          vfd: 'VFD MFB',
+          'v bank': 'VFD MFB',
+          paga: 'PAGA',
+          eyowo: 'Eyowo Microfinance Bank',
+          sparkle: 'Sparkle Microfinance Bank',
+          renmoney: 'Renmoney Microfinance Bank',
+          'ren money': 'Renmoney Microfinance Bank',
+          mintyn: 'Mint Microfinance Bank',
+          rubies: 'Rubies MFB',
+          'rubies bank': 'Rubies MFB',
+          quickfund: 'Quickfund Microfinance Bank',
+          'quick fund': 'Quickfund Microfinance Bank',
+          onebank: 'ONE FINANCE',
+          'one bank': 'ONE FINANCE',
+          'one finance': 'ONE FINANCE',
+          mkudi: 'MKUDI',
+          korapay: 'Koraypay',
+          'kora pay': 'Koraypay',
+          flutterwave: 'Flutterwave',
+          'flutter wave': 'Flutterwave',
+          paystack: 'TITAN-PAYSTACK MICROFINANCE BANK',
+          'pay stack': 'TITAN-PAYSTACK MICROFINANCE BANK',
+          momo: 'MoMo PSB',
+          'mtn momo': 'MoMo PSB',
+          smartcash: 'SmartCash Payment Service bank',
+          'smart cash': 'SmartCash Payment Service bank',
+          hope: 'HopePSB',
+          'hope psb': 'HopePSB',
+          hopepsb: 'HopePSB',
+          tagpay: 'TAGPAY',
+          'tag pay': 'TAGPAY',
+          pocketapp: 'POCKETAPP',
+          'pocket app': 'POCKETAPP',
+          cellulant: 'CELLULANT',
+          gomoney: 'GOMONEY',
+          'go money': 'GOMONEY',
+
+          // Traditional Banks
+          'first bank': 'First Bank of Nigeria',
+          firstbank: 'First Bank of Nigeria',
+          fbn: 'First Bank of Nigeria',
+          gtbank: 'Guaranty Trust Bank',
+          gtb: 'Guaranty Trust Bank',
+          'guaranty trust': 'Guaranty Trust Bank',
+          access: 'Access Bank',
+          'access bank': 'Access Bank',
+          zenith: 'Zenith Bank',
+          'zenith bank': 'Zenith Bank PLC',
+          uba: 'United Bank for Africa',
+          'united bank for africa': 'United Bank for Africa',
+          union: 'Union Bank',
+          'union bank': 'Union Bank',
+          unity: 'Unity Bank',
+          'unity bank': 'Unity Bank',
+          fcmb: 'FCMB',
+          'first city monument bank': 'FCMB',
+          fidelity: 'Fidelity Bank',
+          'fidelity bank': 'Fidelity Bank',
+          sterling: 'Sterling Bank',
+          'sterling bank': 'Sterling Bank',
+          wema: 'Wema Bank',
+          'wema bank': 'Wema Bank',
+          polaris: 'Polaris Bank',
+          'polaris bank': 'Polaris Bank',
+          ecobank: 'Ecobank Bank',
+          'eco bank': 'Ecobank Bank',
+          heritage: 'Heritage Bank',
+          'heritage bank': 'Heritage Bank',
+          keystone: 'Keystone Bank',
+          'keystone bank': 'Keystone Bank',
+          stanbic: 'StanbicIBTC Bank',
+          'stanbic ibtc': 'StanbicIBTC Bank',
+          'standard chartered': 'StandardChartered',
+          citi: 'Citi Bank',
+          citibank: 'Citi Bank',
+          providus: 'Providus Bank',
+          'providus bank': 'Providus Bank',
+          suntrust: 'Suntrust Bank',
+          'suntrust bank': 'Suntrust Bank',
+          titan: 'Titan Trust Bank',
+          'titan trust': 'Titan Trust Bank',
+          globus: 'Globus Bank',
+          'globus bank': 'Globus Bank',
+          lotus: 'Lotus Bank',
+          'lotus bank': 'Lotus Bank',
+          taj: 'Taj Bank',
+          'taj bank': 'Taj Bank',
+          jaiz: 'Jaiz Bank',
+          'jaiz bank': 'Jaiz Bank',
+
+          // Mortgage Banks
+          'abbey mortgage': 'Abbey Mortgage Bank',
+          'gateway mortgage': 'Gateway Mortgage Bank',
+          'infinity mortgage': 'Infinity Trust Mortgage Bank',
+          'brent mortgage': 'Brent Mortgage Bank',
+          'first generation mortgage': 'First Generation Mortgage Bank',
+          'ag mortgage': 'AG Mortgage Bank PLC',
+          'haggai mortgage': 'Haggai Mortgage Bank',
+          'platinum mortgage': 'Platinum Mortgage Bank',
+          'refuge mortgage': 'Refuge Mortgage Bank',
+
+          // Common Misspellings & Variations
+          'gauranty trust': 'Guaranty Trust Bank',
+          'guarantee trust': 'Guaranty Trust Bank',
+          'first bank nigeria': 'First Bank of Nigeria',
+          'united bank africa': 'United Bank for Africa',
+          'zenith plc': 'Zenith Bank PLC',
+          'fidelity nigeria': 'Fidelity Bank',
+          'sterling nigeria': 'Sterling Bank',
+          'wema nigeria': 'Wema Bank',
+          'access nigeria': 'Access Bank',
+          'union nigeria': 'Union Bank',
+          'unity nigeria': 'Unity Bank',
+          'heritage nigeria': 'Heritage Bank',
+          'polaris nigeria': 'Polaris Bank',
+          'keystone nigeria': 'Keystone Bank',
+          'ecobank nigeria': 'Ecobank Bank',
+        };
+
+        const variation = variations[searchTerm];
+        if (variation) {
+          console.log(
+            '🎪 [BANK CODE] Found variation mapping:',
+            searchTerm,
+            '→',
+            variation,
+          );
+          bank = bankListResponse.data.find((bank) =>
+            bank.bankName.toLowerCase().includes(variation.toLowerCase()),
+          );
+        }
+      }
+
+      // Advanced fuzzy matching for close spellings (but prioritize exact matches)
+      if (!bank) {
+        // Remove common words and try matching
+        const cleanedSearch = searchTerm
+          .replace(
+            /\b(bank|microfinance|mfb|plc|limited|ltd|psb|nigeria)\b/g,
+            '',
+          )
+          .trim();
+
+        if (cleanedSearch && cleanedSearch.length > 2) {
+          // First try to find banks that start with the cleaned search term
+          bank = bankListResponse.data.find((bank) => {
+            const cleanedBankName = bank.bankName
+              .toLowerCase()
+              .replace(
+                /\b(bank|microfinance|mfb|plc|limited|ltd|psb|nigeria)\b/g,
+                '',
+              )
+              .trim();
+            return cleanedBankName.startsWith(cleanedSearch);
+          });
+
+          // If no exact start match, try contains match
+          if (!bank) {
+            bank = bankListResponse.data.find((bank) => {
+              const cleanedBankName = bank.bankName
+                .toLowerCase()
+                .replace(
+                  /\b(bank|microfinance|mfb|plc|limited|ltd|psb|nigeria)\b/g,
+                  '',
+                )
+                .trim();
+              return (
+                cleanedBankName.includes(cleanedSearch) ||
+                cleanedSearch.includes(cleanedBankName)
+              );
+            });
+          }
+        }
       }
 
       if (!bank) {
@@ -1350,5 +1623,246 @@ export class WalletService {
          bankAccount: transaction.fromAccount || transaction.toAccount || null,
        };
     });
+  }
+
+  /**
+   * Check if this is a business account
+   */
+  private isBusinessAccount(accountName: string): boolean {
+    const businessKeywords = [
+      'STORE', 'SHOP', 'ENTERPRISE', 'LTD', 'LIMITED', 'INC', 'CORP', 'CORPORATION',
+      'BUSINESS', 'COMPANY', 'VENTURES', 'TRADING', 'SERVICES', 'ENTERPRISES',
+      'MART', 'MARKET', 'SUPERMARKET', 'MALL', 'PLAZA', 'COMPLEX', 'CENTER',
+      'RESTAURANT', 'HOTEL', 'CAFE', 'BAR', 'CLUB', 'SALON', 'SPA', 'GYM',
+      'PHARMACY', 'HOSPITAL', 'CLINIC', 'SCHOOL', 'UNIVERSITY', 'COLLEGE',
+      'BANK', 'MICROFINANCE', 'INSURANCE', 'AGENCY', 'BUREAU', 'OFFICE',
+      'STUDIO', 'GALLERY', 'THEATER', 'CINEMA', 'GAS', 'PETROL', 'STATION',
+      'TRANSPORT', 'LOGISTICS', 'DELIVERY', 'COURIER', 'EXPRESS', 'FAST',
+      'QUICK', 'SPEED', 'RAPID', 'SWIFT', 'INSTANT', 'IMMEDIATE'
+    ];
+
+    const normalizedName = accountName.toUpperCase().trim();
+    
+    // Check for business keywords
+    for (const keyword of businessKeywords) {
+      if (normalizedName.includes(keyword)) {
+        return true;
+      }
+    }
+
+    // Check for business patterns
+    const businessPatterns = [
+      /& SONS/i,
+      /& DAUGHTERS/i,
+      /& CO/i,
+      /& COMPANY/i,
+      /ENTERPRISES/i,
+      /VENTURES/i,
+      /TRADING/i,
+      /SERVICES/i,
+      /GROUP/i,
+      /HOLDINGS/i,
+      /INTERNATIONAL/i,
+      /GLOBAL/i,
+      /WORLDWIDE/i
+    ];
+
+    for (const pattern of businessPatterns) {
+      if (pattern.test(normalizedName)) {
+        return true;
+      }
+    }
+
+    // Check if it looks like a personal name (2-4 words)
+    const words = normalizedName.split(/\s+/);
+    if (words.length >= 2 && words.length <= 4) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Find and update business account if same business found at same location with different account number
+   */
+  private async findAndUpdateBusinessAccount(
+    accountName: string,
+    accountNumber: string,
+    bankName: string,
+    bankCode: string,
+    latitude?: number,
+    longitude?: number
+  ): Promise<{ account: any; wasUpdated: boolean }> {
+    console.log('🏢 [BUSINESS ACCOUNT] Checking for business account update:', {
+      accountName,
+      accountNumber,
+      bankName,
+      latitude,
+      longitude
+    });
+
+    // Only check for business accounts
+    if (!this.isBusinessAccount(accountName)) {
+      console.log('👤 [BUSINESS ACCOUNT] Not a business account, skipping update check');
+      return { account: null, wasUpdated: false };
+    }
+
+    try {
+      // Find existing account with same name and bank
+      const existingAccount = await this.prisma.account.findFirst({
+        where: {
+          accountName: {
+            equals: accountName,
+            mode: 'insensitive' // Case-insensitive matching
+          },
+          bankName: {
+            equals: bankName,
+            mode: 'insensitive'
+          },
+          // Different account number (this is what we're checking for)
+          accountNumber: {
+            not: accountNumber
+          }
+        }
+      });
+
+      if (!existingAccount) {
+        console.log('🏢 [BUSINESS ACCOUNT] No existing business account found with same name');
+        return { account: null, wasUpdated: false };
+      }
+
+      // If we have location data, check if it's the same location
+      if (latitude && longitude) {
+        // Find nearby locations (within 100 meters)
+        const nearbyLocations = await this.prisma.location.findMany({
+          where: {
+            latitude: {
+              gte: latitude - 0.001, // ~100 meters
+              lte: latitude + 0.001
+            },
+            longitude: {
+              gte: longitude - 0.001,
+              lte: longitude + 0.001
+            }
+          }
+        });
+
+        // Check if any of these locations have transactions with the existing account
+        const locationWithExistingAccount = await this.prisma.location.findFirst({
+          where: {
+            id: {
+              in: nearbyLocations.map(loc => loc.id)
+            },
+            transactions: {
+              some: {
+                toAccountId: existingAccount.id
+              }
+            }
+          }
+        });
+
+        if (!locationWithExistingAccount) {
+          console.log('📍 [BUSINESS ACCOUNT] No nearby location found with existing account transactions');
+          return { account: null, wasUpdated: false };
+        }
+
+        console.log('📍 [BUSINESS ACCOUNT] Found nearby location with existing account:', locationWithExistingAccount.name);
+      }
+
+      // Update the existing account with new account number
+      console.log('🔄 [BUSINESS ACCOUNT] Updating business account number:', {
+        oldAccountNumber: existingAccount.accountNumber,
+        newAccountNumber: accountNumber,
+        businessName: accountName
+      });
+
+      // First, update all transactions that reference the old account to use the new account
+      await this.prisma.transaction.updateMany({
+        where: {
+          toAccountId: existingAccount.id
+        },
+        data: {
+          metadata: {
+            // Preserve old account info in metadata for audit
+            oldAccountNumber: existingAccount.accountNumber,
+            accountUpdatedAt: new Date().toISOString()
+          }
+        }
+      });
+
+      // Update the existing account with new account number
+      const updatedAccount = await this.prisma.account.update({
+        where: { id: existingAccount.id },
+        data: {
+          accountNumber: accountNumber,
+          bankCode: bankCode,
+          updatedAt: new Date()
+        }
+      });
+
+      // Clean up any other accounts with the same business name and bank but different account numbers
+      // This prevents duplicate business accounts from appearing in suggestions
+      const duplicateAccounts = await this.prisma.account.findMany({
+        where: {
+          accountName: {
+            equals: accountName,
+            mode: 'insensitive'
+          },
+          bankName: {
+            equals: bankName,
+            mode: 'insensitive'
+          },
+          accountNumber: {
+            not: accountNumber
+          },
+          id: {
+            not: existingAccount.id // Don't delete the one we just updated
+          }
+        }
+      });
+
+      if (duplicateAccounts.length > 0) {
+        console.log(`🧹 [BUSINESS ACCOUNT] Found ${duplicateAccounts.length} duplicate business accounts to clean up`);
+        
+        for (const duplicate of duplicateAccounts) {
+          console.log(`🗑️ [BUSINESS ACCOUNT] Deleting duplicate account: ${duplicate.accountNumber}`);
+          
+          // Update any transactions that reference this duplicate account
+          await this.prisma.transaction.updateMany({
+            where: {
+              toAccountId: duplicate.id
+            },
+            data: {
+              toAccountId: updatedAccount.id, // Point to the updated account
+              metadata: {
+                // Preserve info about the duplicate that was cleaned up
+                cleanedUpAccountNumber: duplicate.accountNumber,
+                cleanedUpAt: new Date().toISOString()
+              }
+            }
+          });
+
+          // Delete the duplicate account
+          await this.prisma.account.delete({
+            where: { id: duplicate.id }
+          });
+        }
+        
+        console.log('✅ [BUSINESS ACCOUNT] Duplicate accounts cleaned up successfully');
+      }
+
+      console.log('✅ [BUSINESS ACCOUNT] Business account updated successfully:', {
+        id: updatedAccount.id,
+        accountName: updatedAccount.accountName,
+        oldAccountNumber: existingAccount.accountNumber,
+        newAccountNumber: updatedAccount.accountNumber
+      });
+
+      return { account: updatedAccount, wasUpdated: true };
+
+    } catch (error) {
+      console.error('❌ [BUSINESS ACCOUNT] Error updating business account:', error);
+      return { account: null, wasUpdated: false };
+    }
   }
 }
