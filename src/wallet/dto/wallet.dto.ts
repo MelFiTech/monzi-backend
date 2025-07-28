@@ -6,6 +6,7 @@ import {
   Min,
   Max,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -134,6 +135,15 @@ export class TransferDto {
   @IsOptional()
   @IsEnum(LocationType)
   locationType?: LocationType;
+
+  @ApiProperty({
+    example: true,
+    description: 'Whether this payment is to a business account (optional - will auto-detect if not provided)',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isBusiness?: boolean;
 }
 
 export class WalletDetailsResponse {
@@ -202,6 +212,12 @@ export class TransferResponse {
   })
   reference: string;
 
+  @ApiProperty({
+    example: 'cuid123',
+    description: 'Transaction ID for tagging purposes',
+  })
+  transactionId: string;
+
   @ApiProperty({ example: 1000.0, description: 'Transfer amount' })
   amount: number;
 
@@ -232,4 +248,22 @@ export class SetWalletPinDto {
   @IsNotEmpty()
   @IsString()
   pin: string;
+}
+
+export class TagTransactionDto {
+  @ApiProperty({
+    example: 'cuid123',
+    description: 'Transaction ID to tag',
+  })
+  @IsNotEmpty()
+  @IsString()
+  transactionId: string;
+
+  @ApiProperty({
+    example: true,
+    description: 'Whether this transaction was to a business account',
+  })
+  @IsNotEmpty()
+  @IsBoolean()
+  isBusiness: boolean;
 }

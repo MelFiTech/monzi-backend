@@ -21,6 +21,7 @@ import {
   WalletDetailsResponse,
   TransferResponse,
   SetWalletPinDto,
+  TagTransactionDto,
 } from './dto/wallet.dto';
 
 @ApiTags('Wallet')
@@ -333,5 +334,45 @@ export class WalletController {
       );
       throw error;
     }
+  }
+
+  @Post('tag-transaction')
+  @ApiOperation({
+    summary: 'Tag a transaction as business or individual',
+    description:
+      'Allows users to manually tag a transaction as either business or individual for payment suggestions',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction tagged successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Transaction tagged successfully' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request data' })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  async tagTransaction(
+    @Request() req,
+    @Body() tagTransactionDto: TagTransactionDto,
+  ) {
+    console.log('🏷️ [WALLET API] POST /wallet/tag-transaction - Request received');
+    console.log('👤 [WALLET API] User ID:', req.user.id);
+    console.log('🏷️ [WALLET API] Transaction ID:', tagTransactionDto.transactionId);
+    console.log('🏷️ [WALLET API] Is Business:', tagTransactionDto.isBusiness);
+
+    const result = await this.walletService.tagTransaction(
+      req.user.id,
+      tagTransactionDto.transactionId,
+      tagTransactionDto.isBusiness,
+    );
+
+    console.log('✅ [WALLET API] Transaction tagged successfully');
+    console.log('📄 Response Data:', result);
+
+    return result;
   }
 }

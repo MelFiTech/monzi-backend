@@ -779,6 +779,9 @@ export class WalletService {
             accountNumber: transferDto.accountNumber,
             bankName: transferDto.bankName,
             bankCode: bankCode,
+            isBusiness: transferDto.isBusiness !== undefined 
+              ? transferDto.isBusiness 
+              : this.isBusinessAccount(transferDto.accountName),
           },
         });
         console.log('🏦 [TRANSFER] Created new destination account record for payment suggestions:', {
@@ -786,6 +789,7 @@ export class WalletService {
           accountName: destinationAccount.accountName,
           accountNumber: destinationAccount.accountNumber,
           bankName: destinationAccount.bankName,
+          isBusiness: destinationAccount.isBusiness,
         });
       }
     }
@@ -985,6 +989,7 @@ export class WalletService {
         success: true,
         message: 'Transfer completed successfully',
         reference,
+        transactionId: mainTransaction.id, // Add transaction ID for tagging
         amount: transferDto.amount,
         fee,
         newBalance: updatedWallet.balance,
@@ -1863,6 +1868,66 @@ export class WalletService {
     } catch (error) {
       console.error('❌ [BUSINESS ACCOUNT] Error updating business account:', error);
       return { account: null, wasUpdated: false };
+    }
+  }
+
+  /**
+   * Tag a transaction as business or individual
+   */
+  async tagTransaction(
+    userId: string,
+    transactionId: string,
+    isBusiness: boolean,
+  ): Promise<{ success: boolean; message: string }> {
+    console.log('🏷️ [TAG TRANSACTION] Tagging transaction:', {
+      userId,
+      transactionId,
+      isBusiness,
+    });
+
+    try {
+      // Find the transaction and verify it belongs to the user
+      const transaction = await this.prisma.transaction.findFirst({
+        where: {
+          id: transactionId,
+          userId: userId,
+        },
+        include: {
+          toAccount: true,
+        },
+      });
+
+      if (!transaction) {
+        throw new Error('Transaction not found or does not belong to user');
+      }
+
+      if (!transaction.toAccount) {
+        throw new Error('Transaction has no associated account to tag');
+      }
+
+      // Update the account's isBusiness field
+      await this.prisma.account.update({
+        where: { id: transaction.toAccount.id },
+        data: {
+          isBusiness: isBusiness,
+          updatedAt: new Date(),
+        },
+      });
+
+      console.log('✅ [TAG TRANSACTION] Transaction tagged successfully:', {
+        transactionId,
+        accountId: transaction.toAccount.id,
+        accountName: transaction.toAccount.accountName,
+        isBusiness,
+      });
+
+      return {
+        success: true,
+        message: `Transaction tagged as ${isBusiness ? 'business' : 'individual'} successfully`,
+      };
+    } catch (error) {
+      console.error('❌ [TAG TRANSACTION] Error tagging transaction:', error);
+      throw error;
     }
   }
 }

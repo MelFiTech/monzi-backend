@@ -447,8 +447,10 @@ export class LocationPrecisionService {
       }
 
       // Check if this is a business account
-      const isBusiness = this.isBusinessAccount(transaction.toAccount.accountName);
-      console.log(`🏢 [PAYMENT SUGGESTIONS] Account "${transaction.toAccount.accountName}" is ${isBusiness ? 'BUSINESS' : 'INDIVIDUAL'}`);
+      const isBusiness = transaction.toAccount.isBusiness !== null 
+        ? transaction.toAccount.isBusiness 
+        : this.isBusinessAccount(transaction.toAccount.accountName);
+      console.log(`🏢 [PAYMENT SUGGESTIONS] Account "${transaction.toAccount.accountName}" is ${isBusiness ? 'BUSINESS' : 'INDIVIDUAL'} (${transaction.toAccount.isBusiness !== null ? 'user-tagged' : 'auto-detected'})`);
 
       // Only include business accounts in global suggestions
       if (!isBusiness) {
