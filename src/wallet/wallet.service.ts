@@ -47,13 +47,7 @@ export class WalletService {
     firstName: string,
     lastName: string,
   ): string {
-    const firstNameTrimmed = firstName?.trim() || '';
-    const lastNameTrimmed = lastName?.trim() || '';
-    const lastInitial = lastNameTrimmed.charAt(0).toUpperCase();
-
-    return lastInitial
-      ? `${firstNameTrimmed} ${lastInitial}`
-      : firstNameTrimmed;
+    return 'with 💛 from monzi';
   }
 
   async createWallet(
