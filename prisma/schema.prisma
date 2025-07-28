@@ -131,14 +131,39 @@ model Transaction {
   fromAccountId String?
   toAccountId   String?
   ocrScanId     String?
+  locationId    String?
   metadata      Json?
   fromAccount   Account?          @relation("FromAccount", fields: [fromAccountId], references: [id])
   ocrScan       OcrScan?          @relation(fields: [ocrScanId], references: [id])
   toAccount     Account?          @relation("ToAccount", fields: [toAccountId], references: [id])
+  location      Location?         @relation(fields: [locationId], references: [id])
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   reports       TransactionReport[]
 
   @@map("transactions")
+}
+
+model Location {
+  id          String        @id @default(cuid())
+  name        String        // Store/merchant name
+  address     String        // Full address
+  city        String?
+  state       String?
+  country     String        @default("Nigeria")
+  latitude    Float         // GPS coordinates
+  longitude   Float         // GPS coordinates
+  locationType LocationType @default(STORE)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  transactions Transaction[]
+
+  // Location-based indexing for efficient queries
+  @@index([latitude, longitude])
+  @@index([city, state])
+  @@index([locationType])
+  @@index([name])
+  @@map("locations")
 }
 
 model OcrScan {
@@ -599,3 +624,15 @@ enum UserRole {
   DEVELOPER
   SUDO_ADMIN
 }
+enum LocationType {
+  STORE
+  RESTAURANT
+  SERVICE
+  OFFICE
+  HOSPITAL
+  SCHOOL
+  BANK
+  ATM
+  OTHER
+}
+

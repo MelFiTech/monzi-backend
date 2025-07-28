@@ -383,8 +383,10 @@ export class AccountsService {
         );
         const variations = {
           // Digital Banks & Fintech First
-          kuda: 'Kuda Microfinance Bank',
-          'kuda bank': 'Kuda Microfinance Bank',
+          kuda: 'Kuda Microfinance bank',
+          'kuda.': 'Kuda Microfinance bank',
+          'kuda bank': 'Kuda Microfinance bank',
+          'kuda microfinance': 'Kuda Microfinance bank',
           opay: 'OPAY',
           'o-pay': 'OPAY',
           'opay digital': 'OPAY',
@@ -529,7 +531,7 @@ export class AccountsService {
         }
       }
 
-      // Advanced fuzzy matching for close spellings
+      // Advanced fuzzy matching for close spellings (but prioritize exact matches)
       if (!bank) {
         console.log('🔍 [BANK MATCHER] Trying fuzzy matching...');
 
@@ -542,6 +544,7 @@ export class AccountsService {
           .trim();
 
         if (cleanedSearch && cleanedSearch.length > 2) {
+          // First try to find banks that start with the cleaned search term
           bank = banksResponse.banks.find((bank) => {
             const cleanedBankName = bank.name
               .toLowerCase()
@@ -550,11 +553,25 @@ export class AccountsService {
                 '',
               )
               .trim();
-            return (
-              cleanedBankName.includes(cleanedSearch) ||
-              cleanedSearch.includes(cleanedBankName)
-            );
+            return cleanedBankName.startsWith(cleanedSearch);
           });
+
+          // If no exact start match, try contains match
+          if (!bank) {
+            bank = banksResponse.banks.find((bank) => {
+              const cleanedBankName = bank.name
+                .toLowerCase()
+                .replace(
+                  /\b(bank|microfinance|mfb|plc|limited|ltd|psb|nigeria)\b/g,
+                  '',
+                )
+                .trim();
+              return (
+                cleanedBankName.includes(cleanedSearch) ||
+                cleanedSearch.includes(cleanedBankName)
+              );
+            });
+          }
         }
       }
 

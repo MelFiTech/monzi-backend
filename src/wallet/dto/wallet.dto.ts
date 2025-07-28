@@ -4,8 +4,23 @@ import {
   IsString,
   IsOptional,
   Min,
+  Max,
+  IsEnum,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+export enum LocationType {
+  STORE = 'STORE',
+  RESTAURANT = 'RESTAURANT',
+  SERVICE = 'SERVICE',
+  OFFICE = 'OFFICE',
+  HOSPITAL = 'HOSPITAL',
+  SCHOOL = 'SCHOOL',
+  BANK = 'BANK',
+  ATM = 'ATM',
+  OTHER = 'OTHER',
+}
 
 export class TransferDto {
   @ApiProperty({ example: '1000.00', description: 'Amount to transfer' })
@@ -48,6 +63,77 @@ export class TransferDto {
   @IsNotEmpty()
   @IsString()
   pin: string;
+
+  // Location data for payment intelligence
+  @ApiProperty({
+    example: 'KFC Victoria Island',
+    description: 'Store/merchant name where payment is being made',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  locationName?: string;
+
+  @ApiProperty({
+    example: '123 Ahmadu Bello Way, Victoria Island, Lagos',
+    description: 'Full address of the location',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  locationAddress?: string;
+
+  @ApiProperty({
+    example: 'Lagos',
+    description: 'City of the location',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  locationCity?: string;
+
+  @ApiProperty({
+    example: 'Lagos State',
+    description: 'State/Province of the location',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  locationState?: string;
+
+  @ApiProperty({
+    example: 6.5244,
+    description: 'Latitude coordinate of the location',
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  locationLatitude?: number;
+
+  @ApiProperty({
+    example: 3.3792,
+    description: 'Longitude coordinate of the location',
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  locationLongitude?: number;
+
+  @ApiProperty({
+    example: LocationType.RESTAURANT,
+    description: 'Type of location',
+    enum: LocationType,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(LocationType)
+  locationType?: LocationType;
 }
 
 export class WalletDetailsResponse {

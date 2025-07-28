@@ -196,13 +196,23 @@ export class ProviderManagerService {
         return false;
       }
 
-      // You can add specific validation logic here
-      // For example, check API keys, test connectivity, etc.
-
-      return true;
+      // Test the provider by attempting to get its name
+      const providerName = providerInstance.getProviderName();
+      return !!providerName;
     } catch (error) {
       this.logger.error(`Error validating provider ${provider}:`, error);
       return false;
+    }
+  }
+
+  async getWalletBalance(accountNumber: string): Promise<number> {
+    try {
+      const activeProvider = await this.getActiveWalletProvider();
+      const result = await activeProvider.getWalletBalance({ accountNumber });
+      return result.balance;
+    } catch (error) {
+      this.logger.error(`Error getting wallet balance for ${accountNumber}:`, error);
+      throw new BadRequestException('Failed to get wallet balance from provider');
     }
   }
 }

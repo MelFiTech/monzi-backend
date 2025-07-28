@@ -9,6 +9,7 @@ import { BudPayModule } from '../providers/budpay/budpay.module';
 import { ProvidersModule } from '../providers/providers.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
+import { LocationModule } from '../location/location.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PushNotificationsModule } from '../push-notifications/push-notification
     ProvidersModule,
     NotificationsModule,
     PushNotificationsModule,
+    LocationModule,
   ],
   controllers: [WalletController],
   providers: [WalletService],

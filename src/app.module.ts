@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 import { EmailModule } from './email/email.module';
 import { AuditorModule } from './auditor/auditor.module';
+import { LocationModule } from './location/location.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AuditorModule } from './auditor/auditor.module';
     PushNotificationsModule,
     EmailModule,
     AuditorModule,
+    LocationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
