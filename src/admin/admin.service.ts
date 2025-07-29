@@ -6,6 +6,7 @@ import { AdminManagementService } from './services/admin-management.service';
 import { WalletManagementService } from './services/wallet-management.service';
 import { ProviderManagerService } from '../providers/provider-manager.service';
 import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
+import { BusinessService } from '../business/business.service';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class AdminService {
     private walletManagementService: WalletManagementService,
     private providerManager: ProviderManagerService,
     private transferProviderManager: TransferProviderManagerService,
+    private businessService: BusinessService,
     private configService: ConfigService,
   ) {}
 
@@ -347,19 +349,33 @@ export class AdminService {
   // ==================== BUSINESS WALLET ====================
 
   async getNyraBusinessWalletBalance() {
-    // Placeholder - implement in a separate service
-    return {
-      success: true,
-      message: 'Business wallet balance retrieved',
-      data: {
-        businessId: 'nyra-business',
-        businessName: 'Nyra Business',
-        balance: 0,
-        formattedBalance: '₦0.00',
-        currency: 'NGN',
-        lastUpdated: new Date().toISOString(),
-      },
-    };
+    try {
+      console.log('🏦 [ADMIN SERVICE] Getting NYRA business wallet balance via business service');
+      
+      // Use the business service to get the actual NYRA business wallet balance
+      const result = await this.businessService.getBusinessWalletBalance();
+      
+      console.log('✅ [ADMIN SERVICE] NYRA business wallet balance retrieved successfully');
+      console.log('📄 Response Data:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error getting NYRA business wallet balance:', error.message);
+      
+      // Return error response in the same format
+      return {
+        success: false,
+        message: error.message || 'Failed to retrieve business wallet balance',
+        data: {
+          businessId: 'unknown',
+          businessName: 'Unknown',
+          balance: 0,
+          formattedBalance: '₦0.00',
+          currency: 'NGN',
+          lastUpdated: new Date().toISOString(),
+        },
+      };
+    }
   }
 
   // ==================== WEBHOOK LOGS ====================

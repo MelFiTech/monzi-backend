@@ -12,6 +12,7 @@ import { ProvidersModule } from '../providers/providers.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { EmailModule } from '../email/email.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { BusinessModule } from '../business/business.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     PushNotificationsModule,
     EmailModule,
     NotificationsModule,
+    BusinessModule,
   ],
   controllers: [AdminController],
   providers: [
