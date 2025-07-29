@@ -253,10 +253,11 @@ export class UserManagementService {
             metadata: {
               ...(user.metadata as any || {}),
               archivedAt: new Date().toISOString(),
-              archiveReason: 'Admin deletion - user has active transactions or wallet balance',
+              archiveReason: 'Deleted by admin',
               originalEmail: user.email,
               originalPhone: user.phone,
               originalBvn: user.bvn,
+              adminDeletion: true,
             },
           },
         });

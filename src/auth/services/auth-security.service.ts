@@ -373,14 +373,14 @@ export class AuthSecurityService {
   // Confirm Account Deletion
   async confirmAccountDeletion(
     userId: string,
-    dto: { otpCode: string },
+    dto: { otpCode: string; reason?: string },
   ): Promise<{
     success: boolean;
     message: string;
   }> {
-    const { otpCode } = dto;
+    const { otpCode, reason } = dto;
 
-    console.log('🔍 [AUTH] Confirm account deletion:', { userId });
+    console.log('🔍 [AUTH] Confirm account deletion:', { userId, reason });
 
     // Find user
     const user = await this.prisma.user.findUnique({
@@ -416,11 +416,12 @@ export class AuthSecurityService {
         metadata: {
           ...(user.metadata as any || {}),
           archivedAt: new Date().toISOString(),
-          archiveReason: 'User self-deletion',
+          archiveReason: reason || 'User self-deletion',
           originalEmail: user.email,
           originalPhone: user.phone,
           originalBvn: user.bvn,
           selfDeletion: true,
+          userDeletionReason: reason,
         },
       },
     });

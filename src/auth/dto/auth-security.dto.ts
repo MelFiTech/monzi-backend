@@ -152,4 +152,13 @@ export class ConfirmAccountDeletionDto {
   @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
   @Matches(/^\d{6}$/, { message: 'OTP must contain only numbers' })
   otpCode: string;
+
+  @ApiProperty({
+    example: 'No longer needed',
+    description: 'Reason for account deletion (optional)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
