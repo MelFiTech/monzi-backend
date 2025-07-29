@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsGateway } from '../../notifications/notifications.gateway';
 import { PushNotificationsService } from '../../push-notifications/push-notifications.service';
@@ -40,7 +37,10 @@ export class AuthNotificationsService {
       manufacturer?: string;
     },
   ): Promise<DeviceTokenUpdateResponseDto> {
-    console.log('🔍 [AUTH] Update device token request:', { userId, deviceToken });
+    console.log('🔍 [AUTH] Update device token request:', {
+      userId,
+      deviceToken,
+    });
 
     // Check if this token already exists globally
     const existingToken = await this.prisma.pushToken.findUnique({
@@ -130,13 +130,15 @@ export class AuthNotificationsService {
   }
 
   // Sign out
-  async signOut(
-    userId: string,
-    dto: SignOutDto,
-  ): Promise<SignOutResponseDto> {
-    const { disableTransactionNotifications, disablePromotionalNotifications } = dto;
+  async signOut(userId: string, dto: SignOutDto): Promise<SignOutResponseDto> {
+    const { disableTransactionNotifications, disablePromotionalNotifications } =
+      dto;
 
-    console.log('🔍 [AUTH] Sign out request:', { userId, disableTransactionNotifications, disablePromotionalNotifications });
+    console.log('🔍 [AUTH] Sign out request:', {
+      userId,
+      disableTransactionNotifications,
+      disablePromotionalNotifications,
+    });
 
     let transactionNotificationsDisabled = false;
     let promotionalNotificationsDisabled = false;
@@ -187,9 +189,18 @@ export class AuthNotificationsService {
     userId: string,
     dto: UpdateNotificationPreferencesDto,
   ): Promise<NotificationPreferencesResponseDto> {
-    const { notificationsEnabled, transactionNotificationsEnabled, promotionalNotificationsEnabled } = dto;
+    const {
+      notificationsEnabled,
+      transactionNotificationsEnabled,
+      promotionalNotificationsEnabled,
+    } = dto;
 
-    console.log('🔍 [AUTH] Update notification preferences:', { userId, notificationsEnabled, transactionNotificationsEnabled, promotionalNotificationsEnabled });
+    console.log('🔍 [AUTH] Update notification preferences:', {
+      userId,
+      notificationsEnabled,
+      transactionNotificationsEnabled,
+      promotionalNotificationsEnabled,
+    });
 
     const updateData: any = {};
 
@@ -198,11 +209,13 @@ export class AuthNotificationsService {
     }
 
     if (transactionNotificationsEnabled !== undefined) {
-      updateData.transactionNotificationsEnabled = transactionNotificationsEnabled;
+      updateData.transactionNotificationsEnabled =
+        transactionNotificationsEnabled;
     }
 
     if (promotionalNotificationsEnabled !== undefined) {
-      updateData.promotionalNotificationsEnabled = promotionalNotificationsEnabled;
+      updateData.promotionalNotificationsEnabled =
+        promotionalNotificationsEnabled;
     }
 
     const updatedUser = await this.prisma.user.update({
@@ -217,14 +230,18 @@ export class AuthNotificationsService {
       message: 'Push notification preferences updated successfully',
       preferences: {
         notificationsEnabled: updatedUser.notificationsEnabled,
-        transactionNotificationsEnabled: updatedUser.transactionNotificationsEnabled,
-        promotionalNotificationsEnabled: updatedUser.promotionalNotificationsEnabled,
+        transactionNotificationsEnabled:
+          updatedUser.transactionNotificationsEnabled,
+        promotionalNotificationsEnabled:
+          updatedUser.promotionalNotificationsEnabled,
       },
     };
   }
 
   // Get notification preferences
-  async getNotificationPreferences(userId: string): Promise<NotificationPreferencesResponseDto> {
+  async getNotificationPreferences(
+    userId: string,
+  ): Promise<NotificationPreferencesResponseDto> {
     console.log('🔍 [AUTH] Get notification preferences:', { userId });
 
     const user = await this.prisma.user.findUnique({
@@ -252,4 +269,4 @@ export class AuthNotificationsService {
       },
     };
   }
-} 
+}

@@ -113,10 +113,7 @@ export class TransferProviderManagerService {
     if (adminProvider) {
       return adminProvider;
     }
-    return this.configService.get<string>(
-      'DEFAULT_TRANSFER_PROVIDER',
-      'NYRA',
-    );
+    return this.configService.get<string>('DEFAULT_TRANSFER_PROVIDER', 'NYRA');
   }
 
   /**
@@ -199,7 +196,10 @@ export class TransferProviderManagerService {
     const provider = await this.getActiveTransferProvider();
     const currentProvider = await this.getCurrentProviderName();
     this.logger.log(`Verifying account via ${currentProvider}`);
-    this.logger.log(`Transfer provider manager received data:`, JSON.stringify(data, null, 2));
+    this.logger.log(
+      `Transfer provider manager received data:`,
+      JSON.stringify(data, null, 2),
+    );
     return provider.verifyAccount(data);
   }
 

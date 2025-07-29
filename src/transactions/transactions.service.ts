@@ -1,10 +1,10 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { 
-  CalculateFeeDto, 
-  FeeCalculationResponseDto, 
+import {
+  CalculateFeeDto,
+  FeeCalculationResponseDto,
   GetFeeTiersResponseDto,
-  FeeTierDto 
+  FeeTierDto,
 } from './dto/transaction.dto';
 import { FeeType } from '@prisma/client';
 
@@ -28,11 +28,12 @@ export class TransactionsService {
     // First, try to find provider-specific fee configuration
     let feeConfig = null;
     if (provider) {
-      const providerFeeType = `${transactionType}_${provider.toUpperCase()}` as FeeType;
+      const providerFeeType =
+        `${transactionType}_${provider.toUpperCase()}` as FeeType;
       feeConfig = await this.prisma.feeConfiguration.findUnique({
-        where: { 
+        where: {
           feeType: providerFeeType,
-          isActive: true 
+          isActive: true,
         },
       });
     }
@@ -40,9 +41,9 @@ export class TransactionsService {
     // If no provider-specific config, try general transaction type
     if (!feeConfig) {
       feeConfig = await this.prisma.feeConfiguration.findUnique({
-        where: { 
+        where: {
           feeType: transactionType as FeeType,
-          isActive: true 
+          isActive: true,
         },
       });
     }
@@ -51,13 +52,20 @@ export class TransactionsService {
     if (!feeConfig) {
       const feeTier = await this.findApplicableFeeTier(amount, provider);
       if (feeTier) {
-        return this.createTieredFeeResponse(amount, transactionType, provider, feeTier);
+        return this.createTieredFeeResponse(
+          amount,
+          transactionType,
+          provider,
+          feeTier,
+        );
       }
     }
 
     // If no fee configuration found, return zero fee
     if (!feeConfig) {
-      console.log('⚠️ [TRANSACTIONS SERVICE] No fee configuration found, returning zero fee');
+      console.log(
+        '⚠️ [TRANSACTIONS SERVICE] No fee configuration found, returning zero fee',
+      );
       return this.createZeroFeeResponse(amount, transactionType, provider);
     }
 
@@ -113,9 +121,12 @@ export class TransactionsService {
    * Get all fee tiers for a provider
    */
   async getFeeTiers(provider?: string): Promise<GetFeeTiersResponseDto> {
-    console.log('📊 [TRANSACTIONS SERVICE] Getting fee tiers for provider:', provider);
+    console.log(
+      '📊 [TRANSACTIONS SERVICE] Getting fee tiers for provider:',
+      provider,
+    );
 
-    const whereClause = provider 
+    const whereClause = provider
       ? { provider, isActive: true }
       : { isActive: true };
 
@@ -124,7 +135,7 @@ export class TransactionsService {
       orderBy: { minAmount: 'asc' },
     });
 
-    const feeTierDtos: FeeTierDto[] = feeTiers.map(tier => ({
+    const feeTierDtos: FeeTierDto[] = feeTiers.map((tier) => ({
       name: tier.name,
       minAmount: tier.minAmount,
       maxAmount: tier.maxAmount || undefined,
@@ -132,7 +143,10 @@ export class TransactionsService {
       provider: tier.provider || undefined,
     }));
 
-    console.log('✅ [TRANSACTIONS SERVICE] Found fee tiers:', feeTierDtos.length);
+    console.log(
+      '✅ [TRANSACTIONS SERVICE] Found fee tiers:',
+      feeTierDtos.length,
+    );
 
     return {
       success: true,
@@ -144,7 +158,10 @@ export class TransactionsService {
   /**
    * Find applicable fee tier for a given amount
    */
-  private async findApplicableFeeTier(amount: number, provider?: string): Promise<any> {
+  private async findApplicableFeeTier(
+    amount: number,
+    provider?: string,
+  ): Promise<any> {
     // First try to find provider-specific tier
     if (provider) {
       const providerTier = await this.prisma.transferFeeTier.findFirst({
@@ -170,10 +187,7 @@ export class TransactionsService {
       where: {
         minAmount: { lte: amount },
         isActive: true,
-        OR: [
-          { provider: null },
-          { provider: '' },
-        ],
+        OR: [{ provider: null }, { provider: '' }],
         AND: [
           {
             OR: [
@@ -193,10 +207,10 @@ export class TransactionsService {
    * Create response for tiered fee calculation
    */
   private createTieredFeeResponse(
-    amount: number, 
-    transactionType: string, 
-    provider: string | undefined, 
-    feeTier: any
+    amount: number,
+    transactionType: string,
+    provider: string | undefined,
+    feeTier: any,
   ): FeeCalculationResponseDto {
     const feeAmount = feeTier.feeAmount;
     const totalAmount = amount + feeAmount;
@@ -224,9 +238,9 @@ export class TransactionsService {
    * Create response for zero fee
    */
   private createZeroFeeResponse(
-    amount: number, 
-    transactionType: string, 
-    provider: string | undefined
+    amount: number,
+    transactionType: string,
+    provider: string | undefined,
   ): FeeCalculationResponseDto {
     return {
       success: true,

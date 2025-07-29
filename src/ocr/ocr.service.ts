@@ -45,12 +45,12 @@ export class OcrService {
     const fs = require('fs');
     const path = require('path');
     const uploadDir = './uploads';
-    
+
     // Ensure uploads directory exists
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
-    
+
     fs.writeFileSync(path.join(uploadDir, filename), file.buffer);
 
     // Create initial OCR scan record
@@ -100,14 +100,14 @@ export class OcrService {
   private async processOcrTextAsync(scanId: string, imageBuffer: Buffer) {
     try {
       this.logger.debug(`Starting OCR processing for scan: ${scanId}`);
-      
+
       // Validate image buffer
       if (!imageBuffer || !Buffer.isBuffer(imageBuffer)) {
         this.logger.error(`Invalid image buffer for scan ${scanId}`);
         await this.updateOcrScanStatus(scanId, 'FAILED', '', 0);
         return;
       }
-      
+
       this.logger.debug(`Image buffer size: ${imageBuffer.length} bytes`);
 
       // Use OCR provider manager to extract text
@@ -144,7 +144,12 @@ export class OcrService {
     }
   }
 
-  private async updateOcrScanStatus(scanId: string, status: 'PROCESSING' | 'COMPLETED' | 'FAILED', text: string, confidence: number) {
+  private async updateOcrScanStatus(
+    scanId: string,
+    status: 'PROCESSING' | 'COMPLETED' | 'FAILED',
+    text: string,
+    confidence: number,
+  ) {
     try {
       await this.prisma.ocrScan.update({
         where: { id: scanId },
@@ -155,7 +160,10 @@ export class OcrService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to update OCR scan status for ${scanId}:`, error);
+      this.logger.error(
+        `Failed to update OCR scan status for ${scanId}:`,
+        error,
+      );
     }
   }
 

@@ -211,8 +211,13 @@ export class ProviderManagerService {
       const result = await activeProvider.getWalletBalance({ accountNumber });
       return result.balance;
     } catch (error) {
-      this.logger.error(`Error getting wallet balance for ${accountNumber}:`, error);
-      throw new BadRequestException('Failed to get wallet balance from provider');
+      this.logger.error(
+        `Error getting wallet balance for ${accountNumber}:`,
+        error,
+      );
+      throw new BadRequestException(
+        'Failed to get wallet balance from provider',
+      );
     }
   }
 }

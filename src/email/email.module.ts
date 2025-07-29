@@ -11,4 +11,4 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
   controllers: [EmailController],
   exports: [EmailService, EmailImagesService],
 })
-export class EmailModule {} 
+export class EmailModule {}

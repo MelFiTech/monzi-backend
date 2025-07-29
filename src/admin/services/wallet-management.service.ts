@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ProviderManagerService } from '../../providers/provider-manager.service';
+import { NotificationsGateway } from '../../notifications/notifications.gateway';
 import {
   WalletFreezeResponse,
   TotalWalletBalanceResponse,
@@ -13,6 +18,7 @@ export class WalletManagementService {
   constructor(
     private prisma: PrismaService,
     private providerManager: ProviderManagerService,
+    private notificationsGateway: NotificationsGateway,
   ) {}
 
   async getWalletBalance(params: {
@@ -115,23 +121,19 @@ export class WalletManagementService {
     console.log('📊 [WALLET SERVICE] Getting total wallet balance');
 
     try {
-      const [
-        totalBalance,
-        totalWallets,
-        activeWallets,
-        frozenWallets,
-      ] = await Promise.all([
-        this.prisma.wallet.aggregate({
-          _sum: { balance: true },
-        }),
-        this.prisma.wallet.count(),
-        this.prisma.wallet.count({
-          where: { isFrozen: false },
-        }),
-        this.prisma.wallet.count({
-          where: { isFrozen: true },
-        }),
-      ]);
+      const [totalBalance, totalWallets, activeWallets, frozenWallets] =
+        await Promise.all([
+          this.prisma.wallet.aggregate({
+            _sum: { balance: true },
+          }),
+          this.prisma.wallet.count(),
+          this.prisma.wallet.count({
+            where: { isFrozen: false },
+          }),
+          this.prisma.wallet.count({
+            where: { isFrozen: true },
+          }),
+        ]);
 
       const total = totalBalance._sum.balance || 0;
       const averageBalance = totalWallets > 0 ? total / totalWallets : 0;
@@ -146,7 +148,9 @@ export class WalletManagementService {
         currency: 'NGN',
       }).format(averageBalance);
 
-      console.log('✅ [WALLET SERVICE] Total wallet balance retrieved successfully');
+      console.log(
+        '✅ [WALLET SERVICE] Total wallet balance retrieved successfully',
+      );
 
       return {
         success: true,
@@ -161,7 +165,10 @@ export class WalletManagementService {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('❌ [WALLET SERVICE] Error getting total wallet balance:', error);
+      console.error(
+        '❌ [WALLET SERVICE] Error getting total wallet balance:',
+        error,
+      );
       throw new BadRequestException('Failed to get total wallet balance');
     }
   }
@@ -245,6 +252,22 @@ export class WalletManagementService {
 
       console.log('✅ [WALLET SERVICE] Wallet frozen successfully');
 
+      // Emit real-time notifications
+      if (this.notificationsGateway) {
+        // General notification for wallet freeze
+        this.notificationsGateway.emitNotification(wallet.user.id, {
+          title: 'Wallet Frozen by Admin',
+          message: `Your wallet has been frozen by an administrator. Reason: ${freezeWalletDto.reason || 'No reason provided'}`,
+          type: 'warning',
+          data: {
+            walletId: wallet.id,
+            accountNumber: wallet.virtualAccountNumber,
+            freezeReason: freezeWalletDto.reason,
+            adminAction: true,
+          },
+        });
+      }
+
       return {
         success: true,
         message: 'Wallet frozen successfully',
@@ -258,7 +281,10 @@ export class WalletManagementService {
       };
     } catch (error) {
       console.error('❌ [WALLET SERVICE] Error freezing wallet:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to freeze wallet');
@@ -313,6 +339,22 @@ export class WalletManagementService {
 
       console.log('✅ [WALLET SERVICE] Wallet unfrozen successfully');
 
+      // Emit real-time notifications
+      if (this.notificationsGateway) {
+        // General notification for wallet unfreeze
+        this.notificationsGateway.emitNotification(wallet.user.id, {
+          title: 'Wallet Unfrozen by Admin',
+          message: `Your wallet has been unfrozen by an administrator. You can now use your wallet normally.`,
+          type: 'success',
+          data: {
+            walletId: wallet.id,
+            accountNumber: wallet.virtualAccountNumber,
+            unfreezeReason: unfreezeWalletDto.reason,
+            adminAction: true,
+          },
+        });
+      }
+
       return {
         success: true,
         message: 'Wallet unfrozen successfully',
@@ -326,15 +368,23 @@ export class WalletManagementService {
       };
     } catch (error) {
       console.error('❌ [WALLET SERVICE] Error unfreezing wallet:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to unfreeze wallet');
     }
   }
 
-  async getProviderWalletDetails(provider?: string): Promise<ProviderWalletDetailsResponse> {
-    console.log('🏦 [WALLET SERVICE] Getting provider wallet details for:', provider);
+  async getProviderWalletDetails(
+    provider?: string,
+  ): Promise<ProviderWalletDetailsResponse> {
+    console.log(
+      '🏦 [WALLET SERVICE] Getting provider wallet details for:',
+      provider,
+    );
 
     try {
       const where: any = {};
@@ -367,7 +417,11 @@ export class WalletManagementService {
         provider: provider || 'ALL',
         totalWallets: wallets.length,
         totalBalance: wallets.reduce((sum, wallet) => sum + wallet.balance, 0),
-        averageBalance: wallets.length > 0 ? wallets.reduce((sum, wallet) => sum + wallet.balance, 0) / wallets.length : 0,
+        averageBalance:
+          wallets.length > 0
+            ? wallets.reduce((sum, wallet) => sum + wallet.balance, 0) /
+              wallets.length
+            : 0,
         frozenWallets: wallets.filter((wallet) => wallet.isFrozen).length,
         activeWallets: wallets.filter((wallet) => !wallet.isFrozen).length,
         providerStats,
@@ -383,7 +437,9 @@ export class WalletManagementService {
         })),
       };
 
-      console.log('✅ [WALLET SERVICE] Provider wallet details retrieved successfully');
+      console.log(
+        '✅ [WALLET SERVICE] Provider wallet details retrieved successfully',
+      );
 
       return {
         success: true,
@@ -392,15 +448,20 @@ export class WalletManagementService {
         businessId: '2c0a64ab4da2c10abfff0971',
         walletId: wallets[0]?.id || 'wallet_123456789',
         accountNumber: wallets[0]?.virtualAccountNumber || '',
-        ownersFullname: wallets[0]?.user ? `${wallets[0].user.firstName} ${wallets[0].user.lastName}` : 'MONZI Business Account',
+        ownersFullname: wallets[0]?.user
+          ? `${wallets[0].user.firstName} ${wallets[0].user.lastName}`
+          : 'MONZI Business Account',
         balance: wallets.reduce((sum, wallet) => sum + wallet.balance, 0),
         formattedBalance: `₦${wallets.reduce((sum, wallet) => sum + wallet.balance, 0).toLocaleString()}`,
-        frozen: wallets.some(wallet => wallet.isFrozen),
+        frozen: wallets.some((wallet) => wallet.isFrozen),
         currency: 'NGN',
         lastUpdated: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('❌ [WALLET SERVICE] Error getting provider wallet details:', error);
+      console.error(
+        '❌ [WALLET SERVICE] Error getting provider wallet details:',
+        error,
+      );
       throw new BadRequestException('Failed to get provider wallet details');
     }
   }
@@ -426,7 +487,9 @@ export class WalletManagementService {
       }
 
       // Placeholder - implement in provider manager service
-      const providerBalance = await this.providerManager.getWalletBalance(wallet.virtualAccountNumber);
+      const providerBalance = await this.providerManager.getWalletBalance(
+        wallet.virtualAccountNumber,
+      );
 
       const balanceMatch = Math.abs(wallet.balance - providerBalance) < 0.01;
 
@@ -442,7 +505,10 @@ export class WalletManagementService {
         user: wallet.user,
       };
     } catch (error) {
-      console.error('❌ [WALLET SERVICE] Error validating wallet balance:', error);
+      console.error(
+        '❌ [WALLET SERVICE] Error validating wallet balance:',
+        error,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       }
@@ -451,7 +517,10 @@ export class WalletManagementService {
   }
 
   async reconcileWalletBalance(walletId: string) {
-    console.log('🔄 [WALLET SERVICE] Reconciling wallet balance for:', walletId);
+    console.log(
+      '🔄 [WALLET SERVICE] Reconciling wallet balance for:',
+      walletId,
+    );
 
     try {
       const wallet = await this.prisma.wallet.findUnique({
@@ -471,7 +540,9 @@ export class WalletManagementService {
       }
 
       // Get current balance from provider
-      const providerBalance = await this.providerManager.getWalletBalance(wallet.virtualAccountNumber);
+      const providerBalance = await this.providerManager.getWalletBalance(
+        wallet.virtualAccountNumber,
+      );
 
       // Update local balance to match provider
       await this.prisma.wallet.update({
@@ -490,11 +561,14 @@ export class WalletManagementService {
         user: wallet.user,
       };
     } catch (error) {
-      console.error('❌ [WALLET SERVICE] Error reconciling wallet balance:', error);
+      console.error(
+        '❌ [WALLET SERVICE] Error reconciling wallet balance:',
+        error,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       }
       throw new BadRequestException('Failed to reconcile wallet balance');
     }
   }
-} 
+}

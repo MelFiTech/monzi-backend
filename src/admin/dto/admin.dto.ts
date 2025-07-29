@@ -123,12 +123,18 @@ export class CreateTransferFeeTierDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 100, description: 'Minimum amount for this tier (inclusive)' })
+  @ApiProperty({
+    example: 100,
+    description: 'Minimum amount for this tier (inclusive)',
+  })
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   minAmount: number;
 
-  @ApiPropertyOptional({ example: 9999, description: 'Maximum amount for this tier (inclusive), null for unlimited' })
+  @ApiPropertyOptional({
+    example: 9999,
+    description: 'Maximum amount for this tier (inclusive), null for unlimited',
+  })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
@@ -139,17 +145,27 @@ export class CreateTransferFeeTierDto {
   @Min(0)
   feeAmount: number;
 
-  @ApiPropertyOptional({ example: 'BUDPAY', description: 'Provider-specific tier (null for global)' })
+  @ApiPropertyOptional({
+    example: 'BUDPAY',
+    description: 'Provider-specific tier (null for global)',
+  })
   @IsOptional()
   @IsString()
   provider?: string;
 
-  @ApiPropertyOptional({ example: 'Fee for small transfers', description: 'Tier description' })
+  @ApiPropertyOptional({
+    example: 'Fee for small transfers',
+    description: 'Tier description',
+  })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: true, description: 'Whether tier is active', default: true })
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether tier is active',
+    default: true,
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
@@ -161,30 +177,45 @@ export class UpdateTransferFeeTierDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ example: 100, description: 'Minimum amount for this tier' })
+  @ApiPropertyOptional({
+    example: 100,
+    description: 'Minimum amount for this tier',
+  })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   minAmount?: number;
 
-  @ApiPropertyOptional({ example: 9999, description: 'Maximum amount for this tier' })
+  @ApiPropertyOptional({
+    example: 9999,
+    description: 'Maximum amount for this tier',
+  })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   maxAmount?: number;
 
-  @ApiPropertyOptional({ example: 5, description: 'Fixed fee amount for this tier' })
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Fixed fee amount for this tier',
+  })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   feeAmount?: number;
 
-  @ApiPropertyOptional({ example: 'BUDPAY', description: 'Provider-specific tier' })
+  @ApiPropertyOptional({
+    example: 'BUDPAY',
+    description: 'Provider-specific tier',
+  })
   @IsOptional()
   @IsString()
   provider?: string;
 
-  @ApiPropertyOptional({ example: 'Fee for small transfers', description: 'Tier description' })
+  @ApiPropertyOptional({
+    example: 'Fee for small transfers',
+    description: 'Tier description',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -217,7 +248,10 @@ export class TransferFeeTierResponse {
   @ApiProperty({ example: true, description: 'Is active' })
   isActive: boolean;
 
-  @ApiProperty({ example: 'Fee for small transfers', description: 'Description' })
+  @ApiProperty({
+    example: 'Fee for small transfers',
+    description: 'Description',
+  })
   description?: string;
 
   @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Created at' })
@@ -567,7 +601,10 @@ export class AdminUserDto {
   @ApiProperty({ example: 'MALE', description: 'User gender' })
   gender: string;
 
-  @ApiProperty({ example: '1996-09-09T00:00:00.000Z', description: 'Date of birth' })
+  @ApiProperty({
+    example: '1996-09-09T00:00:00.000Z',
+    description: 'Date of birth',
+  })
   dateOfBirth: string;
 
   @ApiProperty({ example: 'PENDING', description: 'KYC status' })
@@ -582,7 +619,7 @@ export class AdminUserDto {
   @ApiProperty({ example: 'ACTIVE', description: 'Wallet status' })
   walletStatus?: string;
 
-  @ApiProperty({ example: 1500.00, description: 'Wallet balance' })
+  @ApiProperty({ example: 1500.0, description: 'Wallet balance' })
   walletBalance?: number;
 
   @ApiProperty({ example: '9038123456', description: 'Virtual account number' })
@@ -591,10 +628,16 @@ export class AdminUserDto {
   @ApiProperty({ example: 'BUDPAY', description: 'Wallet provider' })
   walletProvider?: string;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Account creation date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'Account creation date',
+  })
   createdAt: string;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Last update date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'Last update date',
+  })
   updatedAt: string;
 }
 
@@ -663,7 +706,10 @@ export class AdminUserDetailDto {
   @ApiProperty({ example: 'MALE', description: 'User gender' })
   gender: string;
 
-  @ApiProperty({ example: '1996-09-09T00:00:00.000Z', description: 'Date of birth' })
+  @ApiProperty({
+    example: '1996-09-09T00:00:00.000Z',
+    description: 'Date of birth',
+  })
   dateOfBirth: string;
 
   @ApiProperty({ example: 'VERIFIED', description: 'KYC status' })
@@ -678,16 +724,28 @@ export class AdminUserDetailDto {
   @ApiProperty({ example: '22347795339', description: 'BVN number' })
   bvn?: string;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'BVN verification date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'BVN verification date',
+  })
   bvnVerifiedAt?: string;
 
-  @ApiProperty({ example: '/uploads/kyc/user-selfie.jpg', description: 'Selfie URL' })
+  @ApiProperty({
+    example: '/uploads/kyc/user-selfie.jpg',
+    description: 'Selfie URL',
+  })
   selfieUrl?: string;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Account creation date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'Account creation date',
+  })
   createdAt: string;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Last update date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'Last update date',
+  })
   updatedAt: string;
 
   @ApiProperty({ description: 'Wallet information', required: false })
@@ -766,6 +824,12 @@ export class DeleteUserResponse {
     description: 'Number of associated transactions deleted',
   })
   transactionsDeleted: number;
+
+  @ApiProperty({
+    example: false,
+    description: 'Whether the user was archived (soft delete) instead of hard deleted',
+  })
+  archived: boolean;
 }
 
 // ==================== TRANSACTION MANAGEMENT DTOs ====================
@@ -800,10 +864,10 @@ export class AdminTransactionSenderDto {
   @ApiProperty({ example: '000016', description: 'Sender bank code' })
   bankCode?: string;
 
-  @ApiProperty({ example: 6000.00, description: 'Balance before transaction' })
+  @ApiProperty({ example: 6000.0, description: 'Balance before transaction' })
   balanceBefore?: number;
 
-  @ApiProperty({ example: 1000.00, description: 'Balance after transaction' })
+  @ApiProperty({ example: 1000.0, description: 'Balance after transaction' })
   balanceAfter?: number;
 }
 
@@ -811,7 +875,10 @@ export class AdminTransactionReceiverDto {
   @ApiProperty({ example: 'wallet456', description: 'Receiver wallet ID' })
   walletId?: string;
 
-  @ApiProperty({ example: '3089415578', description: 'Receiver account number' })
+  @ApiProperty({
+    example: '3089415578',
+    description: 'Receiver account number',
+  })
   accountNumber?: string;
 
   @ApiProperty({ example: 'Jane Smith', description: 'Receiver account name' })
@@ -823,10 +890,10 @@ export class AdminTransactionReceiverDto {
   @ApiProperty({ example: '000016', description: 'Receiver bank code' })
   bankCode?: string;
 
-  @ApiProperty({ example: 500.00, description: 'Balance before transaction' })
+  @ApiProperty({ example: 500.0, description: 'Balance before transaction' })
   balanceBefore?: number;
 
-  @ApiProperty({ example: 1500.00, description: 'Balance after transaction' })
+  @ApiProperty({ example: 1500.0, description: 'Balance after transaction' })
   balanceAfter?: number;
 }
 
@@ -834,7 +901,7 @@ export class AdminTransactionDto {
   @ApiProperty({ example: 'txn123', description: 'Transaction ID' })
   id: string;
 
-  @ApiProperty({ example: 5000.00, description: 'Transaction amount' })
+  @ApiProperty({ example: 5000.0, description: 'Transaction amount' })
   amount: number;
 
   @ApiProperty({ example: 'NGN', description: 'Transaction currency' })
@@ -846,22 +913,34 @@ export class AdminTransactionDto {
   @ApiProperty({ example: 'COMPLETED', description: 'Transaction status' })
   status: string;
 
-  @ApiProperty({ example: 'TXN_1234567890', description: 'Transaction reference' })
+  @ApiProperty({
+    example: 'TXN_1234567890',
+    description: 'Transaction reference',
+  })
   reference: string;
 
-  @ApiProperty({ example: 'Transfer to John Doe', description: 'Transaction description' })
+  @ApiProperty({
+    example: 'Transfer to John Doe',
+    description: 'Transaction description',
+  })
   description?: string;
 
-  @ApiProperty({ example: 50.00, description: 'Transaction fee' })
+  @ApiProperty({ example: 50.0, description: 'Transaction fee' })
   fee: number;
 
   @ApiProperty({ example: 'BUDPAY_REF_123', description: 'Provider reference' })
   providerReference?: string;
 
-  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Transaction creation date' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Transaction creation date',
+  })
   createdAt: string;
 
-  @ApiProperty({ example: '2024-01-15T10:32:00Z', description: 'Transaction update date' })
+  @ApiProperty({
+    example: '2024-01-15T10:32:00Z',
+    description: 'Transaction update date',
+  })
   updatedAt: string;
 
   @ApiProperty({
@@ -886,13 +965,16 @@ export class AdminTransactionDto {
 }
 
 export class AdminTransactionStatsDto {
-  @ApiProperty({ example: 2500000.00, description: 'Total transaction amount' })
+  @ApiProperty({ example: 2500000.0, description: 'Total transaction amount' })
   totalAmount: number;
 
-  @ApiProperty({ example: 125000.00, description: 'Total fees collected' })
+  @ApiProperty({ example: 125000.0, description: 'Total fees collected' })
   totalFees: number;
 
-  @ApiProperty({ example: 4500, description: 'Number of completed transactions' })
+  @ApiProperty({
+    example: 4500,
+    description: 'Number of completed transactions',
+  })
   completed: number;
 
   @ApiProperty({ example: 300, description: 'Number of pending transactions' })
@@ -935,7 +1017,7 @@ export class AdminTransactionDetailDto {
   @ApiProperty({ example: 'txn123', description: 'Transaction ID' })
   id: string;
 
-  @ApiProperty({ example: 5000.00, description: 'Transaction amount' })
+  @ApiProperty({ example: 5000.0, description: 'Transaction amount' })
   amount: number;
 
   @ApiProperty({ example: 'NGN', description: 'Transaction currency' })
@@ -947,13 +1029,19 @@ export class AdminTransactionDetailDto {
   @ApiProperty({ example: 'COMPLETED', description: 'Transaction status' })
   status: string;
 
-  @ApiProperty({ example: 'TXN_1234567890', description: 'Transaction reference' })
+  @ApiProperty({
+    example: 'TXN_1234567890',
+    description: 'Transaction reference',
+  })
   reference: string;
 
-  @ApiProperty({ example: 'Transfer to John Doe', description: 'Transaction description' })
+  @ApiProperty({
+    example: 'Transfer to John Doe',
+    description: 'Transaction description',
+  })
   description?: string;
 
-  @ApiProperty({ example: 50.00, description: 'Transaction fee' })
+  @ApiProperty({ example: 50.0, description: 'Transaction fee' })
   fee: number;
 
   @ApiProperty({ example: 'BUDPAY_REF_123', description: 'Provider reference' })
@@ -965,10 +1053,16 @@ export class AdminTransactionDetailDto {
   @ApiProperty({ description: 'Transaction metadata', required: false })
   metadata?: any;
 
-  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Transaction creation date' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Transaction creation date',
+  })
   createdAt: string;
 
-  @ApiProperty({ example: '2024-01-15T10:32:00Z', description: 'Transaction update date' })
+  @ApiProperty({
+    example: '2024-01-15T10:32:00Z',
+    description: 'Transaction update date',
+  })
   updatedAt: string;
 
   @ApiProperty({
@@ -1035,10 +1129,13 @@ export class DashboardTransactionStatsDto {
   @ApiProperty({ example: 500, description: 'Failed transactions' })
   failed: number;
 
-  @ApiProperty({ example: 45000000.00, description: 'Total transaction volume' })
+  @ApiProperty({ example: 45000000.0, description: 'Total transaction volume' })
   totalVolume: number;
 
-  @ApiProperty({ example: 2500000.00, description: 'Today\'s transaction volume' })
+  @ApiProperty({
+    example: 2500000.0,
+    description: "Today's transaction volume",
+  })
   todayVolume: number;
 }
 
@@ -1052,7 +1149,7 @@ export class DashboardWalletStatsDto {
   @ApiProperty({ example: 50, description: 'Inactive wallets' })
   inactive: number;
 
-  @ApiProperty({ example: 25000000.00, description: 'Total wallet balance' })
+  @ApiProperty({ example: 25000000.0, description: 'Total wallet balance' })
   totalBalance: number;
 }
 
@@ -1118,7 +1215,7 @@ export class FundWalletDto {
   accountNumber?: string;
 
   @ApiProperty({
-    example: 5000.00,
+    example: 5000.0,
     description: 'Amount to fund wallet with',
   })
   @IsNumber()
@@ -1164,7 +1261,7 @@ export class DebitWalletDto {
   accountNumber?: string;
 
   @ApiProperty({
-    example: 1000.00,
+    example: 1000.0,
     description: 'Amount to debit from wallet',
   })
   @IsNumber()
@@ -1204,19 +1301,19 @@ export class WalletOperationResponse {
   userEmail: string;
 
   @ApiProperty({
-    example: 5000.00,
+    example: 5000.0,
     description: 'Previous wallet balance',
   })
   previousBalance: number;
 
   @ApiProperty({
-    example: 10000.00,
+    example: 10000.0,
     description: 'New wallet balance',
   })
   newBalance: number;
 
   @ApiProperty({
-    example: 5000.00,
+    example: 5000.0,
     description: 'Amount that was funded/debited',
   })
   amount: number;
@@ -1480,38 +1577,38 @@ export enum Permission {
   EDIT_USERS = 'EDIT_USERS',
   DELETE_USERS = 'DELETE_USERS',
   CREATE_USERS = 'CREATE_USERS',
-  
+
   // Transaction Management
   VIEW_TRANSACTIONS = 'VIEW_TRANSACTIONS',
   APPROVE_TRANSACTIONS = 'APPROVE_TRANSACTIONS',
   REVERSE_TRANSACTIONS = 'REVERSE_TRANSACTIONS',
-  
+
   // KYC Management
   VIEW_KYC = 'VIEW_KYC',
   APPROVE_KYC = 'APPROVE_KYC',
   REJECT_KYC = 'REJECT_KYC',
-  
+
   // Wallet Management
   VIEW_WALLETS = 'VIEW_WALLETS',
   FUND_WALLETS = 'FUND_WALLETS',
   DEBIT_WALLETS = 'DEBIT_WALLETS',
   CREATE_WALLETS = 'CREATE_WALLETS',
-  
+
   // Fee Management
   VIEW_FEES = 'VIEW_FEES',
   SET_FEES = 'SET_FEES',
   DELETE_FEES = 'DELETE_FEES',
-  
+
   // Provider Management
   VIEW_PROVIDERS = 'VIEW_PROVIDERS',
   SWITCH_PROVIDERS = 'SWITCH_PROVIDERS',
   TEST_PROVIDERS = 'TEST_PROVIDERS',
-  
+
   // System Management
   VIEW_DASHBOARD = 'VIEW_DASHBOARD',
   VIEW_LOGS = 'VIEW_LOGS',
   SYSTEM_CONFIG = 'SYSTEM_CONFIG',
-  
+
   // Admin Management (SUDO only)
   CREATE_ADMINS = 'CREATE_ADMINS',
   EDIT_ADMINS = 'EDIT_ADMINS',
@@ -1532,12 +1629,15 @@ export class CreateAdminDto {
     example: 'ADMIN',
     description: 'Admin role to assign',
   })
-  @IsEnum(AdminRole, { message: 'Role must be ADMIN, CUSTOMER_REP, DEVELOPER, or SUDO_ADMIN' })
+  @IsEnum(AdminRole, {
+    message: 'Role must be ADMIN, CUSTOMER_REP, DEVELOPER, or SUDO_ADMIN',
+  })
   role: AdminRole;
 
   @ApiProperty({
     example: ['VIEW_USERS', 'VIEW_TRANSACTIONS', 'VIEW_KYC'],
-    description: 'Specific permissions to grant (optional - will use role defaults if not provided)',
+    description:
+      'Specific permissions to grant (optional - will use role defaults if not provided)',
     required: false,
     type: [String],
     enum: Permission,
@@ -1618,7 +1718,10 @@ export class AdminDto {
   @ApiProperty({ example: 'MALE', description: 'Admin gender' })
   gender: string;
 
-  @ApiProperty({ example: '1990-01-15T00:00:00.000Z', description: 'Date of birth' })
+  @ApiProperty({
+    example: '1990-01-15T00:00:00.000Z',
+    description: 'Date of birth',
+  })
   dateOfBirth: string;
 
   @ApiProperty({ example: true, description: 'Account active status' })
@@ -1627,17 +1730,23 @@ export class AdminDto {
   @ApiProperty({ example: true, description: 'Email verification status' })
   isVerified: boolean;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: ['VIEW_USERS', 'VIEW_TRANSACTIONS', 'VIEW_KYC'],
     description: 'Admin permissions',
     type: [String],
   })
   permissions: string[];
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Account creation date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'Account creation date',
+  })
   createdAt: string;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Last update date' })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    description: 'Last update date',
+  })
   updatedAt: string;
 }
 
@@ -1702,7 +1811,8 @@ export class UpdateAdminDto {
   @IsOptional()
   @IsString()
   @Matches(/^\+234[789][01]\d{8}$/, {
-    message: 'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits',
+    message:
+      'Phone number must be a valid Nigerian number starting with +234 followed by 10 digits',
   })
   phone?: string;
 
@@ -1713,7 +1823,9 @@ export class UpdateAdminDto {
     required: false,
   })
   @IsOptional()
-  @IsEnum(AdminRole, { message: 'Role must be ADMIN, CUSTOMER_REP, DEVELOPER, or SUDO_ADMIN' })
+  @IsEnum(AdminRole, {
+    message: 'Role must be ADMIN, CUSTOMER_REP, DEVELOPER, or SUDO_ADMIN',
+  })
   role?: AdminRole;
 
   @ApiProperty({
@@ -1794,7 +1906,10 @@ export class AdminActionLogDto {
   @ApiProperty({ example: 'log123', description: 'Log ID' })
   id: string;
 
-  @ApiProperty({ example: 'admin123', description: 'Admin ID who performed the action' })
+  @ApiProperty({
+    example: 'admin123',
+    description: 'Admin ID who performed the action',
+  })
   adminId: string;
 
   @ApiProperty({ example: 'admin@example.com', description: 'Admin email' })
@@ -1803,29 +1918,52 @@ export class AdminActionLogDto {
   @ApiProperty({ example: 'CREATE_ADMIN', description: 'Action performed' })
   action: string;
 
-  @ApiProperty({ example: 'USER', description: 'Type of resource affected', required: false })
+  @ApiProperty({
+    example: 'USER',
+    description: 'Type of resource affected',
+    required: false,
+  })
   targetType?: string;
 
-  @ApiProperty({ example: 'user123', description: 'ID of affected resource', required: false })
+  @ApiProperty({
+    example: 'user123',
+    description: 'ID of affected resource',
+    required: false,
+  })
   targetId?: string;
 
-  @ApiProperty({ example: 'user@example.com', description: 'Email of affected user', required: false })
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'Email of affected user',
+    required: false,
+  })
   targetEmail?: string;
 
-  @ApiProperty({ 
-    example: { role: 'ADMIN', permissions: ['VIEW_USERS'] }, 
+  @ApiProperty({
+    example: { role: 'ADMIN', permissions: ['VIEW_USERS'] },
     description: 'Additional action details',
-    required: false 
+    required: false,
   })
   details?: any;
 
-  @ApiProperty({ example: '192.168.1.1', description: 'IP address', required: false })
+  @ApiProperty({
+    example: '192.168.1.1',
+    description: 'IP address',
+    required: false,
+  })
   ipAddress?: string;
 
-  @ApiProperty({ example: 'Mozilla/5.0...', description: 'User agent', required: false })
+  @ApiProperty({
+    example: 'Mozilla/5.0...',
+    description: 'User agent',
+    required: false,
+  })
   userAgent?: string;
 
-  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Action timestamp' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Action timestamp',
+  })
   createdAt: string;
 }
 
@@ -2064,7 +2202,7 @@ export class TotalWalletBalanceResponse {
   message: string;
 
   @ApiProperty({
-    example: 25000000.00,
+    example: 25000000.0,
     description: 'Total balance across all wallets',
   })
   totalBalance: number;
@@ -2155,7 +2293,7 @@ export class ProviderWalletDetailsResponse {
   ownersFullname: string;
 
   @ApiProperty({
-    example: 5000000.00,
+    example: 5000000.0,
     description: 'Current wallet balance',
   })
   balance: number;
@@ -2188,7 +2326,8 @@ export class ProviderWalletDetailsResponse {
 export class GetProviderWalletDetailsQueryDto {
   @ApiProperty({
     example: 'NYRA',
-    description: 'Provider to get wallet details for (optional - uses current provider if not specified)',
+    description:
+      'Provider to get wallet details for (optional - uses current provider if not specified)',
     required: false,
   })
   @IsOptional()
@@ -2212,27 +2351,43 @@ export class AdminTransactionReportDto {
   @ApiProperty({ example: 'txn123', description: 'Transaction ID' })
   transactionId: string;
 
-  @ApiProperty({ example: 'UNAUTHORIZED_TRANSACTION', description: 'Report reason' })
+  @ApiProperty({
+    example: 'UNAUTHORIZED_TRANSACTION',
+    description: 'Report reason',
+  })
   reason: string;
 
-  @ApiProperty({ example: 'I did not authorize this transaction', description: 'Report description' })
+  @ApiProperty({
+    example: 'I did not authorize this transaction',
+    description: 'Report description',
+  })
   description: string;
 
   @ApiProperty({ example: 'PENDING', description: 'Report status' })
   status: string;
 
-  @ApiProperty({ example: 'Admin notes about resolution', description: 'Admin notes', required: false })
+  @ApiProperty({
+    example: 'Admin notes about resolution',
+    description: 'Admin notes',
+    required: false,
+  })
   adminNotes?: string;
 
-  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Report creation date' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Report creation date',
+  })
   createdAt: string;
 
-  @ApiProperty({ example: '2024-01-15T11:30:00Z', description: 'Report update date' })
+  @ApiProperty({
+    example: '2024-01-15T11:30:00Z',
+    description: 'Report update date',
+  })
   updatedAt: string;
 
-  @ApiProperty({ 
-    type: AdminTransactionDetailDto, 
-    description: 'Transaction details' 
+  @ApiProperty({
+    type: AdminTransactionDetailDto,
+    description: 'Transaction details',
   })
   transaction: AdminTransactionDetailDto;
 }
@@ -2241,9 +2396,9 @@ export class GetAdminTransactionReportsResponseDto {
   @ApiProperty({ example: true, description: 'Operation success status' })
   success: boolean;
 
-  @ApiProperty({ 
-    type: [AdminTransactionReportDto], 
-    description: 'List of transaction reports' 
+  @ApiProperty({
+    type: [AdminTransactionReportDto],
+    description: 'List of transaction reports',
   })
   reports: AdminTransactionReportDto[];
 
@@ -2258,19 +2413,19 @@ export class GetAdminTransactionReportsResponseDto {
 }
 
 export class UpdateAdminReportStatusDto {
-  @ApiProperty({ 
-    example: 'RESOLVED', 
+  @ApiProperty({
+    example: 'RESOLVED',
     description: 'New status for the report',
-    enum: ['PENDING', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED']
+    enum: ['PENDING', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED'],
   })
   @IsNotEmpty()
   @IsString()
   status: string;
 
-  @ApiProperty({ 
-    example: 'Issue resolved. Transaction was legitimate.', 
+  @ApiProperty({
+    example: 'Issue resolved. Transaction was legitimate.',
     description: 'Admin notes about the resolution',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -2282,6 +2437,9 @@ export class UpdateAdminReportStatusResponseDto {
   @ApiProperty({ example: true, description: 'Operation success status' })
   success: boolean;
 
-  @ApiProperty({ example: 'Report status updated successfully', description: 'Response message' })
+  @ApiProperty({
+    example: 'Report status updated successfully',
+    description: 'Response message',
+  })
   message: string;
 }

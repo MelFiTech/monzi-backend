@@ -103,12 +103,15 @@ export class AccountsController {
   })
   @Post('super-resolve')
   async superResolveAccount(@Body() superResolveDto: SuperResolveAccountDto) {
-    console.log('🔍 [ACCOUNTS API] POST /accounts/super-resolve - Request received:');
+    console.log(
+      '🔍 [ACCOUNTS API] POST /accounts/super-resolve - Request received:',
+    );
     console.log('📝 Request Data:', JSON.stringify(superResolveDto, null, 2));
 
     try {
-      const result = await this.accountsService.superResolveAccount(superResolveDto);
-      
+      const result =
+        await this.accountsService.superResolveAccount(superResolveDto);
+
       if (result.success) {
         console.log('✅ [ACCOUNTS API] Super resolve successful:');
         console.log('📄 Response Data:', JSON.stringify(result, null, 2));
@@ -116,7 +119,7 @@ export class AccountsController {
         console.log('❌ [ACCOUNTS API] Super resolve failed:');
         console.log('📄 Response Data:', JSON.stringify(result, null, 2));
       }
-      
+
       return result;
     } catch (error) {
       console.log('❌ [ACCOUNTS API] Super resolve error:');

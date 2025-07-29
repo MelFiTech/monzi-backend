@@ -61,8 +61,11 @@ export class SmartMessageProcessorService {
       // Step 3: Execute backend queries
       let backendData = {};
       if (queryIntents.length > 0) {
-        backendData = await this.queryExecutor.executeBackendQueries(queryIntents);
-        this.logger.debug(`✅ Executed ${Object.keys(backendData).length} backend queries`);
+        backendData =
+          await this.queryExecutor.executeBackendQueries(queryIntents);
+        this.logger.debug(
+          `✅ Executed ${Object.keys(backendData).length} backend queries`,
+        );
       }
 
       // Step 4: Generate friendly, context-aware response
@@ -70,15 +73,16 @@ export class SmartMessageProcessorService {
         message,
         userQuery,
         backendData,
-        context
+        context,
       );
 
       // Step 5: Enhance response with Gemini AI for natural language polish
-      const enhancedResponse = await this.responseEnhancer.enhanceResponseWithAI(
-        response,
-        message,
-        userQuery
-      );
+      const enhancedResponse =
+        await this.responseEnhancer.enhanceResponseWithAI(
+          response,
+          message,
+          userQuery,
+        );
 
       return {
         response: enhancedResponse,
@@ -97,7 +101,8 @@ export class SmartMessageProcessorService {
 
       // Fallback response
       return {
-        response: "Sorry, I encountered an issue while processing your request. Please try again or ask me something else!",
+        response:
+          'Sorry, I encountered an issue while processing your request. Please try again or ask me something else!',
         metadata: {
           model: this.geminiApiService.getDefaultModel(),
           sessionId,
@@ -126,26 +131,33 @@ export class SmartMessageProcessorService {
       const queryIntents = this.queryExecutor.generateQueryIntents(userQuery);
 
       // Step 3: Execute backend queries
-      const backendData = await this.queryExecutor.executeBackendQueries(queryIntents);
-      this.logger.log(`Backend data collected for ${Object.keys(backendData).length} endpoints`);
+      const backendData =
+        await this.queryExecutor.executeBackendQueries(queryIntents);
+      this.logger.log(
+        `Backend data collected for ${Object.keys(backendData).length} endpoints`,
+      );
 
       // Step 4: Generate initial response
       const response = this.responseGenerator.generateComprehensiveResponse(
         message,
         userQuery,
-        backendData
+        backendData,
       );
 
       // Step 5: Enhance with Gemini AI
-      const enhancedResponse = await this.responseEnhancer.enhanceResponseWithAI(
-        response,
-        message,
-        userQuery
-      );
+      const enhancedResponse =
+        await this.responseEnhancer.enhanceResponseWithAI(
+          response,
+          message,
+          userQuery,
+        );
 
       return enhancedResponse;
     } catch (error) {
-      this.logger.error(`Error processing query: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error processing query: ${error.message}`,
+        error.stack,
+      );
       return `❌ Sorry, I encountered an error while processing your request. Please try again or contact support if the issue persists.\n\nError: ${error.message}`;
     }
   }
@@ -173,12 +185,12 @@ export class SmartMessageProcessorService {
       message: string;
       sessionId: string;
       context?: SmartMessageContext;
-    }>
+    }>,
   ): Promise<SmartMessageResult[]> {
     const results = await Promise.all(
       messages.map(({ message, sessionId, context }) =>
-        this.processSmartMessage(message, sessionId, context)
-      )
+        this.processSmartMessage(message, sessionId, context),
+      ),
     );
 
     return results;

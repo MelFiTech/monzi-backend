@@ -67,14 +67,23 @@ export class AuthService {
     type?: string,
     status?: string,
   ) {
-    return this.authProfileService.getUserTransactions(userId, limit, offset, type, status);
+    return this.authProfileService.getUserTransactions(
+      userId,
+      limit,
+      offset,
+      type,
+      status,
+    );
   }
 
   async getUserTransactionDetail(
     userId: string,
     transactionId: string,
   ): Promise<TransactionDetailResponseDto> {
-    return this.authProfileService.getUserTransactionDetail(userId, transactionId);
+    return this.authProfileService.getUserTransactionDetail(
+      userId,
+      transactionId,
+    );
   }
 
   // Security Methods
@@ -175,13 +184,14 @@ export class AuthService {
       manufacturer?: string;
     },
   ): Promise<DeviceTokenUpdateResponseDto> {
-    return this.authNotificationsService.updateDeviceTokenOnLogin(userId, deviceToken, deviceInfo);
+    return this.authNotificationsService.updateDeviceTokenOnLogin(
+      userId,
+      deviceToken,
+      deviceInfo,
+    );
   }
 
-  async signOut(
-    userId: string,
-    dto: SignOutDto,
-  ): Promise<SignOutResponseDto> {
+  async signOut(userId: string, dto: SignOutDto): Promise<SignOutResponseDto> {
     return this.authNotificationsService.signOut(userId, dto);
   }
 
@@ -189,10 +199,15 @@ export class AuthService {
     userId: string,
     dto: UpdateNotificationPreferencesDto,
   ): Promise<NotificationPreferencesResponseDto> {
-    return this.authNotificationsService.updateNotificationPreferences(userId, dto);
+    return this.authNotificationsService.updateNotificationPreferences(
+      userId,
+      dto,
+    );
   }
 
-  async getNotificationPreferences(userId: string): Promise<NotificationPreferencesResponseDto> {
+  async getNotificationPreferences(
+    userId: string,
+  ): Promise<NotificationPreferencesResponseDto> {
     return this.authNotificationsService.getNotificationPreferences(userId);
   }
 
@@ -202,7 +217,11 @@ export class AuthService {
     transactionId: string,
     reportDto: ReportTransactionDto,
   ): Promise<ReportTransactionResponseDto> {
-    return this.authTransactionReportsService.reportTransaction(userId, transactionId, reportDto);
+    return this.authTransactionReportsService.reportTransaction(
+      userId,
+      transactionId,
+      reportDto,
+    );
   }
 
   async getUserTransactionReports(
@@ -210,6 +229,10 @@ export class AuthService {
     limit: number = 20,
     offset: number = 0,
   ): Promise<GetTransactionReportsResponseDto> {
-    return this.authTransactionReportsService.getUserTransactionReports(userId, limit, offset);
+    return this.authTransactionReportsService.getUserTransactionReports(
+      userId,
+      limit,
+      offset,
+    );
   }
 }

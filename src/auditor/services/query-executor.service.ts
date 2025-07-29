@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UserQuery } from './query-analyzer.service';
-import { AdminEndpointMapperService, AdminEndpoint } from './admin-endpoint-mapper.service';
+import {
+  AdminEndpointMapperService,
+  AdminEndpoint,
+} from './admin-endpoint-mapper.service';
 
 export interface QueryIntent {
   type: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -30,14 +33,16 @@ export class QueryExecutorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly adminEndpointMapper: AdminEndpointMapperService,
-  ) { }
+  ) {}
 
   /**
    * Super smart query intent generation using admin endpoint mapping
    */
   generateQueryIntents(userQuery: UserQuery): QueryIntent[] {
     const intents: QueryIntent[] = [];
-    this.logger.debug(`🧠 Generating smart intents for query type: ${userQuery.type}`);
+    this.logger.debug(
+      `🧠 Generating smart intents for query type: ${userQuery.type}`,
+    );
 
     switch (userQuery.type) {
       case 'USER_LOOKUP':
@@ -97,7 +102,10 @@ export class QueryExecutorService {
 
     // Primary user search
     if (userQuery.userEmail) {
-      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/users', 'GET');
+      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/users',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/users',
@@ -109,7 +117,10 @@ export class QueryExecutorService {
         adminEndpoint,
       });
     } else if (userQuery.userName) {
-      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/users', 'GET');
+      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/users',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/users',
@@ -121,7 +132,10 @@ export class QueryExecutorService {
         adminEndpoint,
       });
     } else if (userQuery.userId) {
-      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/users/:userId', 'GET');
+      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/users/:userId',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: `/admin/users/${userQuery.userId}`,
@@ -136,7 +150,10 @@ export class QueryExecutorService {
     // Additional context data
     if (userQuery.userEmail || userQuery.userName || userQuery.userId) {
       // Get KYC information
-      const kycEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/kyc/submissions', 'GET');
+      const kycEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/kyc/submissions',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/kyc/submissions',
@@ -149,14 +166,18 @@ export class QueryExecutorService {
       });
 
       // Get recent transactions
-      const transactionEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/transactions', 'GET');
+      const transactionEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/transactions',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/transactions',
         params: {
           ...(userQuery.userEmail && { search: userQuery.userEmail }),
           limit: 20,
-          ...(userQuery.timeFrame && this.buildTimeFrameParams(userQuery.timeFrame))
+          ...(userQuery.timeFrame &&
+            this.buildTimeFrameParams(userQuery.timeFrame)),
         },
         description: 'Get user recent transactions',
         category: 'Transaction Management',
@@ -166,7 +187,10 @@ export class QueryExecutorService {
       });
 
       // Get wallet information
-      const walletEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/wallet/balance', 'GET');
+      const walletEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/wallet/balance',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/wallet/balance',
@@ -179,7 +203,10 @@ export class QueryExecutorService {
       });
 
       // Get additional user context data
-      const logsEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/logs', 'GET');
+      const logsEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/logs',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/logs',
@@ -205,14 +232,18 @@ export class QueryExecutorService {
     const transactionParams: any = {
       limit: 50,
       ...userQuery.filters,
-      ...(userQuery.timeFrame && this.buildTimeFrameParams(userQuery.timeFrame)),
+      ...(userQuery.timeFrame &&
+        this.buildTimeFrameParams(userQuery.timeFrame)),
     };
 
     if (userQuery.userEmail) {
       transactionParams.search = userQuery.userEmail;
     }
     if (userQuery.transactionId) {
-      const transactionEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/transactions/:transactionId', 'GET');
+      const transactionEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/transactions/:transactionId',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: `/admin/transactions/${userQuery.transactionId}`,
@@ -223,7 +254,10 @@ export class QueryExecutorService {
         adminEndpoint: transactionEndpoint,
       });
     } else {
-      const transactionEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/transactions', 'GET');
+      const transactionEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/transactions',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/transactions',
@@ -238,7 +272,10 @@ export class QueryExecutorService {
 
     // If user specified, get user context
     if (userQuery.userEmail || userQuery.userName) {
-      const userEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/users', 'GET');
+      const userEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/users',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/users',
@@ -264,7 +301,11 @@ export class QueryExecutorService {
     switch (operation) {
       case 'BALANCE_CHECK':
         if (userQuery.userEmail || userQuery.userId) {
-          const walletBalanceEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/wallet/balance', 'GET');
+          const walletBalanceEndpoint =
+            this.adminEndpointMapper.getEndpointByPath(
+              '/admin/wallet/balance',
+              'GET',
+            );
           intents.push({
             type: 'GET',
             endpoint: '/admin/wallet/balance',
@@ -276,7 +317,11 @@ export class QueryExecutorService {
             adminEndpoint: walletBalanceEndpoint,
           });
         } else {
-          const totalBalanceEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/wallet/total-balance', 'GET');
+          const totalBalanceEndpoint =
+            this.adminEndpointMapper.getEndpointByPath(
+              '/admin/wallet/total-balance',
+              'GET',
+            );
           intents.push({
             type: 'GET',
             endpoint: '/admin/wallet/total-balance',
@@ -293,11 +338,17 @@ export class QueryExecutorService {
       case 'DEBIT':
         // These require user identification first
         if (userQuery.userEmail || userQuery.userName) {
-          const userEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/users', 'GET');
+          const userEndpoint = this.adminEndpointMapper.getEndpointByPath(
+            '/admin/users',
+            'GET',
+          );
           intents.push({
             type: 'GET',
             endpoint: '/admin/users',
-            params: { search: userQuery.userEmail || userQuery.userName, limit: 5 },
+            params: {
+              search: userQuery.userEmail || userQuery.userName,
+              limit: 5,
+            },
             description: 'Find user for wallet operation',
             category: 'User Management',
             priority: 1,
@@ -310,11 +361,17 @@ export class QueryExecutorService {
       case 'FREEZE':
       case 'UNFREEZE':
         if (userQuery.userEmail || userQuery.userName) {
-          const userEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/users', 'GET');
+          const userEndpoint = this.adminEndpointMapper.getEndpointByPath(
+            '/admin/users',
+            'GET',
+          );
           intents.push({
             type: 'GET',
             endpoint: '/admin/users',
-            params: { search: userQuery.userEmail || userQuery.userName, limit: 5 },
+            params: {
+              search: userQuery.userEmail || userQuery.userName,
+              limit: 5,
+            },
             description: 'Find user for wallet freeze/unfreeze',
             category: 'User Management',
             priority: 1,
@@ -326,7 +383,10 @@ export class QueryExecutorService {
 
       default:
         // General wallet information
-        const totalBalanceEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/wallet/total-balance', 'GET');
+        const totalBalanceEndpoint = this.adminEndpointMapper.getEndpointByPath(
+          '/admin/wallet/total-balance',
+          'GET',
+        );
         intents.push({
           type: 'GET',
           endpoint: '/admin/wallet/total-balance',
@@ -349,12 +409,20 @@ export class QueryExecutorService {
 
     if (userQuery.userId || userQuery.userEmail) {
       const kycEndpoint = userQuery.userId
-        ? this.adminEndpointMapper.getEndpointByPath('/admin/kyc/submissions/:userId', 'GET')
-        : this.adminEndpointMapper.getEndpointByPath('/admin/kyc/submissions', 'GET');
+        ? this.adminEndpointMapper.getEndpointByPath(
+            '/admin/kyc/submissions/:userId',
+            'GET',
+          )
+        : this.adminEndpointMapper.getEndpointByPath(
+            '/admin/kyc/submissions',
+            'GET',
+          );
 
       intents.push({
         type: 'GET',
-        endpoint: userQuery.userId ? `/admin/kyc/submissions/${userQuery.userId}` : '/admin/kyc/submissions',
+        endpoint: userQuery.userId
+          ? `/admin/kyc/submissions/${userQuery.userId}`
+          : '/admin/kyc/submissions',
         params: userQuery.userEmail ? { search: userQuery.userEmail } : {},
         description: 'Get user KYC submission details',
         category: 'KYC Management',
@@ -363,7 +431,10 @@ export class QueryExecutorService {
         adminEndpoint: kycEndpoint,
       });
     } else if (userQuery.filters?.status === 'PENDING') {
-      const pendingKycEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/kyc/submissions/pending', 'GET');
+      const pendingKycEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/kyc/submissions/pending',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/kyc/submissions/pending',
@@ -374,7 +445,10 @@ export class QueryExecutorService {
         adminEndpoint: pendingKycEndpoint,
       });
     } else {
-      const kycEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/kyc/submissions', 'GET');
+      const kycEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/kyc/submissions',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/kyc/submissions',
@@ -394,14 +468,22 @@ export class QueryExecutorService {
    * Generate system status intents
    */
   private generateSystemStatusIntents(userQuery: UserQuery): QueryIntent[] {
-    const dashboardEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/dashboard/stats', 'GET');
-    const walletBalanceEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/wallet/total-balance', 'GET');
+    const dashboardEndpoint = this.adminEndpointMapper.getEndpointByPath(
+      '/admin/dashboard/stats',
+      'GET',
+    );
+    const walletBalanceEndpoint = this.adminEndpointMapper.getEndpointByPath(
+      '/admin/wallet/total-balance',
+      'GET',
+    );
 
     return [
       {
         type: 'GET',
         endpoint: '/admin/dashboard/stats',
-        params: userQuery.timeFrame ? this.buildTimeFrameParams(userQuery.timeFrame) : {},
+        params: userQuery.timeFrame
+          ? this.buildTimeFrameParams(userQuery.timeFrame)
+          : {},
         description: 'Get comprehensive dashboard statistics',
         category: 'Dashboard & Analytics',
         priority: 1,
@@ -434,11 +516,22 @@ export class QueryExecutorService {
    */
   private generateAnalyticsIntents(userQuery: UserQuery): QueryIntent[] {
     const intents: QueryIntent[] = [];
-    const timeParams = userQuery.timeFrame ? this.buildTimeFrameParams(userQuery.timeFrame) : {};
+    const timeParams = userQuery.timeFrame
+      ? this.buildTimeFrameParams(userQuery.timeFrame)
+      : {};
 
-    const dashboardEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/dashboard/stats', 'GET');
-    const transactionEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/transactions', 'GET');
-    const userEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/users', 'GET');
+    const dashboardEndpoint = this.adminEndpointMapper.getEndpointByPath(
+      '/admin/dashboard/stats',
+      'GET',
+    );
+    const transactionEndpoint = this.adminEndpointMapper.getEndpointByPath(
+      '/admin/transactions',
+      'GET',
+    );
+    const userEndpoint = this.adminEndpointMapper.getEndpointByPath(
+      '/admin/users',
+      'GET',
+    );
 
     intents.push(
       {
@@ -470,7 +563,7 @@ export class QueryExecutorService {
         priority: 3,
         confidence: 0.8,
         adminEndpoint: userEndpoint,
-      }
+      },
     );
 
     return intents;
@@ -484,8 +577,10 @@ export class QueryExecutorService {
 
     // Check if this is a logs-specific query by looking at suggested endpoints
     if (userQuery.suggestedEndpoints?.includes('/admin/logs')) {
-
-      const logsEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/logs', 'GET');
+      const logsEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/logs',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/logs',
@@ -497,7 +592,10 @@ export class QueryExecutorService {
         adminEndpoint: logsEndpoint,
       });
     } else if (userQuery.adminId) {
-      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/admins/:adminId', 'GET');
+      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/admins/:adminId',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: `/admin/admins/${userQuery.adminId}`,
@@ -508,7 +606,10 @@ export class QueryExecutorService {
         adminEndpoint,
       });
     } else {
-      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/admins', 'GET');
+      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/admins',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/admins',
@@ -531,7 +632,10 @@ export class QueryExecutorService {
     const intents: QueryIntent[] = [];
 
     if (userQuery.filters?.type) {
-      const feeEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/fees/:type', 'GET');
+      const feeEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/fees/:type',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: `/admin/fees/${userQuery.filters.type}`,
@@ -542,7 +646,10 @@ export class QueryExecutorService {
         adminEndpoint: feeEndpoint,
       });
     } else {
-      const feeEndpoint = this.adminEndpointMapper.getEndpointByPath('/admin/fees', 'GET');
+      const feeEndpoint = this.adminEndpointMapper.getEndpointByPath(
+        '/admin/fees',
+        'GET',
+      );
       intents.push({
         type: 'GET',
         endpoint: '/admin/fees',
@@ -564,7 +671,8 @@ export class QueryExecutorService {
     const intents: QueryIntent[] = [];
 
     userQuery.suggestedEndpoints?.forEach((endpointPath, index) => {
-      const adminEndpoint = this.adminEndpointMapper.getEndpointByPath(endpointPath);
+      const adminEndpoint =
+        this.adminEndpointMapper.getEndpointByPath(endpointPath);
       if (adminEndpoint) {
         intents.push({
           type: adminEndpoint.method,
@@ -600,7 +708,9 @@ export class QueryExecutorService {
   /**
    * Execute backend queries using real admin endpoints
    */
-  async executeBackendQueries(intents: QueryIntent[]): Promise<Record<string, any>> {
+  async executeBackendQueries(
+    intents: QueryIntent[],
+  ): Promise<Record<string, any>> {
     const results: Record<string, any> = {};
 
     for (const intent of intents) {
@@ -634,7 +744,9 @@ export class QueryExecutorService {
   /**
    * Execute real admin API calls with internal service access
    */
-  private async executeRealAdminCall(intent: QueryIntent): Promise<BackendResponse> {
+  private async executeRealAdminCall(
+    intent: QueryIntent,
+  ): Promise<BackendResponse> {
     try {
       if (!intent.adminEndpoint) {
         throw new Error('No admin endpoint configuration found');
@@ -649,14 +761,16 @@ export class QueryExecutorService {
         message: result.message || 'Request completed successfully',
       };
     } catch (error) {
-      this.logger.error(`Error executing internal service call: ${error.message}`);
+      this.logger.error(
+        `Error executing internal service call: ${error.message}`,
+      );
 
       // Fallback to HTTP call with special headers
       try {
         const httpResult = await this.adminEndpointMapper.executeAdminCall(
           intent.adminEndpoint,
           intent.params || {},
-          undefined // No auth token - using internal headers
+          undefined, // No auth token - using internal headers
         );
 
         return {
@@ -677,7 +791,9 @@ export class QueryExecutorService {
   /**
    * Execute internal service calls directly (bypassing HTTP/auth)
    */
-  private async executeInternalServiceCall(intent: QueryIntent): Promise<BackendResponse> {
+  private async executeInternalServiceCall(
+    intent: QueryIntent,
+  ): Promise<BackendResponse> {
     const endpoint = intent.endpoint;
     const params = intent.params || {};
 
@@ -714,7 +830,7 @@ export class QueryExecutorService {
    */
   private async getUsers(params: any): Promise<BackendResponse> {
     try {
-      let whereClause: any = {};
+      const whereClause: any = {};
 
       if (params.search) {
         whereClause.OR = [
@@ -763,7 +879,7 @@ export class QueryExecutorService {
    */
   private async getWalletBalance(params: any): Promise<BackendResponse> {
     try {
-      let whereClause: any = {};
+      const whereClause: any = {};
 
       if (params.userId) {
         whereClause.userId = params.userId;
@@ -806,7 +922,7 @@ export class QueryExecutorService {
    */
   private async getKycSubmissions(params: any): Promise<BackendResponse> {
     try {
-      let whereClause: any = {};
+      const whereClause: any = {};
 
       if (params.status) {
         whereClause.status = params.status;
@@ -848,7 +964,7 @@ export class QueryExecutorService {
       });
 
       // Transform users to look like KYC submissions
-      const submissions = users.map(user => ({
+      const submissions = users.map((user) => ({
         id: user.id,
         userId: user.id,
         status: user.kycStatus,
@@ -887,7 +1003,7 @@ export class QueryExecutorService {
    */
   private async getAdmins(params: any): Promise<BackendResponse> {
     try {
-      let whereClause: any = {
+      const whereClause: any = {
         role: { in: ['ADMIN', 'SUDO_ADMIN', 'CUSTOMER_REP'] },
       };
 
@@ -933,7 +1049,7 @@ export class QueryExecutorService {
    */
   private async getFees(params: any): Promise<BackendResponse> {
     try {
-      let whereClause: any = {};
+      const whereClause: any = {};
 
       if (params.type) {
         whereClause.type = params.type;
@@ -963,7 +1079,7 @@ export class QueryExecutorService {
    */
   private async getAdminLogs(params: any): Promise<BackendResponse> {
     try {
-      let whereClause: any = {};
+      const whereClause: any = {};
 
       if (params.userId) {
         whereClause.adminId = params.userId;
@@ -1014,7 +1130,9 @@ export class QueryExecutorService {
   /**
    * Build time frame parameters for API calls
    */
-  private buildTimeFrameParams(timeFrame: UserQuery['timeFrame']): Record<string, any> {
+  private buildTimeFrameParams(
+    timeFrame: UserQuery['timeFrame'],
+  ): Record<string, any> {
     if (!timeFrame) return {};
 
     const now = new Date();
@@ -1026,20 +1144,34 @@ export class QueryExecutorService {
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         break;
       case 'yesterday':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        startDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - 1,
+        );
         endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         break;
       case 'week':
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
       case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        startDate = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          now.getDate(),
+        );
         break;
       case 'year':
-        startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        startDate = new Date(
+          now.getFullYear() - 1,
+          now.getMonth(),
+          now.getDate(),
+        );
         break;
       case 'custom':
-        startDate = timeFrame.start ? new Date(timeFrame.start) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        startDate = timeFrame.start
+          ? new Date(timeFrame.start)
+          : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         endDate = timeFrame.end ? new Date(timeFrame.end) : now;
         break;
       default:
@@ -1055,7 +1187,9 @@ export class QueryExecutorService {
   /**
    * Simulate backend API calls (replace with actual HTTP calls in production)
    */
-  private async simulateBackendCall(intent: QueryIntent): Promise<BackendResponse> {
+  private async simulateBackendCall(
+    intent: QueryIntent,
+  ): Promise<BackendResponse> {
     switch (intent.endpoint) {
       case '/admin/users/search':
         return await this.searchUsers(intent.params);
@@ -1080,7 +1214,7 @@ export class QueryExecutorService {
    */
   private async searchUsers(params: any): Promise<BackendResponse> {
     try {
-      let whereClause: any = {};
+      const whereClause: any = {};
 
       if (params.email) {
         whereClause.email = { contains: params.email, mode: 'insensitive' };
@@ -1120,7 +1254,7 @@ export class QueryExecutorService {
    */
   private async getTransactions(params: any): Promise<BackendResponse> {
     try {
-      let whereClause: any = {};
+      const whereClause: any = {};
 
       if (params.startDate && params.endDate) {
         whereClause.createdAt = {
@@ -1195,7 +1329,10 @@ export class QueryExecutorService {
         select: { balance: true },
       });
 
-      const totalBalance = wallets.reduce((sum, wallet) => sum + (wallet.balance || 0), 0);
+      const totalBalance = wallets.reduce(
+        (sum, wallet) => sum + (wallet.balance || 0),
+        0,
+      );
 
       return {
         success: true,
@@ -1234,4 +1371,4 @@ export class QueryExecutorService {
       };
     }
   }
-} 
+}

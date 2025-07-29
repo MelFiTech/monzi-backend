@@ -26,9 +26,12 @@ export class LocationTransactionService {
    */
   async associateLocationWithTransaction(
     transactionId: string,
-    locationData: TransactionLocationData
+    locationData: TransactionLocationData,
   ): Promise<void> {
-    console.log('📍 [LOCATION TRANSACTION SERVICE] Associating location with transaction:', transactionId);
+    console.log(
+      '📍 [LOCATION TRANSACTION SERVICE] Associating location with transaction:',
+      transactionId,
+    );
 
     try {
       // Find or create location
@@ -49,12 +52,18 @@ export class LocationTransactionService {
         data: { locationId: location.id },
       });
 
-      console.log('✅ [LOCATION TRANSACTION SERVICE] Location associated with transaction:', {
-        transactionId,
-        locationId: location.id,
-      });
+      console.log(
+        '✅ [LOCATION TRANSACTION SERVICE] Location associated with transaction:',
+        {
+          transactionId,
+          locationId: location.id,
+        },
+      );
     } catch (error) {
-      console.error('❌ [LOCATION TRANSACTION SERVICE] Failed to associate location:', error);
+      console.error(
+        '❌ [LOCATION TRANSACTION SERVICE] Failed to associate location:',
+        error,
+      );
       // Don't throw error to avoid breaking transaction flow
     }
   }
@@ -63,7 +72,10 @@ export class LocationTransactionService {
    * Get payment suggestions for a location
    */
   async getPaymentSuggestionsForLocation(locationId: string) {
-    console.log('📍 [LOCATION TRANSACTION SERVICE] Getting payment suggestions for location:', locationId);
+    console.log(
+      '📍 [LOCATION TRANSACTION SERVICE] Getting payment suggestions for location:',
+      locationId,
+    );
 
     const location = await this.prisma.location.findUnique({
       where: { id: locationId },
@@ -98,19 +110,21 @@ export class LocationTransactionService {
 
     // Extract unique payment details
     const paymentSuggestions = location.transactions
-      .filter(tx => tx.toAccount)
-      .map(tx => ({
+      .filter((tx) => tx.toAccount)
+      .map((tx) => ({
         accountNumber: tx.toAccount.accountNumber,
         bankName: tx.toAccount.bankName,
         accountName: tx.toAccount.accountName,
         lastAmount: tx.amount,
         lastTransactionDate: tx.createdAt,
-        frequency: location.transactions.filter(t => 
-          t.toAccount?.accountNumber === tx.toAccount.accountNumber
+        frequency: location.transactions.filter(
+          (t) => t.toAccount?.accountNumber === tx.toAccount.accountNumber,
         ).length,
       }))
-      .filter((suggestion, index, self) => 
-        index === self.findIndex(s => s.accountNumber === suggestion.accountNumber)
+      .filter(
+        (suggestion, index, self) =>
+          index ===
+          self.findIndex((s) => s.accountNumber === suggestion.accountNumber),
       )
       .sort((a, b) => b.frequency - a.frequency);
 
@@ -156,22 +170,26 @@ export class LocationTransactionService {
       take: limit,
     });
 
-    return transactions.map(tx => ({
+    return transactions.map((tx) => ({
       id: tx.id,
       amount: tx.amount,
       currency: tx.currency,
       description: tx.description,
       reference: tx.reference,
       createdAt: tx.createdAt,
-      paymentDetails: tx.toAccount ? {
-        accountNumber: tx.toAccount.accountNumber,
-        bankName: tx.toAccount.bankName,
-        accountName: tx.toAccount.accountName,
-      } : null,
-      user: tx.user ? {
-        id: tx.user.id,
-        name: `${tx.user.firstName || ''} ${tx.user.lastName || ''}`.trim(),
-      } : null,
+      paymentDetails: tx.toAccount
+        ? {
+            accountNumber: tx.toAccount.accountNumber,
+            bankName: tx.toAccount.bankName,
+            accountName: tx.toAccount.accountName,
+          }
+        : null,
+      user: tx.user
+        ? {
+            id: tx.user.id,
+            name: `${tx.user.firstName || ''} ${tx.user.lastName || ''}`.trim(),
+          }
+        : null,
     }));
   }
 
@@ -222,7 +240,7 @@ export class LocationTransactionService {
       take: limit,
     });
 
-    return popularLocations.map(location => ({
+    return popularLocations.map((location) => ({
       id: location.id,
       name: location.name,
       address: location.address,
@@ -234,15 +252,14 @@ export class LocationTransactionService {
       locationType: location.locationType,
       visitCount: location._count.transactions,
       lastVisit: location.transactions[0]?.createdAt,
-      lastPaymentDetails: location.transactions[0]?.toAccount ? {
-        accountNumber: location.transactions[0].toAccount.accountNumber,
-        bankName: location.transactions[0].toAccount.bankName,
-        accountName: location.transactions[0].toAccount.accountName,
-        amount: location.transactions[0].amount,
-      } : null,
+      lastPaymentDetails: location.transactions[0]?.toAccount
+        ? {
+            accountNumber: location.transactions[0].toAccount.accountNumber,
+            bankName: location.transactions[0].toAccount.bankName,
+            accountName: location.transactions[0].toAccount.accountName,
+            amount: location.transactions[0].amount,
+          }
+        : null,
     }));
   }
-} 
- 
- 
- 
+}

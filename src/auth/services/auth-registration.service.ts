@@ -34,28 +34,94 @@ export class AuthRegistrationService {
   async register(registerDto: RegisterDto): Promise<RegisterResponseDto> {
     const { email, phone, gender, dateOfBirth, passcode } = registerDto;
 
-    console.log('🔍 [AUTH] Registration request:', { email, phone, gender, dateOfBirth });
+    console.log('🔍 [AUTH] Registration request:', {
+      email,
+      phone,
+      gender,
+      dateOfBirth,
+    });
 
-    // Check if user already exists
+    // Check if user already exists (active)
     const existingUser = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { email },
-          { phone },
-        ],
+        OR: [{ email }, { phone }],
       },
     });
 
-    if (existingUser) {
+    if (existingUser && existingUser.isActive) {
       if (existingUser.email === email) {
         throw new BadRequestException('Account with this email already exists');
       }
       if (existingUser.phone === phone) {
-        throw new BadRequestException('Account with this phone number already exists');
+        throw new BadRequestException(
+          'Account with this phone number already exists',
+        );
       }
     }
 
-    // Hash the passcode
+    // Check for archived user with same email or phone
+    const archivedUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ email }, { phone }],
+        isActive: false,
+      },
+    });
+
+    // If we found an archived user, restore that account
+    if (archivedUser) {
+      console.log('🔄 [AUTH] Found archived user - restoring account');
+      
+      // Hash the passcode
+      const hashedPasscode = await bcrypt.hash(passcode, 10);
+
+      // Generate OTP
+      const otpCode = this.generateOtp();
+      const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+      // Restore the archived user with new details
+      const restoredUser = await this.prisma.user.update({
+        where: { id: archivedUser.id },
+        data: {
+          email,
+          phone,
+          gender,
+          dateOfBirth: new Date(dateOfBirth),
+          passcode: hashedPasscode,
+          otpCode,
+          otpExpiresAt,
+          isActive: true,
+          isVerified: false, // Require re-verification
+          isOnboarded: false, // Require re-onboarding
+          kycStatus: 'PENDING', // Reset KYC status
+          kycVerifiedAt: null,
+          bvnVerifiedAt: null,
+          selfieUrl: null,
+          bvnProviderResponse: null,
+          metadata: {
+            ...(archivedUser.metadata as any || {}),
+            restoredAt: new Date().toISOString(),
+            restoredFromArchive: true,
+            originalArchivedAt: (archivedUser.metadata as any)?.archivedAt,
+            originalArchiveReason: (archivedUser.metadata as any)?.archiveReason,
+          },
+        },
+      });
+
+      // Send Email OTP
+      await this.sendEmailOtp(email, otpCode, restoredUser.id);
+
+      console.log('✅ [AUTH] Account restored successfully, Email OTP sent');
+
+      return {
+        success: true,
+        message: 'Account restored successfully. Email OTP sent to your email.',
+        email,
+        otpExpiresAt: otpExpiresAt.toISOString(),
+        restored: true,
+      };
+    }
+
+    // Create new user (no archived account found)
     const hashedPasscode = await bcrypt.hash(passcode, 10);
 
     // Generate OTP
@@ -88,6 +154,7 @@ export class AuthRegistrationService {
         message: 'Registration successful. Email OTP sent to your email.',
         email,
         otpExpiresAt: otpExpiresAt.toISOString(),
+        restored: false,
       };
     } catch (error) {
       console.error('❌ [AUTH] Registration failed:', error);
@@ -129,9 +196,12 @@ export class AuthRegistrationService {
       throw new UnauthorizedException('Invalid email or passcode');
     }
 
-    // Check if user is active
+    // Check if user is active (not archived)
     if (!user.isActive) {
-      throw new UnauthorizedException('Account is deactivated. Please contact support.');
+      const archiveReason = (user.metadata as any)?.archiveReason || 'Account deactivated';
+      throw new UnauthorizedException(
+        `Account is archived. Reason: ${archiveReason}. Please contact support or register again to restore your account.`,
+      );
     }
 
     // Generate JWT token
@@ -196,7 +266,9 @@ export class AuthRegistrationService {
 
     // Check if OTP is expired
     if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
     }
 
     // Verify OTP
@@ -299,7 +371,11 @@ export class AuthRegistrationService {
   }
 
   // Send Email OTP
-  private async sendEmailOtp(email: string, otpCode: string, userId: string): Promise<void> {
+  private async sendEmailOtp(
+    email: string,
+    otpCode: string,
+    userId: string,
+  ): Promise<void> {
     try {
       await this.emailService.sendOtpEmail({
         email,
@@ -313,4 +389,4 @@ export class AuthRegistrationService {
       throw new BadRequestException('Failed to send OTP. Please try again.');
     }
   }
-} 
+}

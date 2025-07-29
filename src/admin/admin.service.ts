@@ -41,7 +41,12 @@ export class AdminService {
 
   // ==================== USER MANAGEMENT DELEGATION ====================
 
-  async getUsers(limit?: number, offset?: number, status?: string, search?: string) {
+  async getUsers(
+    limit?: number,
+    offset?: number,
+    status?: string,
+    search?: string,
+  ) {
     return this.userManagementService.getUsers(limit, offset, status, search);
   }
 
@@ -67,12 +72,30 @@ export class AdminService {
 
   // ==================== TRANSACTION MANAGEMENT DELEGATION ====================
 
-  async getTransactions(limit?: number, offset?: number, type?: string, status?: string, userId?: string, startDate?: string, endDate?: string) {
-    return this.transactionManagementService.getTransactions(limit, offset, type, status, userId, startDate, endDate);
+  async getTransactions(
+    limit?: number,
+    offset?: number,
+    type?: string,
+    status?: string,
+    userId?: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    return this.transactionManagementService.getTransactions(
+      limit,
+      offset,
+      type,
+      status,
+      userId,
+      startDate,
+      endDate,
+    );
   }
 
   async getTransactionDetail(transactionId: string) {
-    return this.transactionManagementService.getTransactionDetail(transactionId);
+    return this.transactionManagementService.getTransactionDetail(
+      transactionId,
+    );
   }
 
   async getTransactionStats() {
@@ -89,11 +112,28 @@ export class AdminService {
 
   // ==================== ADMIN MANAGEMENT DELEGATION ====================
 
-  async createAdmin(createAdminDto: any, adminId: string, adminEmail: string, ipAddress?: string, userAgent?: string) {
-    return this.adminManagementService.createAdmin(createAdminDto, adminId, adminEmail, ipAddress, userAgent);
+  async createAdmin(
+    createAdminDto: any,
+    adminId: string,
+    adminEmail: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    return this.adminManagementService.createAdmin(
+      createAdminDto,
+      adminId,
+      adminEmail,
+      ipAddress,
+      userAgent,
+    );
   }
 
-  async getAdmins(limit?: number, offset?: number, role?: string, search?: string) {
+  async getAdmins(
+    limit?: number,
+    offset?: number,
+    role?: string,
+    search?: string,
+  ) {
     return this.adminManagementService.getAdmins(limit, offset, role, search);
   }
 
@@ -113,12 +153,48 @@ export class AdminService {
     return this.adminManagementService.getRolePermissions();
   }
 
-  async getAdminLogs(limit?: number, offset?: number, action?: string, adminEmail?: string, targetEmail?: string, startDate?: string, endDate?: string) {
-    return this.adminManagementService.getAdminLogs(limit, offset, action, adminEmail, targetEmail, startDate, endDate);
+  async getAdminLogs(
+    limit?: number,
+    offset?: number,
+    action?: string,
+    adminEmail?: string,
+    targetEmail?: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    return this.adminManagementService.getAdminLogs(
+      limit,
+      offset,
+      action,
+      adminEmail,
+      targetEmail,
+      startDate,
+      endDate,
+    );
   }
 
-  async logAdminAction(adminId: string, adminEmail: string, action: string, targetType?: string, targetId?: string, targetEmail?: string, details?: any, ipAddress?: string, userAgent?: string) {
-    return this.adminManagementService.logAdminAction(adminId, adminEmail, action, targetType, targetId, targetEmail, details, ipAddress, userAgent);
+  async logAdminAction(
+    adminId: string,
+    adminEmail: string,
+    action: string,
+    targetType?: string,
+    targetId?: string,
+    targetEmail?: string,
+    details?: any,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    return this.adminManagementService.logAdminAction(
+      adminId,
+      adminEmail,
+      action,
+      targetType,
+      targetId,
+      targetEmail,
+      details,
+      ipAddress,
+      userAgent,
+    );
   }
 
   // ==================== WALLET MANAGEMENT DELEGATION ====================
@@ -131,12 +207,28 @@ export class AdminService {
     return this.walletManagementService.getTotalWalletBalance();
   }
 
-  async freezeWallet(freezeWalletDto: any, adminId: string, adminEmail: string) {
-    return this.walletManagementService.freezeWallet(freezeWalletDto, adminId, adminEmail);
+  async freezeWallet(
+    freezeWalletDto: any,
+    adminId: string,
+    adminEmail: string,
+  ) {
+    return this.walletManagementService.freezeWallet(
+      freezeWalletDto,
+      adminId,
+      adminEmail,
+    );
   }
 
-  async unfreezeWallet(unfreezeWalletDto: any, adminId: string, adminEmail: string) {
-    return this.walletManagementService.unfreezeWallet(unfreezeWalletDto, adminId, adminEmail);
+  async unfreezeWallet(
+    unfreezeWalletDto: any,
+    adminId: string,
+    adminEmail: string,
+  ) {
+    return this.walletManagementService.unfreezeWallet(
+      unfreezeWalletDto,
+      adminId,
+      adminEmail,
+    );
   }
 
   async getProviderWalletDetails(provider?: string) {
@@ -203,7 +295,11 @@ export class AdminService {
 
   async validateAllWallets() {
     // Placeholder - implement in wallet management service
-    return { success: true, message: 'Validation completed', validatedCount: 0 };
+    return {
+      success: true,
+      message: 'Validation completed',
+      validatedCount: 0,
+    };
   }
 
   async resetWalletBalance(walletId: string) {
@@ -298,7 +394,11 @@ export class AdminService {
 
   // ==================== TRANSACTION REPORTS ====================
 
-  async getTransactionReports(limit?: number, offset?: number, status?: string) {
+  async getTransactionReports(
+    limit?: number,
+    offset?: number,
+    status?: string,
+  ) {
     // Placeholder - implement in a separate service
     return {
       success: true,
@@ -309,7 +409,11 @@ export class AdminService {
     };
   }
 
-  async updateTransactionReportStatus(reportId: string, adminId: string, updateDto: any) {
+  async updateTransactionReportStatus(
+    reportId: string,
+    adminId: string,
+    updateDto: any,
+  ) {
     // Placeholder - implement in a separate service
     return {
       success: true,
@@ -341,5 +445,3 @@ export class AdminService {
     };
   }
 }
-
-

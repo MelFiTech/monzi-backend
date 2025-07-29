@@ -10,7 +10,13 @@ import { NyraModule } from './nyra/nyra.module';
 
 @Global()
 @Module({
-  imports: [ConfigModule, BudPayModule, SmePlugModule, PolarisModule, NyraModule],
+  imports: [
+    ConfigModule,
+    BudPayModule,
+    SmePlugModule,
+    PolarisModule,
+    NyraModule,
+  ],
   providers: [
     PrismaService,
     TransferProviderManagerService,

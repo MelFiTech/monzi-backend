@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { 
-  CreateLocationDto, 
-  UpdateLocationDto, 
+import {
+  CreateLocationDto,
+  UpdateLocationDto,
   LocationResponseDto,
   LocationWithPaymentDetailsDto,
   FindNearbyLocationsDto,
   NearbyLocationsResponseDto,
-  LocationType
+  LocationType,
 } from './dto/location.dto';
 
 @Injectable()
@@ -57,7 +61,10 @@ export class LocationService {
   /**
    * Update location
    */
-  async updateLocation(id: string, dto: UpdateLocationDto): Promise<LocationResponseDto> {
+  async updateLocation(
+    id: string,
+    dto: UpdateLocationDto,
+  ): Promise<LocationResponseDto> {
     console.log('📍 [LOCATION SERVICE] Updating location:', id);
 
     const existingLocation = await this.prisma.location.findUnique({
@@ -113,7 +120,9 @@ export class LocationService {
   /**
    * Find nearby locations with payment details
    */
-  async findNearbyLocations(dto: FindNearbyLocationsDto): Promise<NearbyLocationsResponseDto> {
+  async findNearbyLocations(
+    dto: FindNearbyLocationsDto,
+  ): Promise<NearbyLocationsResponseDto> {
     console.log('📍 [LOCATION SERVICE] Finding nearby locations:', {
       lat: dto.latitude,
       lng: dto.longitude,
@@ -126,7 +135,8 @@ export class LocationService {
 
     // Calculate bounding box for efficient querying
     const latDelta = radius / 111320; // 1 degree = 111.32km
-    const lngDelta = radius / (111320 * Math.cos(dto.latitude * Math.PI / 180));
+    const lngDelta =
+      radius / (111320 * Math.cos((dto.latitude * Math.PI) / 180));
 
     const locations = await this.prisma.location.findMany({
       where: {
@@ -169,12 +179,12 @@ export class LocationService {
 
     // Filter by actual distance and add payment details
     const nearbyLocations = locations
-      .map(location => {
+      .map((location) => {
         const distance = this.calculateDistance(
           dto.latitude,
           dto.longitude,
           location.latitude,
-          location.longitude
+          location.longitude,
         );
 
         if (distance <= radius) {
@@ -189,7 +199,10 @@ export class LocationService {
       .filter(Boolean)
       .sort((a, b) => a.distance - b.distance);
 
-    console.log('✅ [LOCATION SERVICE] Found nearby locations:', nearbyLocations.length);
+    console.log(
+      '✅ [LOCATION SERVICE] Found nearby locations:',
+      nearbyLocations.length,
+    );
 
     return {
       success: true,
@@ -202,19 +215,27 @@ export class LocationService {
   /**
    * Find or create location based on coordinates and name
    */
-  async findOrCreateLocation(dto: CreateLocationDto): Promise<LocationResponseDto> {
-    console.log('📍 [LOCATION SERVICE] Finding or creating location:', dto.name);
+  async findOrCreateLocation(
+    dto: CreateLocationDto,
+  ): Promise<LocationResponseDto> {
+    console.log(
+      '📍 [LOCATION SERVICE] Finding or creating location:',
+      dto.name,
+    );
 
     // Check if location already exists within 50 meters
     const existingLocation = await this.findExistingLocation(
       dto.latitude,
       dto.longitude,
       dto.name,
-      50
+      50,
     );
 
     if (existingLocation) {
-      console.log('✅ [LOCATION SERVICE] Found existing location:', existingLocation.id);
+      console.log(
+        '✅ [LOCATION SERVICE] Found existing location:',
+        existingLocation.id,
+      );
       return this.mapToLocationResponse(existingLocation);
     }
 
@@ -248,7 +269,7 @@ export class LocationService {
     return {
       totalLocations: locationCount,
       totalTransactions: transactionCount,
-      locationTypes: locationTypes.map(lt => ({
+      locationTypes: locationTypes.map((lt) => ({
         type: lt.locationType,
         count: lt._count.id,
       })),
@@ -262,10 +283,10 @@ export class LocationService {
     latitude: number,
     longitude: number,
     name: string,
-    radius: number
+    radius: number,
   ) {
     const latDelta = radius / 111320;
-    const lngDelta = radius / (111320 * Math.cos(latitude * Math.PI / 180));
+    const lngDelta = radius / (111320 * Math.cos((latitude * Math.PI) / 180));
 
     const locations = await this.prisma.location.findMany({
       where: {
@@ -287,7 +308,7 @@ export class LocationService {
         latitude,
         longitude,
         location.latitude,
-        location.longitude
+        location.longitude,
       );
 
       if (distance <= radius) {
@@ -301,7 +322,12 @@ export class LocationService {
   /**
    * Calculate distance between two points using Haversine formula
    */
-  private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  private calculateDistance(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number,
+  ): number {
     const R = 6371e3; // Earth's radius in meters
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
@@ -360,7 +386,4 @@ export class LocationService {
       updatedAt: location.updatedAt,
     };
   }
-} 
- 
- 
- 
+}

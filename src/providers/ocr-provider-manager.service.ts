@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TesseractOcrProvider } from './tesseract/tesseract-ocr.provider';
-import { IOcrProvider, OcrOptions, OcrResult } from './base/ocr-provider.interface';
+import {
+  IOcrProvider,
+  OcrOptions,
+  OcrResult,
+} from './base/ocr-provider.interface';
 
 @Injectable()
 export class OcrProviderManagerService {
@@ -13,18 +17,21 @@ export class OcrProviderManagerService {
     private configService: ConfigService,
     private tesseractProvider: TesseractOcrProvider,
   ) {
-    this.fallbackToSimulation = this.configService.get('OCR_FALLBACK_TO_SIMULATION', 'true') === 'true';
+    this.fallbackToSimulation =
+      this.configService.get('OCR_FALLBACK_TO_SIMULATION', 'true') === 'true';
     this.initializeProviders();
   }
 
   private initializeProviders(): void {
     this.logger.log('Initializing OCR providers...');
-    
+
     // Add Tesseract provider if available
     try {
       const isTesseractAvailable = this.tesseractProvider.isAvailable();
-      this.logger.log(`Tesseract availability check result: ${isTesseractAvailable}`);
-      
+      this.logger.log(
+        `Tesseract availability check result: ${isTesseractAvailable}`,
+      );
+
       if (isTesseractAvailable) {
         this.providers.push(this.tesseractProvider);
         this.logger.log('Tesseract OCR provider initialized');
@@ -32,36 +39,53 @@ export class OcrProviderManagerService {
         this.logger.warn('Tesseract OCR provider not available');
       }
     } catch (error) {
-      this.logger.error('Error checking Tesseract availability:', error.message);
+      this.logger.error(
+        'Error checking Tesseract availability:',
+        error.message,
+      );
     }
 
-    this.logger.log(`OCR providers initialized: ${this.providers.length} available`);
+    this.logger.log(
+      `OCR providers initialized: ${this.providers.length} available`,
+    );
   }
 
-  async extractText(imageBuffer: Buffer, options?: OcrOptions): Promise<OcrResult> {
+  async extractText(
+    imageBuffer: Buffer,
+    options?: OcrOptions,
+  ): Promise<OcrResult> {
     if (this.providers.length === 0) {
-      return this.fallbackToSimulation ? this.simulateOcr() : {
-        success: false,
-        text: '',
-        confidence: 0,
-        error: 'No OCR providers available',
-      };
+      return this.fallbackToSimulation
+        ? this.simulateOcr()
+        : {
+            success: false,
+            text: '',
+            confidence: 0,
+            error: 'No OCR providers available',
+          };
     }
 
     // Try each provider in order
     for (const provider of this.providers) {
       try {
-        this.logger.log(`Attempting OCR with provider: ${provider.constructor.name}`);
+        this.logger.log(
+          `Attempting OCR with provider: ${provider.constructor.name}`,
+        );
         const result = await provider.extractText(imageBuffer, options);
-        
+
         if (result.success && result.text.trim()) {
           this.logger.log(`OCR successful with ${provider.constructor.name}`);
           return result;
         } else {
-          this.logger.warn(`OCR failed with ${provider.constructor.name}: ${result.error || 'No text extracted'}`);
+          this.logger.warn(
+            `OCR failed with ${provider.constructor.name}: ${result.error || 'No text extracted'}`,
+          );
         }
       } catch (error) {
-        this.logger.warn(`OCR failed with ${provider.constructor.name}:`, error.message);
+        this.logger.warn(
+          `OCR failed with ${provider.constructor.name}:`,
+          error.message,
+        );
       }
     }
 
@@ -89,10 +113,10 @@ export class OcrProviderManagerService {
   }
 
   getAvailableProviders(): string[] {
-    return this.providers.map(provider => provider.constructor.name);
+    return this.providers.map((provider) => provider.constructor.name);
   }
 
   isOcrAvailable(): boolean {
     return this.providers.length > 0 || this.fallbackToSimulation;
   }
-} 
+}

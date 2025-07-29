@@ -36,7 +36,8 @@ export interface GeminiOptions {
 export class GeminiApiService {
   private readonly logger = new Logger(GeminiApiService.name);
   private readonly apiKey: string;
-  private readonly baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  private readonly baseUrl =
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
   private readonly defaultModel = 'gemini-1.5-flash';
 
   constructor(
@@ -45,7 +46,9 @@ export class GeminiApiService {
   ) {
     this.apiKey = this.configService.get<string>('GEMINI_API_KEY');
     if (!this.apiKey) {
-      this.logger.warn('⚠️ Gemini API key not configured. AI features will be limited.');
+      this.logger.warn(
+        '⚠️ Gemini API key not configured. AI features will be limited.',
+      );
     }
   }
 
@@ -55,7 +58,10 @@ export class GeminiApiService {
   async sendMessage(
     messages: GeminiMessage[],
     options?: GeminiOptions,
-  ): Promise<{ response: string; usage: { input_tokens: number; output_tokens: number } }> {
+  ): Promise<{
+    response: string;
+    usage: { input_tokens: number; output_tokens: number };
+  }> {
     if (!this.apiKey) {
       throw new Error('Gemini API key not configured');
     }
@@ -71,23 +77,28 @@ export class GeminiApiService {
         },
         ...(options?.systemPrompt && {
           systemInstruction: {
-            parts: [{ text: options.systemPrompt }]
-          }
+            parts: [{ text: options.systemPrompt }],
+          },
         }),
       };
 
       this.logger.debug('📤 Sending request to Gemini API');
 
       const response = await firstValueFrom(
-        this.httpService.post<GeminiResponse>(`${this.baseUrl}?key=${this.apiKey}`, requestData, {
-          headers: {
-            'Content-Type': 'application/json',
+        this.httpService.post<GeminiResponse>(
+          `${this.baseUrl}?key=${this.apiKey}`,
+          requestData,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
           },
-        }),
+        ),
       );
 
       const geminiResponse = response.data;
-      const responseText = geminiResponse.candidates[0]?.content?.parts[0]?.text || '';
+      const responseText =
+        geminiResponse.candidates[0]?.content?.parts[0]?.text || '';
 
       this.logger.debug('📥 Received response from Gemini API');
 
@@ -95,7 +106,8 @@ export class GeminiApiService {
         response: responseText,
         usage: {
           input_tokens: geminiResponse.usageMetadata?.promptTokenCount || 0,
-          output_tokens: geminiResponse.usageMetadata?.candidatesTokenCount || 0,
+          output_tokens:
+            geminiResponse.usageMetadata?.candidatesTokenCount || 0,
         },
       };
     } catch (error) {
@@ -107,7 +119,10 @@ export class GeminiApiService {
   /**
    * Generate content using Gemini AI with a simple prompt
    */
-  async generateContent(prompt: string, options?: GeminiOptions): Promise<string> {
+  async generateContent(
+    prompt: string,
+    options?: GeminiOptions,
+  ): Promise<string> {
     if (!this.apiKey) {
       throw new Error('Gemini API key not configured');
     }
@@ -116,7 +131,7 @@ export class GeminiApiService {
       const messages: GeminiMessage[] = [
         {
           role: 'user',
-          parts: [{ text: prompt }]
+          parts: [{ text: prompt }],
         },
       ];
 
@@ -159,21 +174,23 @@ export class GeminiApiService {
   }> {
     try {
       const startTime = Date.now();
-      const testResponse = await this.generateContent('Hello, this is a health check.');
+      const testResponse = await this.generateContent(
+        'Hello, this is a health check.',
+      );
       const latency = Date.now() - startTime;
 
       return {
         available: true,
         model: 'Gemini AI',
         latency,
-        response: testResponse ? 'OK' : 'No response'
+        response: testResponse ? 'OK' : 'No response',
       };
     } catch (error) {
       this.logger.error(`Gemini AI health check failed: ${error.message}`);
       return {
         available: false,
         model: 'Gemini AI',
-        error: error.message
+        error: error.message,
       };
     }
   }

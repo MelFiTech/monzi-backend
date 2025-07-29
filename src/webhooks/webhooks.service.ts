@@ -241,8 +241,8 @@ export class WebhooksService {
         case WebhookProvider.POLARIS:
           return this.verifyPolarisWebhook(payload, signature);
 
-      case WebhookProvider.NYRA:
-        return this.verifyNyraWebhook(payload, signature);
+        case WebhookProvider.NYRA:
+          return this.verifyNyraWebhook(payload, signature);
 
         default:
           return {
@@ -510,7 +510,9 @@ export class WebhooksService {
         );
       }
 
-      this.logger.log('✅ [NYRA] Webhook verification passed (basic validation)');
+      this.logger.log(
+        '✅ [NYRA] Webhook verification passed (basic validation)',
+      );
       return {
         isValid: true,
         provider: WebhookProvider.NYRA,
@@ -703,9 +705,7 @@ export class WebhooksService {
   /**
    * Normalize Nyra webhook data
    */
-  private normalizeNyraData(
-    payload: NyraWebhookPayload,
-  ): ProcessedWebhookData {
+  private normalizeNyraData(payload: NyraWebhookPayload): ProcessedWebhookData {
     const { event, data } = payload;
 
     this.logger.log(`🔄 [NYRA] Normalizing Nyra webhook data...`);
@@ -714,20 +714,31 @@ export class WebhooksService {
 
     // Handle nested data structure - NYRA webhooks have data.data
     const actualData = data.data || data;
-    this.logger.log(`📋 [NYRA] Actual data keys: ${Object.keys(actualData).join(', ')}`);
-    this.logger.log(`💰 [NYRA] Extracted amount: ${(actualData as any).amount}`);
-    this.logger.log(`🏦 [NYRA] Extracted account: ${(actualData as any).account_number}`);
+    this.logger.log(
+      `📋 [NYRA] Actual data keys: ${Object.keys(actualData).join(', ')}`,
+    );
+    this.logger.log(
+      `💰 [NYRA] Extracted amount: ${(actualData as any).amount}`,
+    );
+    this.logger.log(
+      `🏦 [NYRA] Extracted account: ${(actualData as any).account_number}`,
+    );
 
     return {
       provider: WebhookProvider.NYRA,
       eventType: this.mapNyraEvent(event),
       transactionReference: (actualData as any).reference || '',
       accountNumber: (actualData as any).account_number,
-      accountName: (actualData as any).credit_account_name || (actualData as any).owners_fullname,
+      accountName:
+        (actualData as any).credit_account_name ||
+        (actualData as any).owners_fullname,
       amount: (actualData as any).amount,
       currency: (actualData as any).currency || 'NGN',
       status: (actualData as any).status,
-      description: (actualData as any).narration || (actualData as any).description || `${event} - ${(actualData as any).reference}`,
+      description:
+        (actualData as any).narration ||
+        (actualData as any).description ||
+        `${event} - ${(actualData as any).reference}`,
       metadata: {
         ...(actualData as any).metadata,
         wallet_id: (actualData as any).wallet_id,
@@ -738,7 +749,9 @@ export class WebhooksService {
         business_id: (actualData as any).business_id,
         transaction_date: (actualData as any).transaction_date,
       },
-      timestamp: (actualData as any).timestamp ? new Date((actualData as any).timestamp) : new Date(),
+      timestamp: (actualData as any).timestamp
+        ? new Date((actualData as any).timestamp)
+        : new Date(),
       rawPayload: payload,
     };
   }
@@ -940,7 +953,8 @@ export class WebhooksService {
             type: 'DEPOSIT',
             status: TransactionStatus.COMPLETED,
             reference: data.transactionReference,
-            description: data.description || `Wallet funding via ${data.provider}`,
+            description:
+              data.description || `Wallet funding via ${data.provider}`,
             userId: wallet.userId,
             metadata: {
               provider: data.provider,

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -30,7 +34,10 @@ export class AdminManagementService {
   ): Promise<CreateAdminResponse> {
     try {
       console.log('👤 [ADMIN SERVICE] Creating new admin');
-      console.log('📄 Admin Data:', { email: createAdminDto.email, role: createAdminDto.role });
+      console.log('📄 Admin Data:', {
+        email: createAdminDto.email,
+        role: createAdminDto.role,
+      });
 
       // Check if admin already exists
       const existingAdmin = await this.prisma.user.findUnique({
@@ -140,7 +147,7 @@ export class AdminManagementService {
       return {
         success: true,
         message: 'Admins retrieved successfully',
-        admins: admins.map(admin => ({
+        admins: admins.map((admin) => ({
           id: admin.id,
           email: admin.email,
           firstName: admin.firstName,
@@ -210,7 +217,10 @@ export class AdminManagementService {
     }
   }
 
-  async updateAdmin(adminId: string, updateAdminDto: UpdateAdminDto): Promise<UpdateAdminResponse> {
+  async updateAdmin(
+    adminId: string,
+    updateAdminDto: UpdateAdminDto,
+  ): Promise<UpdateAdminResponse> {
     try {
       console.log('✏️ [ADMIN SERVICE] Updating admin:', adminId);
 
@@ -259,7 +269,10 @@ export class AdminManagementService {
     }
   }
 
-  async deleteAdmin(adminId: string, deleteAdminDto: DeleteAdminDto): Promise<DeleteAdminResponse> {
+  async deleteAdmin(
+    adminId: string,
+    deleteAdminDto: DeleteAdminDto,
+  ): Promise<DeleteAdminResponse> {
     try {
       console.log('🗑️ [ADMIN SERVICE] Deleting admin:', adminId);
 
@@ -326,7 +339,10 @@ export class AdminManagementService {
         permissions,
       };
     } catch (error) {
-      console.error('❌ [ADMIN SERVICE] Error getting role permissions:', error);
+      console.error(
+        '❌ [ADMIN SERVICE] Error getting role permissions:',
+        error,
+      );
       throw new BadRequestException('Failed to get role permissions');
     }
   }
@@ -425,7 +441,7 @@ export class AdminManagementService {
       return {
         success: true,
         message: 'Admin logs retrieved successfully',
-        logs: logs.map(log => ({
+        logs: logs.map((log) => ({
           id: log.id,
           createdAt: log.createdAt.toISOString(),
           adminId: log.adminId,
@@ -449,7 +465,8 @@ export class AdminManagementService {
   }
 
   private generateTemporaryPassword(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
     for (let i = 0; i < 8; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -480,14 +497,9 @@ export class AdminManagementService {
           'VIEW_LOGS',
         ];
       case 'CUSTOMER_REP':
-        return [
-          'VIEW_USERS',
-          'VIEW_TRANSACTIONS',
-          'VIEW_KYC',
-          'BASIC_SUPPORT',
-        ];
+        return ['VIEW_USERS', 'VIEW_TRANSACTIONS', 'VIEW_KYC', 'BASIC_SUPPORT'];
       default:
         return ['BASIC_VIEW'];
     }
   }
-} 
+}

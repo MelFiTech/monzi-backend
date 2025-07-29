@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SmartMessageProcessorService, SmartMessageContext } from './smart-message-processor.service';
+import {
+  SmartMessageProcessorService,
+  SmartMessageContext,
+} from './smart-message-processor.service';
 import { AnalysisGeneratorService } from './analysis-generator.service';
 import { GeminiApiService } from './gemini-api.service';
 import { QueryIntent } from './query-executor.service';
@@ -21,8 +24,16 @@ export class GeminiAiOrchestratorService {
     message: string,
     sessionId: string,
     context?: SmartMessageContext,
-  ): Promise<{ response: string; metadata: any; backendQueries?: QueryIntent[] }> {
-    const result = await this.smartMessageProcessor.processSmartMessage(message, sessionId, context);
+  ): Promise<{
+    response: string;
+    metadata: any;
+    backendQueries?: QueryIntent[];
+  }> {
+    const result = await this.smartMessageProcessor.processSmartMessage(
+      message,
+      sessionId,
+      context,
+    );
     return {
       response: result.response,
       metadata: result.metadata,
@@ -38,7 +49,11 @@ export class GeminiAiOrchestratorService {
     sessionId: string,
     context?: SmartMessageContext,
   ): Promise<{ response: string; metadata: any }> {
-    const result = await this.smartMessageProcessor.processPrimeChatMessage(message, sessionId, context);
+    const result = await this.smartMessageProcessor.processPrimeChatMessage(
+      message,
+      sessionId,
+      context,
+    );
     return {
       response: result.response,
       metadata: result.metadata,
@@ -92,7 +107,9 @@ export class GeminiAiOrchestratorService {
    * Generate system health analysis
    */
   async generateSystemHealthAnalysis(systemData: any): Promise<string> {
-    return await this.analysisGenerator.generateSystemHealthAnalysis(systemData);
+    return await this.analysisGenerator.generateSystemHealthAnalysis(
+      systemData,
+    );
   }
 
   /**
@@ -101,9 +118,13 @@ export class GeminiAiOrchestratorService {
   async generateCustomAnalysis(
     systemData: any,
     analysisType: string,
-    customPrompt?: string
+    customPrompt?: string,
   ): Promise<string> {
-    return await this.analysisGenerator.generateCustomAnalysis(systemData, analysisType, customPrompt);
+    return await this.analysisGenerator.generateCustomAnalysis(
+      systemData,
+      analysisType,
+      customPrompt,
+    );
   }
 
   /**

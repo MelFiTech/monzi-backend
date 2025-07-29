@@ -157,9 +157,15 @@ export class EmailController {
   async getEmailConfig(): Promise<any> {
     return {
       hasOtpClient: this.emailService['resendClients'].has(EmailType.OTP),
-      hasWelcomeClient: this.emailService['resendClients'].has(EmailType.WELCOME),
-      hasTransactionClient: this.emailService['resendClients'].has(EmailType.TRANSACTION),
-      hasPromotionalClient: this.emailService['resendClients'].has(EmailType.PROMOTIONAL),
+      hasWelcomeClient: this.emailService['resendClients'].has(
+        EmailType.WELCOME,
+      ),
+      hasTransactionClient: this.emailService['resendClients'].has(
+        EmailType.TRANSACTION,
+      ),
+      hasPromotionalClient: this.emailService['resendClients'].has(
+        EmailType.PROMOTIONAL,
+      ),
       // Don't expose actual API keys for security
       configuredTypes: Array.from(this.emailService['resendClients'].keys()),
     };
@@ -236,7 +242,8 @@ export class EmailController {
       email: 'test@example.com',
       name: 'Test User',
       subject: 'Exciting New Features Available!',
-      content: 'We\'ve launched amazing new features that will revolutionize your digital wallet experience.',
+      content:
+        "We've launched amazing new features that will revolutionize your digital wallet experience.",
       templateData: {
         promoCode: 'NEWUSER50',
         expiryDate: '2024-12-31',
@@ -272,7 +279,7 @@ export class EmailController {
           author: 'Sarah Johnson, Lagos',
         },
         ctaTitle: 'Join the Financial Revolution',
-        ctaDescription: 'Don\'t miss out on the future of digital payments!',
+        ctaDescription: "Don't miss out on the future of digital payments!",
         ctaText: 'Get Started Now',
         ctaUrl: 'https://monzi.com/signup',
         secondaryCtaText: 'Learn More',
@@ -284,19 +291,25 @@ export class EmailController {
 
   // Simple test endpoint without templates
   @Post('test/simple')
-  async sendSimpleTestEmail(@Body() body: { email: string }): Promise<EmailSendResponse> {
+  async sendSimpleTestEmail(
+    @Body() body: { email: string },
+  ): Promise<EmailSendResponse> {
     return await this.emailService.sendSimpleTestEmail(body.email);
   }
 
   // Test template loading endpoint
   @Get('test/template/:templateName')
-  async testTemplateLoading(@Param('templateName') templateName: string): Promise<any> {
+  async testTemplateLoading(
+    @Param('templateName') templateName: string,
+  ): Promise<any> {
     return await this.emailService.testTemplateLoading(templateName);
   }
 
   // Template test endpoint
   @Post('test/template-email')
-  async sendTemplateTestEmail(@Body() body: { email: string }): Promise<EmailSendResponse> {
+  async sendTemplateTestEmail(
+    @Body() body: { email: string },
+  ): Promise<EmailSendResponse> {
     return await this.emailService.sendTemplateTestEmail(body.email);
   }
 
@@ -310,13 +323,16 @@ export class EmailController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @HttpCode(HttpStatus.OK)
-  async sendKycApprovalEmail(@Body() body: {
-    email: string;
-    name: string;
-    walletCreated?: boolean;
-    virtualAccountNumber?: string;
-    walletProvider?: string;
-  }): Promise<EmailSendResponse> {
+  async sendKycApprovalEmail(
+    @Body()
+    body: {
+      email: string;
+      name: string;
+      walletCreated?: boolean;
+      virtualAccountNumber?: string;
+      walletProvider?: string;
+    },
+  ): Promise<EmailSendResponse> {
     return await this.emailService.sendKycApprovalEmail(body);
   }
-} 
+}

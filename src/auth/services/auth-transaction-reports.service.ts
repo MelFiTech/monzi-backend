@@ -22,7 +22,11 @@ export class AuthTransactionReportsService {
   ): Promise<ReportTransactionResponseDto> {
     const { reason, description } = reportDto;
 
-    console.log('🔍 [AUTH] Report transaction request:', { userId, transactionId, reason });
+    console.log('🔍 [AUTH] Report transaction request:', {
+      userId,
+      transactionId,
+      reason,
+    });
 
     // Check if transaction exists and belongs to user
     const transaction = await this.prisma.transaction.findFirst({
@@ -74,7 +78,11 @@ export class AuthTransactionReportsService {
     limit: number = 20,
     offset: number = 0,
   ): Promise<GetTransactionReportsResponseDto> {
-    console.log('🔍 [AUTH] Get user transaction reports:', { userId, limit, offset });
+    console.log('🔍 [AUTH] Get user transaction reports:', {
+      userId,
+      limit,
+      offset,
+    });
 
     const [reports, total] = await Promise.all([
       this.prisma.transactionReport.findMany({
@@ -100,67 +108,79 @@ export class AuthTransactionReportsService {
       this.prisma.transactionReport.count({ where: { userId } }),
     ]);
 
-    const formattedReports = await Promise.all(reports.map(async (report) => {
-      // Get transaction details
-      const transaction = await this.prisma.transaction.findUnique({
-        where: { id: report.transactionId },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
+    const formattedReports = await Promise.all(
+      reports.map(async (report) => {
+        // Get transaction details
+        const transaction = await this.prisma.transaction.findUnique({
+          where: { id: report.transactionId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      if (!transaction) {
-        console.warn('Transaction not found for report:', report.id);
-        return null;
-      }
-      const metadata = transaction.metadata || {};
-      const user = transaction.user;
-      
-      // Get wallet separately since it's not included in transaction
-      const wallet = await this.prisma.wallet.findUnique({
-        where: { userId: user.id },
-      });
+        if (!transaction) {
+          console.warn('Transaction not found for report:', report.id);
+          return null;
+        }
+        const metadata = transaction.metadata || {};
+        const user = transaction.user;
 
-      return {
-        id: report.id,
-        reason: report.reason,
-        description: report.description,
-        status: report.status,
-        createdAt: report.createdAt.toISOString(),
-        transaction: {
-          id: transaction.id,
-          amount: transaction.amount,
-          currency: transaction.currency,
-          type: transaction.type,
-          status: transaction.status,
-          reference: transaction.reference,
-          description: transaction.description,
-          source: this.buildTransactionSource(transaction, metadata, user, wallet),
-          destination: this.buildTransactionDestination(transaction, metadata, user, wallet),
-          fee: this.buildTransactionFee(transaction, metadata),
-          balanceImpact: this.buildBalanceImpact(transaction, metadata),
-          timeline: {
-            createdAt: transaction.createdAt.toISOString(),
-            processingAt: undefined, // Not available in current schema
-            completedAt: undefined, // Not available in current schema
-            updatedAt: transaction.updatedAt.toISOString(),
+        // Get wallet separately since it's not included in transaction
+        const wallet = await this.prisma.wallet.findUnique({
+          where: { userId: user.id },
+        });
+
+        return {
+          id: report.id,
+          reason: report.reason,
+          description: report.description,
+          status: report.status,
+          createdAt: report.createdAt.toISOString(),
+          transaction: {
+            id: transaction.id,
+            amount: transaction.amount,
+            currency: transaction.currency,
+            type: transaction.type,
+            status: transaction.status,
+            reference: transaction.reference,
+            description: transaction.description,
+            source: this.buildTransactionSource(
+              transaction,
+              metadata,
+              user,
+              wallet,
+            ),
+            destination: this.buildTransactionDestination(
+              transaction,
+              metadata,
+              user,
+              wallet,
+            ),
+            fee: this.buildTransactionFee(transaction, metadata),
+            balanceImpact: this.buildBalanceImpact(transaction, metadata),
+            timeline: {
+              createdAt: transaction.createdAt.toISOString(),
+              processingAt: undefined, // Not available in current schema
+              completedAt: undefined, // Not available in current schema
+              updatedAt: transaction.updatedAt.toISOString(),
+            },
+            metadata,
+            providerReference: null, // Not available in current schema
+            providerResponse: null, // Not available in current schema
           },
-          metadata,
-          providerReference: null, // Not available in current schema
-          providerResponse: null, // Not available in current schema
-        },
-      };
-    }));
+        };
+      }),
+    );
 
     // Filter out null reports
-    const validReports = formattedReports.filter(report => report !== null);
+    const validReports = formattedReports.filter((report) => report !== null);
 
     console.log('✅ [AUTH] User transaction reports retrieved successfully');
 
@@ -174,11 +194,17 @@ export class AuthTransactionReportsService {
   }
 
   // Build transaction source
-  private buildTransactionSource(transaction: any, metadata: any, user: any, wallet: any) {
+  private buildTransactionSource(
+    transaction: any,
+    metadata: any,
+    user: any,
+    wallet: any,
+  ) {
     if (transaction.type === 'WITHDRAWAL' || transaction.type === 'TRANSFER') {
       return {
         type: 'WALLET',
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        name:
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
         accountNumber: wallet?.virtualAccountNumber,
         provider: wallet?.provider,
       };
@@ -195,7 +221,7 @@ export class AuthTransactionReportsService {
           bankCode: metadata.bankCode,
         };
       }
-      
+
       // Fallback to old metadata structure
       if (metadata.sourceType === 'BANK') {
         return {
@@ -206,7 +232,7 @@ export class AuthTransactionReportsService {
           bankCode: metadata.sourceBankCode,
         };
       }
-      
+
       // If no sender info available, provide meaningful external source
       if (metadata.provider) {
         return {
@@ -216,7 +242,7 @@ export class AuthTransactionReportsService {
           provider: metadata.provider,
         };
       }
-      
+
       return {
         type: 'EXTERNAL',
         name: 'External Bank Transfer',
@@ -228,11 +254,17 @@ export class AuthTransactionReportsService {
   }
 
   // Build transaction destination
-  private buildTransactionDestination(transaction: any, metadata: any, user: any, wallet: any) {
+  private buildTransactionDestination(
+    transaction: any,
+    metadata: any,
+    user: any,
+    wallet: any,
+  ) {
     if (transaction.type === 'DEPOSIT') {
       return {
         type: 'WALLET',
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        name:
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
         accountNumber: wallet?.virtualAccountNumber,
         provider: wallet?.provider,
       };
@@ -277,7 +309,8 @@ export class AuthTransactionReportsService {
       previousBalance: metadata.balanceImpact.previousBalance || 0,
       newBalance: metadata.balanceImpact.newBalance || 0,
       balanceChange: metadata.balanceImpact.balanceChange || 0,
-      effectiveAmount: metadata.balanceImpact.effectiveAmount || transaction.amount,
+      effectiveAmount:
+        metadata.balanceImpact.effectiveAmount || transaction.amount,
     };
   }
-} 
+}

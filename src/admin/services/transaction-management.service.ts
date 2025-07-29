@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsGateway } from '../../notifications/notifications.gateway';
 import {
   GetTransactionsResponse,
   GetTransactionDetailResponse,
@@ -11,7 +16,10 @@ import {
 
 @Injectable()
 export class TransactionManagementService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsGateway: NotificationsGateway,
+  ) {}
 
   async getTransactions(
     limit: number = 20,
@@ -90,7 +98,9 @@ export class TransactionManagementService {
         metadata: tx.metadata,
       }));
 
-      console.log('✅ [TRANSACTION SERVICE] Transactions retrieved successfully');
+      console.log(
+        '✅ [TRANSACTION SERVICE] Transactions retrieved successfully',
+      );
       console.log('📊 Total transactions:', total);
       console.log('📄 Retrieved transactions:', formattedTransactions.length);
 
@@ -110,13 +120,21 @@ export class TransactionManagementService {
         },
       };
     } catch (error) {
-      console.error('❌ [TRANSACTION SERVICE] Error getting transactions:', error);
+      console.error(
+        '❌ [TRANSACTION SERVICE] Error getting transactions:',
+        error,
+      );
       throw new BadRequestException('Failed to get transactions');
     }
   }
 
-  async getTransactionDetail(transactionId: string): Promise<GetTransactionDetailResponse> {
-    console.log('🔍 [TRANSACTION SERVICE] Getting transaction details for:', transactionId);
+  async getTransactionDetail(
+    transactionId: string,
+  ): Promise<GetTransactionDetailResponse> {
+    console.log(
+      '🔍 [TRANSACTION SERVICE] Getting transaction details for:',
+      transactionId,
+    );
 
     try {
       const transaction = await this.prisma.transaction.findUnique({
@@ -151,14 +169,19 @@ export class TransactionManagementService {
         metadata: transaction.metadata,
       };
 
-      console.log('✅ [TRANSACTION SERVICE] Transaction details retrieved successfully');
+      console.log(
+        '✅ [TRANSACTION SERVICE] Transaction details retrieved successfully',
+      );
 
       return {
         success: true,
         transaction: transactionDetail,
       };
     } catch (error) {
-      console.error('❌ [TRANSACTION SERVICE] Error getting transaction details:', error);
+      console.error(
+        '❌ [TRANSACTION SERVICE] Error getting transaction details:',
+        error,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       }
@@ -167,8 +190,6 @@ export class TransactionManagementService {
   }
 
   async getTransactionStats(): Promise<AdminTransactionStatsDto> {
-    console.log('📊 [TRANSACTION SERVICE] Getting transaction statistics');
-
     try {
       const [
         totalTransactions,
@@ -182,7 +203,9 @@ export class TransactionManagementService {
         this.prisma.transaction.aggregate({
           _sum: { amount: true },
         }),
-        this.prisma.transaction.count({ where: { status: 'SUCCESSFUL' as any } }),
+        this.prisma.transaction.count({
+          where: { status: 'COMPLETED' },
+        }),
         this.prisma.transaction.count({ where: { status: 'PENDING' } }),
         this.prisma.transaction.count({ where: { status: 'FAILED' } }),
         this.prisma.transaction.count({ where: { status: 'CANCELLED' } }),
@@ -197,28 +220,71 @@ export class TransactionManagementService {
         cancelled: cancelledTransactions,
       };
     } catch (error) {
-      console.error('❌ [TRANSACTION SERVICE] Error getting transaction statistics:', error);
+      console.error(
+        '❌ [TRANSACTION SERVICE] Error getting transaction statistics:',
+        error,
+      );
       throw new BadRequestException('Failed to get transaction statistics');
     }
   }
 
   async fundWallet(dto: FundWalletDto): Promise<WalletOperationResponse> {
-    console.log('💰 [TRANSACTION SERVICE] Funding wallet:', dto.accountNumber);
+    console.log('💰 [TRANSACTION SERVICE] Funding wallet:', dto);
 
     try {
-      const wallet = await this.prisma.wallet.findUnique({
-        where: { virtualAccountNumber: dto.accountNumber },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
+      let wallet;
+
+      // Find wallet by userId, email, or accountNumber
+      if (dto.userId) {
+        wallet = await this.prisma.wallet.findFirst({
+          where: { userId: dto.userId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
             },
           },
-        },
-      });
+        });
+      } else if (dto.email) {
+        const user = await this.prisma.user.findUnique({
+          where: { email: dto.email },
+        });
+        if (user) {
+          wallet = await this.prisma.wallet.findFirst({
+            where: { userId: user.id },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          });
+        }
+      } else if (dto.accountNumber) {
+        wallet = await this.prisma.wallet.findUnique({
+          where: { virtualAccountNumber: dto.accountNumber },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        });
+      } else {
+        throw new BadRequestException('Must provide userId, email, or accountNumber');
+      }
 
       if (!wallet) {
         throw new NotFoundException('Wallet not found');
@@ -232,10 +298,10 @@ export class TransactionManagementService {
       const transaction = await this.prisma.transaction.create({
         data: {
           userId: wallet.userId,
-          type: 'CREDIT' as any,
+          type: 'DEPOSIT',
           amount: dto.amount,
           currency: wallet.currency,
-          status: 'SUCCESSFUL' as any,
+          status: 'COMPLETED',
           reference: `ADMIN_FUND_${Date.now()}`,
           description: dto.description || 'Admin wallet funding',
           metadata: {
@@ -254,6 +320,52 @@ export class TransactionManagementService {
 
       console.log('✅ [TRANSACTION SERVICE] Wallet funded successfully');
 
+      // Emit real-time notifications
+      if (this.notificationsGateway) {
+        // Wallet balance update notification
+        this.notificationsGateway.emitWalletBalanceUpdate(wallet.userId, {
+          oldBalance: wallet.balance,
+          newBalance: updatedWallet.balance,
+          change: dto.amount,
+          currency: wallet.currency,
+          provider: 'ADMIN',
+          accountNumber: wallet.virtualAccountNumber,
+          grossAmount: dto.amount,
+          fundingFee: 0,
+          netAmount: dto.amount,
+          transactionId: transaction.id,
+          reference: transaction.reference,
+        });
+
+        // Transaction notification
+        this.notificationsGateway.emitTransactionNotification(wallet.userId, {
+          type: 'FUNDING',
+          amount: dto.amount,
+          grossAmount: dto.amount,
+          fee: 0,
+          currency: wallet.currency,
+          description: dto.description || 'Admin wallet funding',
+          reference: transaction.reference,
+          transactionId: transaction.id,
+          provider: 'ADMIN',
+          status: 'COMPLETED',
+          timestamp: new Date().toISOString(),
+        });
+
+        // General notification
+        this.notificationsGateway.emitNotification(wallet.userId, {
+          title: 'Wallet Funded by Admin',
+          message: `₦${dto.amount.toLocaleString()} has been credited to your wallet by an administrator.`,
+          type: 'success',
+          data: {
+            transactionId: transaction.id,
+            amount: dto.amount,
+            reference: transaction.reference,
+            adminFunding: true,
+          },
+        });
+      }
+
       return {
         success: true,
         message: 'Wallet funded successfully',
@@ -267,7 +379,10 @@ export class TransactionManagementService {
       };
     } catch (error) {
       console.error('❌ [TRANSACTION SERVICE] Error funding wallet:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to fund wallet');
@@ -275,22 +390,62 @@ export class TransactionManagementService {
   }
 
   async debitWallet(dto: DebitWalletDto): Promise<WalletOperationResponse> {
-    console.log('💸 [TRANSACTION SERVICE] Debiting wallet:', dto.accountNumber);
+    console.log('💸 [TRANSACTION SERVICE] Debiting wallet:', dto);
 
     try {
-      const wallet = await this.prisma.wallet.findUnique({
-        where: { virtualAccountNumber: dto.accountNumber },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
+      let wallet;
+
+      // Find wallet by userId, email, or accountNumber
+      if (dto.userId) {
+        wallet = await this.prisma.wallet.findFirst({
+          where: { userId: dto.userId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
             },
           },
-        },
-      });
+        });
+      } else if (dto.email) {
+        const user = await this.prisma.user.findUnique({
+          where: { email: dto.email },
+        });
+        if (user) {
+          wallet = await this.prisma.wallet.findFirst({
+            where: { userId: user.id },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          });
+        }
+      } else if (dto.accountNumber) {
+        wallet = await this.prisma.wallet.findUnique({
+          where: { virtualAccountNumber: dto.accountNumber },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        });
+      } else {
+        throw new BadRequestException('Must provide userId, email, or accountNumber');
+      }
 
       if (!wallet) {
         throw new NotFoundException('Wallet not found');
@@ -308,10 +463,10 @@ export class TransactionManagementService {
       const transaction = await this.prisma.transaction.create({
         data: {
           userId: wallet.userId,
-          type: 'DEBIT' as any,
+          type: 'WITHDRAWAL',
           amount: dto.amount,
           currency: wallet.currency,
-          status: 'SUCCESSFUL' as any,
+          status: 'COMPLETED',
           reference: `ADMIN_DEBIT_${Date.now()}`,
           description: dto.description || 'Admin wallet debit',
           metadata: {
@@ -330,6 +485,52 @@ export class TransactionManagementService {
 
       console.log('✅ [TRANSACTION SERVICE] Wallet debited successfully');
 
+      // Emit real-time notifications
+      if (this.notificationsGateway) {
+        // Wallet balance update notification
+        this.notificationsGateway.emitWalletBalanceUpdate(wallet.userId, {
+          oldBalance: wallet.balance,
+          newBalance: updatedWallet.balance,
+          change: -dto.amount,
+          currency: wallet.currency,
+          provider: 'ADMIN',
+          accountNumber: wallet.virtualAccountNumber,
+          grossAmount: dto.amount,
+          fundingFee: 0,
+          netAmount: -dto.amount,
+          transactionId: transaction.id,
+          reference: transaction.reference,
+        });
+
+        // Transaction notification
+        this.notificationsGateway.emitTransactionNotification(wallet.userId, {
+          type: 'WITHDRAWAL',
+          amount: dto.amount,
+          grossAmount: dto.amount,
+          fee: 0,
+          currency: wallet.currency,
+          description: dto.description || 'Admin wallet debit',
+          reference: transaction.reference,
+          transactionId: transaction.id,
+          provider: 'ADMIN',
+          status: 'COMPLETED',
+          timestamp: new Date().toISOString(),
+        });
+
+        // General notification
+        this.notificationsGateway.emitNotification(wallet.userId, {
+          title: 'Wallet Debited by Admin',
+          message: `₦${dto.amount.toLocaleString()} has been debited from your wallet by an administrator.`,
+          type: 'warning',
+          data: {
+            transactionId: transaction.id,
+            amount: dto.amount,
+            reference: transaction.reference,
+            adminDebit: true,
+          },
+        });
+      }
+
       return {
         success: true,
         message: 'Wallet debited successfully',
@@ -343,10 +544,13 @@ export class TransactionManagementService {
       };
     } catch (error) {
       console.error('❌ [TRANSACTION SERVICE] Error debiting wallet:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to debit wallet');
     }
   }
-} 
+}

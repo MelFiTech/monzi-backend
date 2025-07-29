@@ -57,7 +57,7 @@ export class PushNotificationsService {
   }> {
     const cacheKey = `user_prefs_${userId}`;
     const now = Date.now();
-    
+
     // Check cache first
     if (this.userPreferencesCache.has(cacheKey)) {
       const expiry = this.cacheExpiry.get(cacheKey);
@@ -110,14 +110,17 @@ export class PushNotificationsService {
    * Schedule automatic cleanup of inactive tokens
    */
   private scheduleAutomaticCleanup() {
-    setInterval(async () => {
-      try {
-        await this.cleanupInactiveTokens();
-        this.cleanupCache();
-      } catch (error) {
-        this.logger.error('❌ [PUSH] Error during automatic cleanup:', error);
-      }
-    }, 24 * 60 * 60 * 1000); // Run every 24 hours
+    setInterval(
+      async () => {
+        try {
+          await this.cleanupInactiveTokens();
+          this.cleanupCache();
+        } catch (error) {
+          this.logger.error('❌ [PUSH] Error during automatic cleanup:', error);
+        }
+      },
+      24 * 60 * 60 * 1000,
+    ); // Run every 24 hours
   }
 
   /**
@@ -296,7 +299,11 @@ export class PushNotificationsService {
 
       // Check if it's a promotional notification
       const isPromotional = dto.data?.type === 'promotional';
-      const isTransaction = dto.data?.type === 'transaction' || dto.data?.type === 'wallet' || dto.data?.type === 'funding' || dto.data?.type === 'transfer';
+      const isTransaction =
+        dto.data?.type === 'transaction' ||
+        dto.data?.type === 'wallet' ||
+        dto.data?.type === 'funding' ||
+        dto.data?.type === 'transfer';
 
       if (isPromotional && !preferences.promotionalNotificationsEnabled) {
         this.logger.log(
@@ -472,7 +479,11 @@ export class PushNotificationsService {
       await Promise.all(historyPromises);
 
       const tokens = eligibleTokens.map((tokenRecord) => tokenRecord.token);
-      const result = await this.sendPushNotifications(tokens, dto, eligibleTokens);
+      const result = await this.sendPushNotifications(
+        tokens,
+        dto,
+        eligibleTokens,
+      );
 
       return result;
     } catch (error) {
@@ -528,7 +539,7 @@ export class PushNotificationsService {
         };
       }
 
-      const userIds = users.map(user => user.id);
+      const userIds = users.map((user) => user.id);
 
       // Get all push tokens for the specified users
       const pushTokens = await this.prisma.pushToken.findMany({
@@ -586,19 +597,23 @@ export class PushNotificationsService {
           dto.data,
           tokenRecord.token,
           undefined,
-          { 
-            bulk: true, 
-            byEmail: true, 
+          {
+            bulk: true,
+            byEmail: true,
             totalRecipients: eligibleTokens.length,
             emailsProvided: dto.userEmails.length,
-            usersFound: users.length 
+            usersFound: users.length,
           },
         ),
       );
       await Promise.all(historyPromises);
 
       const tokens = eligibleTokens.map((tokenRecord) => tokenRecord.token);
-      const result = await this.sendPushNotifications(tokens, dto, eligibleTokens);
+      const result = await this.sendPushNotifications(
+        tokens,
+        dto,
+        eligibleTokens,
+      );
 
       return {
         ...result,
@@ -634,7 +649,10 @@ export class PushNotificationsService {
         };
       }
 
-      if ((!dto.userIds || dto.userIds.length === 0) && (!dto.userEmails || dto.userEmails.length === 0)) {
+      if (
+        (!dto.userIds || dto.userIds.length === 0) &&
+        (!dto.userEmails || dto.userEmails.length === 0)
+      ) {
         return {
           success: false,
           message: 'No user IDs or emails provided',
@@ -662,7 +680,7 @@ export class PushNotificationsService {
           },
         });
 
-        const userIdsFromEmails = users.map(user => user.id);
+        const userIdsFromEmails = users.map((user) => user.id);
         allUserIds = [...allUserIds, ...userIdsFromEmails];
       }
 
@@ -733,20 +751,24 @@ export class PushNotificationsService {
           dto.data,
           tokenRecord.token,
           undefined,
-          { 
-            bulk: true, 
-            mixed: true, 
+          {
+            bulk: true,
+            mixed: true,
             totalRecipients: eligibleTokens.length,
             idsProvided: dto.userIds?.length || 0,
             emailsProvided: dto.userEmails?.length || 0,
-            uniqueUsers: uniqueUserIds.length
+            uniqueUsers: uniqueUserIds.length,
           },
         ),
       );
       await Promise.all(historyPromises);
 
       const tokens = eligibleTokens.map((tokenRecord) => tokenRecord.token);
-      const result = await this.sendPushNotifications(tokens, dto, eligibleTokens);
+      const result = await this.sendPushNotifications(
+        tokens,
+        dto,
+        eligibleTokens,
+      );
 
       return {
         ...result,
@@ -833,7 +855,8 @@ export class PushNotificationsService {
         sound: dto.sound || 'default',
         badge: dto.badge,
         priority: dto.priority || 'default',
-        channelId: dto.data?.type === 'transaction' ? 'transactions' : 'general',
+        channelId:
+          dto.data?.type === 'transaction' ? 'transactions' : 'general',
         ttl: 3600, // 1 hour TTL
       }));
 
@@ -847,10 +870,10 @@ export class PushNotificationsService {
         try {
           const ticketChunk = await this.expo.sendPushNotificationsAsync(chunk);
           tickets.push(...ticketChunk);
-          
+
           // Add delay between chunks to avoid rate limiting
           if (chunks.length > 1) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
           }
         } catch (error) {
           this.logger.error(`❌ [PUSH] Error sending chunk:`, error);
@@ -886,9 +909,9 @@ export class PushNotificationsService {
         data: {
           totalSent: successCount,
           totalFailed: errorCount,
-          tickets: tickets.map(t => ({ 
-            id: t.status === 'ok' ? t.id : undefined, 
-            status: t.status 
+          tickets: tickets.map((t) => ({
+            id: t.status === 'ok' ? t.id : undefined,
+            status: t.status,
           })),
         },
       };
@@ -953,24 +976,28 @@ export class PushNotificationsService {
       if (!this.expo) return;
 
       const receiptIds = tickets
-        .filter((ticket): ticket is ExpoPushTicket & { id: string } => 
-          ticket.status === 'ok' && typeof ticket.id === 'string')
-        .map(ticket => ticket.id);
+        .filter(
+          (ticket): ticket is ExpoPushTicket & { id: string } =>
+            ticket.status === 'ok' && typeof ticket.id === 'string',
+        )
+        .map((ticket) => ticket.id);
 
       if (receiptIds.length === 0) return;
 
-      const receiptIdChunks = this.expo.chunkPushNotificationReceiptIds(receiptIds);
+      const receiptIdChunks =
+        this.expo.chunkPushNotificationReceiptIds(receiptIds);
 
       for (const chunk of receiptIdChunks) {
         try {
-          const receipts = await this.expo.getPushNotificationReceiptsAsync(chunk);
-          
+          const receipts =
+            await this.expo.getPushNotificationReceiptsAsync(chunk);
+
           let deliveredCount = 0;
           let failedCount = 0;
 
           for (const receiptId in receipts) {
             const receipt = receipts[receiptId];
-            
+
             if (receipt.status === 'ok') {
               deliveredCount++;
             } else {
@@ -1029,10 +1056,7 @@ export class PushNotificationsService {
 
     const result = await this.prisma.pushToken.deleteMany({
       where: {
-        OR: [
-          { isActive: false },
-          { lastUsedAt: { lt: cutoffDate } },
-        ],
+        OR: [{ isActive: false }, { lastUsedAt: { lt: cutoffDate } }],
       },
     });
 
@@ -1055,7 +1079,10 @@ export class PushNotificationsService {
     try {
       const preferences = await this.getUserPreferences(userId);
 
-      if (!preferences.notificationsEnabled || !preferences.transactionNotificationsEnabled) {
+      if (
+        !preferences.notificationsEnabled ||
+        !preferences.transactionNotificationsEnabled
+      ) {
         this.logger.log(
           `🔕 [PUSH] Skipping wallet funding notification for user ${userId} - transaction notifications disabled`,
         );
@@ -1104,7 +1131,10 @@ export class PushNotificationsService {
     try {
       const preferences = await this.getUserPreferences(userId);
 
-      if (!preferences.notificationsEnabled || !preferences.transactionNotificationsEnabled) {
+      if (
+        !preferences.notificationsEnabled ||
+        !preferences.transactionNotificationsEnabled
+      ) {
         this.logger.log(
           `🔕 [PUSH] Skipping transaction notification for user ${userId} - transaction notifications disabled`,
         );
@@ -1115,7 +1145,8 @@ export class PushNotificationsService {
         };
       }
 
-      const statusEmoji = status === 'COMPLETED' ? '✅' : status === 'FAILED' ? '❌' : '⏳';
+      const statusEmoji =
+        status === 'COMPLETED' ? '✅' : status === 'FAILED' ? '❌' : '⏳';
       const typeText = type.toLowerCase();
 
       return this.sendPushNotificationToUser(userId, {
@@ -1186,17 +1217,17 @@ export class PushNotificationsService {
    */
   private mapToNotificationType(dataType: string): string {
     const typeMapping: { [key: string]: string } = {
-      'funding': 'WALLET_FUNDING',
-      'debit': 'WALLET_DEBIT',
-      'wallet': 'TRANSACTION',
-      'transaction': 'TRANSACTION',
-      'transfer': 'TRANSFER',
-      'withdrawal': 'WITHDRAWAL',
-      'promotional': 'PROMOTIONAL',
-      'system': 'SYSTEM',
-      'security': 'SECURITY',
-      'kyc': 'KYC',
-      'general': 'GENERAL',
+      funding: 'WALLET_FUNDING',
+      debit: 'WALLET_DEBIT',
+      wallet: 'TRANSACTION',
+      transaction: 'TRANSACTION',
+      transfer: 'TRANSFER',
+      withdrawal: 'WITHDRAWAL',
+      promotional: 'PROMOTIONAL',
+      system: 'SYSTEM',
+      security: 'SECURITY',
+      kyc: 'KYC',
+      general: 'GENERAL',
     };
 
     const upperType = dataType.toLowerCase();
@@ -1219,7 +1250,7 @@ export class PushNotificationsService {
   ) {
     try {
       const validNotificationType = this.mapToNotificationType(type);
-      
+
       return await this.prisma.notificationHistory.create({
         data: {
           userId,
@@ -1236,7 +1267,9 @@ export class PushNotificationsService {
       });
     } catch (error) {
       this.logger.error(`❌ [HISTORY] Failed to log notification:`, error);
-      this.logger.error(`❌ [HISTORY] Type mapping issue - original: ${type}, mapped: ${this.mapToNotificationType(type)}`);
+      this.logger.error(
+        `❌ [HISTORY] Type mapping issue - original: ${type}, mapped: ${this.mapToNotificationType(type)}`,
+      );
     }
   }
 
@@ -1270,7 +1303,10 @@ export class PushNotificationsService {
         });
       }
     } catch (error) {
-      this.logger.error(`❌ [HISTORY] Failed to update notification status:`, error);
+      this.logger.error(
+        `❌ [HISTORY] Failed to update notification status:`,
+        error,
+      );
     }
   }
 
@@ -1420,7 +1456,9 @@ export class PushNotificationsService {
       // Filter tokens based on user preferences
       const eligibleTokens = activeTokens.filter((tokenRecord) => {
         const { user } = tokenRecord;
-        return user.notificationsEnabled && user.promotionalNotificationsEnabled;
+        return (
+          user.notificationsEnabled && user.promotionalNotificationsEnabled
+        );
       });
 
       if (eligibleTokens.length === 0) {
@@ -1476,15 +1514,15 @@ export class PushNotificationsService {
 
       for (let i = 0; i < messages.length; i += chunkSize) {
         const chunk = messages.slice(i, i + chunkSize);
-        
+
         try {
           const ticketChunk = await this.expo.sendPushNotificationsAsync(chunk);
-          
+
           // Process tickets and update history
           for (let j = 0; j < chunk.length; j++) {
             const ticket = ticketChunk[j];
             const tokenRecord = eligibleTokens[i + j];
-            
+
             if (ticket.status === 'ok') {
               totalSent++;
             } else {
@@ -1500,12 +1538,12 @@ export class PushNotificationsService {
 
           // Add delay between chunks
           if (i + chunkSize < messages.length) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
         } catch (chunkError) {
           this.logger.error(`❌ [PUSH] Chunk send failed:`, chunkError);
           totalFailed += chunk.length;
-          
+
           // Mark all in chunk as failed
           const failurePromises = chunk.map((msg, j) => {
             const tokenRecord = eligibleTokens[i + j];

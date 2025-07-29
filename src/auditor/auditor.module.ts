@@ -42,4 +42,4 @@ import { AdminEndpointMapperService } from './services/admin-endpoint-mapper.ser
     AdminEndpointMapperService,
   ],
 })
-export class AuditorModule { } 
+export class AuditorModule {}

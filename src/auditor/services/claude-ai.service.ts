@@ -3,7 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AuditorMessageRole, AuditorReportType, AuditorRiskLevel } from '../dto/auditor.dto';
+import {
+  AuditorMessageRole,
+  AuditorReportType,
+  AuditorRiskLevel,
+} from '../dto/auditor.dto';
 
 interface ClaudeMessage {
   role: 'user' | 'assistant';
@@ -41,7 +45,9 @@ export class ClaudeAiService {
   ) {
     this.apiKey = this.configService.get<string>('CLAUDE_API_KEY');
     if (!this.apiKey) {
-      this.logger.warn('⚠️ Claude API key not configured. Auditor system will be limited.');
+      this.logger.warn(
+        '⚠️ Claude API key not configured. Auditor system will be limited.',
+      );
     }
   }
 
@@ -56,7 +62,10 @@ export class ClaudeAiService {
       maxTokens?: number;
       systemPrompt?: string;
     },
-  ): Promise<{ response: string; usage: { input_tokens: number; output_tokens: number } }> {
+  ): Promise<{
+    response: string;
+    usage: { input_tokens: number; output_tokens: number };
+  }> {
     if (!this.apiKey) {
       throw new Error('Claude API key not configured');
     }
@@ -86,13 +95,17 @@ export class ClaudeAiService {
 
       const claudeResponse = response.data;
       const responseText = claudeResponse.content
-        .filter(item => item.type === 'text')
-        .map(item => item.text)
+        .filter((item) => item.type === 'text')
+        .map((item) => item.text)
         .join('\n');
 
       this.logger.debug('📥 Received response from Claude API');
-      this.logger.debug(`📊 Input tokens: ${claudeResponse.usage.input_tokens}`);
-      this.logger.debug(`📊 Output tokens: ${claudeResponse.usage.output_tokens}`);
+      this.logger.debug(
+        `📊 Input tokens: ${claudeResponse.usage.input_tokens}`,
+      );
+      this.logger.debug(
+        `📊 Output tokens: ${claudeResponse.usage.output_tokens}`,
+      );
 
       return {
         response: responseText,
@@ -113,7 +126,12 @@ export class ClaudeAiService {
   async generateFinancialAnalysis(
     metricsData: any,
     timeframe: string = 'last 30 days',
-  ): Promise<{ summary: string; findings: any; recommendations: any; riskLevel: AuditorRiskLevel }> {
+  ): Promise<{
+    summary: string;
+    findings: any;
+    recommendations: any;
+    riskLevel: AuditorRiskLevel;
+  }> {
     const systemPrompt = `You are Prime, an AI financial auditor for a Nigerian fintech platform called Monzi. 
     Your role is to analyze financial data and provide insights, risk assessments, and recommendations.
     
@@ -145,9 +163,7 @@ export class ClaudeAiService {
     - recommendations: Specific actions to take
     - riskLevel: Overall risk assessment (LOW/MEDIUM/HIGH/CRITICAL)`;
 
-    const messages: ClaudeMessage[] = [
-      { role: 'user', content: userMessage },
-    ];
+    const messages: ClaudeMessage[] = [{ role: 'user', content: userMessage }];
 
     const result = await this.sendMessage(messages, {
       systemPrompt,
@@ -181,7 +197,12 @@ export class ClaudeAiService {
   async generateRiskAssessment(
     userData: any,
     transactionData: any,
-  ): Promise<{ summary: string; findings: any; recommendations: any; riskLevel: AuditorRiskLevel }> {
+  ): Promise<{
+    summary: string;
+    findings: any;
+    recommendations: any;
+    riskLevel: AuditorRiskLevel;
+  }> {
     const systemPrompt = `You are Prime, an AI risk assessment specialist for Monzi fintech platform.
     Analyze user behavior and transaction patterns to identify potential risks including:
     - Fraud indicators
@@ -208,9 +229,7 @@ export class ClaudeAiService {
     
     Format as structured JSON with summary, findings, recommendations, and riskLevel fields.`;
 
-    const messages: ClaudeMessage[] = [
-      { role: 'user', content: userMessage },
-    ];
+    const messages: ClaudeMessage[] = [{ role: 'user', content: userMessage }];
 
     const result = await this.sendMessage(messages, {
       systemPrompt,
@@ -262,14 +281,12 @@ export class ClaudeAiService {
     Current session: ${sessionId}`;
 
     let userMessage = message;
-    
+
     if (context?.includeMetrics && context?.metrics) {
       userMessage += `\n\nCurrent system metrics:\n${JSON.stringify(context.metrics, null, 2)}`;
     }
 
-    const messages: ClaudeMessage[] = [
-      { role: 'user', content: userMessage },
-    ];
+    const messages: ClaudeMessage[] = [{ role: 'user', content: userMessage }];
 
     const result = await this.sendMessage(messages, {
       systemPrompt,
@@ -291,9 +308,12 @@ export class ClaudeAiService {
   /**
    * Generate compliance audit report
    */
-  async generateComplianceAudit(
-    systemData: any,
-  ): Promise<{ summary: string; findings: any; recommendations: any; riskLevel: AuditorRiskLevel }> {
+  async generateComplianceAudit(systemData: any): Promise<{
+    summary: string;
+    findings: any;
+    recommendations: any;
+    riskLevel: AuditorRiskLevel;
+  }> {
     const systemPrompt = `You are Prime, a compliance auditor for Monzi fintech platform.
     Focus on Nigerian financial regulations including:
     - CBN (Central Bank of Nigeria) regulations
@@ -317,9 +337,7 @@ export class ClaudeAiService {
     
     Format as structured JSON with summary, findings, recommendations, and riskLevel fields.`;
 
-    const messages: ClaudeMessage[] = [
-      { role: 'user', content: userMessage },
-    ];
+    const messages: ClaudeMessage[] = [{ role: 'user', content: userMessage }];
 
     const result = await this.sendMessage(messages, {
       systemPrompt,
@@ -348,7 +366,11 @@ export class ClaudeAiService {
   /**
    * Check Claude API health
    */
-  async checkHealth(): Promise<{ available: boolean; model: string; latency?: number }> {
+  async checkHealth(): Promise<{
+    available: boolean;
+    model: string;
+    latency?: number;
+  }> {
     if (!this.apiKey) {
       return { available: false, model: 'N/A' };
     }
@@ -365,7 +387,7 @@ export class ClaudeAiService {
       });
 
       const latency = Date.now() - startTime;
-      
+
       return {
         available: true,
         model: this.defaultModel,
@@ -379,4 +401,4 @@ export class ClaudeAiService {
       };
     }
   }
-} 
+}

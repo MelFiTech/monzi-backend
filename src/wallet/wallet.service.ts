@@ -21,7 +21,10 @@ import { ProviderManagerService } from '../providers/provider-manager.service';
 import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
-import { WalletCreationData, WalletProvider } from '../providers/base/wallet-provider.interface';
+import {
+  WalletCreationData,
+  WalletProvider,
+} from '../providers/base/wallet-provider.interface';
 import { BankTransferData } from '../providers/base/transfer-provider.interface';
 import { LocationTransactionService } from '../location/services/location-transaction.service';
 import * as bcrypt from 'bcrypt';
@@ -269,14 +272,16 @@ export class WalletService {
       console.log('✅ [WALLET DETAILS] Wallet details retrieved successfully');
 
       // Check if user has been migrated to NYRA (stored in metadata)
-      const metadata = wallet.metadata as any || {};
+      const metadata = (wallet.metadata as any) || {};
       let primaryAccountDetails;
-      let additionalAccounts = [];
+      const additionalAccounts = [];
 
       if (metadata.nyraAccount) {
         // User has been migrated - prioritize NYRA account
-        console.log('🏦 [WALLET DETAILS] User has NYRA account, prioritizing NYRA details');
-        
+        console.log(
+          '🏦 [WALLET DETAILS] User has NYRA account, prioritizing NYRA details',
+        );
+
         primaryAccountDetails = {
           accountNumber: metadata.nyraAccount.accountNumber,
           accountName: metadata.nyraAccount.accountName,
@@ -301,13 +306,20 @@ export class WalletService {
         if (!bankName || bankName === 'Unknown Bank') {
           try {
             console.log('🔄 [WALLET DETAILS] Fetching fresh NYRA bank info...');
-            const nyraProvider = await this.providerManager.getWalletProvider(WalletProvider.NYRA);
+            const nyraProvider = await this.providerManager.getWalletProvider(
+              WalletProvider.NYRA,
+            );
             if (nyraProvider && 'getWalletDetails' in nyraProvider) {
-              const freshDetails = await (nyraProvider as any).getWalletDetails(primaryAccountDetails.accountNumber);
+              const freshDetails = await (nyraProvider as any).getWalletDetails(
+                primaryAccountDetails.accountNumber,
+              );
               if (freshDetails.success && freshDetails.data) {
                 bankName = freshDetails.data.bankName;
-                console.log('✅ [WALLET DETAILS] Updated NYRA bank name:', bankName);
-                
+                console.log(
+                  '✅ [WALLET DETAILS] Updated NYRA bank name:',
+                  bankName,
+                );
+
                 // Update metadata with fresh bank name
                 const updatedMetadata = {
                   ...metadata,
@@ -318,7 +330,7 @@ export class WalletService {
                 };
                 await this.prisma.wallet.update({
                   where: { id: wallet.id },
-                  data: { 
+                  data: {
                     bankName: bankName,
                     metadata: updatedMetadata,
                   },
@@ -327,14 +339,18 @@ export class WalletService {
               }
             }
           } catch (error) {
-            console.log('⚠️ [WALLET DETAILS] Could not fetch fresh NYRA bank info:', error.message);
+            console.log(
+              '⚠️ [WALLET DETAILS] Could not fetch fresh NYRA bank info:',
+              error.message,
+            );
           }
         }
-
       } else {
         // User not migrated yet - use current account details
-        console.log('🏦 [WALLET DETAILS] User not migrated, using current account details');
-        
+        console.log(
+          '🏦 [WALLET DETAILS] User not migrated, using current account details',
+        );
+
         primaryAccountDetails = {
           accountNumber: wallet.virtualAccountNumber,
           accountName: wallet.providerAccountName,
@@ -347,14 +363,23 @@ export class WalletService {
           let bankName = wallet.bankName;
           if (!bankName || bankName === 'Unknown Bank') {
             try {
-              console.log('🔄 [WALLET DETAILS] Fetching fresh bank info from Nyra API...');
-              const nyraProvider = await this.providerManager.getWalletProvider(WalletProvider.NYRA);
+              console.log(
+                '🔄 [WALLET DETAILS] Fetching fresh bank info from Nyra API...',
+              );
+              const nyraProvider = await this.providerManager.getWalletProvider(
+                WalletProvider.NYRA,
+              );
               if (nyraProvider && 'getWalletDetails' in nyraProvider) {
-                const freshDetails = await (nyraProvider as any).getWalletDetails(wallet.virtualAccountNumber);
+                const freshDetails = await (
+                  nyraProvider as any
+                ).getWalletDetails(wallet.virtualAccountNumber);
                 if (freshDetails.success && freshDetails.data) {
                   bankName = freshDetails.data.bankName;
-                  console.log('✅ [WALLET DETAILS] Updated bank name from Nyra API:', bankName);
-                  
+                  console.log(
+                    '✅ [WALLET DETAILS] Updated bank name from Nyra API:',
+                    bankName,
+                  );
+
                   await this.prisma.wallet.update({
                     where: { id: wallet.id },
                     data: { bankName: bankName },
@@ -363,7 +388,10 @@ export class WalletService {
                 }
               }
             } catch (error) {
-              console.log('⚠️ [WALLET DETAILS] Could not fetch fresh bank info:', error.message);
+              console.log(
+                '⚠️ [WALLET DETAILS] Could not fetch fresh bank info:',
+                error.message,
+              );
             }
           }
         }
@@ -376,7 +404,7 @@ export class WalletService {
         status: 'active',
         createdAt: wallet.createdAt.toISOString(),
         isActive: wallet.isActive,
-        
+
         // Primary account details (NYRA if migrated, otherwise current)
         accountNumber: primaryAccountDetails.accountNumber,
         accountName: primaryAccountDetails.accountName,
@@ -385,10 +413,10 @@ export class WalletService {
         virtualAccountNumber: primaryAccountDetails.accountNumber,
         providerAccountName: primaryAccountDetails.accountName,
         bankCode: primaryAccountDetails.bankCode,
-        
+
         // Additional funding sources
         additionalAccounts,
-        
+
         // Migration info
         isMigrated: !!metadata.nyraAccount,
         migratedAt: metadata.migratedAt,
@@ -410,7 +438,10 @@ export class WalletService {
 
     try {
       // For TRANSFER fees, prioritize tiered fee system
-      if (feeType === 'TRANSFER' as any || feeType.toString().startsWith('TRANSFER_')) {
+      if (
+        feeType === ('TRANSFER' as any) ||
+        feeType.toString().startsWith('TRANSFER_')
+      ) {
         const tierResult = await this.calculateTransferFeeFromTiers(amount);
         if (tierResult.fee > 0) {
           console.log('✅ [FEE CALCULATION] Using tiered fee:', tierResult.fee);
@@ -463,11 +494,19 @@ export class WalletService {
   }
 
   // Tiered fee calculation method
-  private async calculateTransferFeeFromTiers(amount: number, provider?: string): Promise<{
+  private async calculateTransferFeeFromTiers(
+    amount: number,
+    provider?: string,
+  ): Promise<{
     fee: number;
     tier?: any;
   }> {
-    console.log('💰 [TIERED FEE] Calculating transfer fee for amount:', amount, 'provider:', provider);
+    console.log(
+      '💰 [TIERED FEE] Calculating transfer fee for amount:',
+      amount,
+      'provider:',
+      provider,
+    );
 
     try {
       // First try to find provider-specific tier
@@ -477,10 +516,7 @@ export class WalletService {
           where: {
             provider: provider.toUpperCase(),
             minAmount: { lte: amount },
-            OR: [
-              { maxAmount: null },
-              { maxAmount: { gte: amount } },
-            ],
+            OR: [{ maxAmount: null }, { maxAmount: { gte: amount } }],
             isActive: true,
           },
           orderBy: { minAmount: 'desc' },
@@ -493,10 +529,7 @@ export class WalletService {
           where: {
             provider: null,
             minAmount: { lte: amount },
-            OR: [
-              { maxAmount: null },
-              { maxAmount: { gte: amount } },
-            ],
+            OR: [{ maxAmount: null }, { maxAmount: { gte: amount } }],
             isActive: true,
           },
           orderBy: { minAmount: 'desc' },
@@ -504,7 +537,12 @@ export class WalletService {
       }
 
       if (tier) {
-        console.log('✅ [TIERED FEE] Found matching tier:', tier.name, 'Fee:', tier.feeAmount);
+        console.log(
+          '✅ [TIERED FEE] Found matching tier:',
+          tier.name,
+          'Fee:',
+          tier.feeAmount,
+        );
         return {
           fee: tier.feeAmount,
           tier: {
@@ -708,7 +746,9 @@ export class WalletService {
     }
 
     if (wallet.isFrozen) {
-      throw new ForbiddenException('Wallet is frozen. Please contact support for assistance.');
+      throw new ForbiddenException(
+        'Wallet is frozen. Please contact support for assistance.',
+      );
     }
 
     // Verify PIN
@@ -753,18 +793,21 @@ export class WalletService {
         transferDto.bankName,
         bankCode,
         transferDto.locationLatitude,
-        transferDto.locationLongitude
+        transferDto.locationLongitude,
       );
 
       if (businessUpdateResult.wasUpdated) {
         // Use the updated account
         destinationAccount = businessUpdateResult.account;
-        console.log('🔄 [TRANSFER] Used updated business account for payment suggestions:', {
-          id: destinationAccount.id,
-          accountName: destinationAccount.accountName,
-          accountNumber: destinationAccount.accountNumber,
-          bankName: destinationAccount.bankName,
-        });
+        console.log(
+          '🔄 [TRANSFER] Used updated business account for payment suggestions:',
+          {
+            id: destinationAccount.id,
+            accountName: destinationAccount.accountName,
+            accountNumber: destinationAccount.accountNumber,
+            bankName: destinationAccount.bankName,
+          },
+        );
       } else {
         // Create new account
         destinationAccount = await this.prisma.account.create({
@@ -773,23 +816,26 @@ export class WalletService {
             accountNumber: transferDto.accountNumber,
             bankName: transferDto.bankName,
             bankCode: bankCode,
-            isBusiness: transferDto.isBusiness !== undefined 
-              ? transferDto.isBusiness 
-              : this.isBusinessAccount(transferDto.accountName),
+            isBusiness:
+              transferDto.isBusiness !== undefined
+                ? transferDto.isBusiness
+                : this.isBusinessAccount(transferDto.accountName),
           },
         });
-        console.log('🏦 [TRANSFER] Created new destination account record for payment suggestions:', {
-          id: destinationAccount.id,
-          accountName: destinationAccount.accountName,
-          accountNumber: destinationAccount.accountNumber,
-          bankName: destinationAccount.bankName,
-          isBusiness: destinationAccount.isBusiness,
-        });
+        console.log(
+          '🏦 [TRANSFER] Created new destination account record for payment suggestions:',
+          {
+            id: destinationAccount.id,
+            accountName: destinationAccount.accountName,
+            accountNumber: destinationAccount.accountNumber,
+            bankName: destinationAccount.bankName,
+            isBusiness: destinationAccount.isBusiness,
+          },
+        );
       }
     }
 
     try {
-
       // Prepare transfer data for provider
       const transferData: BankTransferData = {
         amount: transferDto.amount,
@@ -871,9 +917,15 @@ export class WalletService {
       });
 
       // Capture location data if provided
-      if (transferDto.locationName && transferDto.locationLatitude && transferDto.locationLongitude) {
-        console.log('📍 [TRANSFER] Capturing location data for payment intelligence');
-        
+      if (
+        transferDto.locationName &&
+        transferDto.locationLatitude &&
+        transferDto.locationLongitude
+      ) {
+        console.log(
+          '📍 [TRANSFER] Capturing location data for payment intelligence',
+        );
+
         try {
           await this.locationTransactionService.associateLocationWithTransaction(
             mainTransaction.id,
@@ -886,12 +938,15 @@ export class WalletService {
               latitude: transferDto.locationLatitude,
               longitude: transferDto.locationLongitude,
               locationType: transferDto.locationType,
-            }
+            },
           );
-          
+
           console.log('✅ [TRANSFER] Location data captured successfully');
         } catch (locationError) {
-          console.error('❌ [TRANSFER] Failed to capture location data:', locationError);
+          console.error(
+            '❌ [TRANSFER] Failed to capture location data:',
+            locationError,
+          );
           // Don't fail the transfer if location capture fails
         }
       }
@@ -958,23 +1013,31 @@ export class WalletService {
       // Send push notification
       if (this.pushNotificationsService) {
         try {
-          await this.pushNotificationsService.sendPushNotificationToUser(userId, {
-            title: '🚀 Transfer Successful',
-            body: `You sent ₦${transferDto.amount.toLocaleString()} to ${transferDto.accountName}`,
-            data: {
-              type: 'withdrawal',
-              amount: transferDto.amount,
-              fee: fee,
-              reference,
-              recipientName: transferDto.accountName,
-              recipientAccount: transferDto.accountNumber,
-              recipientBank: transferDto.bankName,
+          await this.pushNotificationsService.sendPushNotificationToUser(
+            userId,
+            {
+              title: '🚀 Transfer Successful',
+              body: `You sent ₦${transferDto.amount.toLocaleString()} to ${transferDto.accountName}`,
+              data: {
+                type: 'withdrawal',
+                amount: transferDto.amount,
+                fee: fee,
+                reference,
+                recipientName: transferDto.accountName,
+                recipientAccount: transferDto.accountNumber,
+                recipientBank: transferDto.bankName,
+              },
+              priority: 'high',
             },
-            priority: 'high',
-          });
-          console.log('📱 [TRANSFER] Push notification sent for successful transfer');
+          );
+          console.log(
+            '📱 [TRANSFER] Push notification sent for successful transfer',
+          );
         } catch (pushError) {
-          console.error('❌ [TRANSFER] Failed to send push notification:', pushError);
+          console.error(
+            '❌ [TRANSFER] Failed to send push notification:',
+            pushError,
+          );
           // Don't fail the operation if push notification fails
         }
       }
@@ -1556,7 +1619,7 @@ export class WalletService {
 
     // Transform to match the expected wallet transaction format
     return transactions.map((transaction) => {
-      const metadata = transaction.metadata as any || {};
+      const metadata = (transaction.metadata as any) || {};
       const user = transaction.user;
 
       // Determine sender information
@@ -1576,7 +1639,10 @@ export class WalletService {
           name: metadata.providerAccountName || 'External Account',
           accountNumber: metadata.accountNumber || 'EXT',
         };
-      } else if (transaction.type === 'WITHDRAWAL' || transaction.type === 'TRANSFER') {
+      } else if (
+        transaction.type === 'WITHDRAWAL' ||
+        transaction.type === 'TRANSFER'
+      ) {
         sender = {
           name: `${user.firstName} ${user.lastName}`,
           accountNumber: wallet.virtualAccountNumber,
@@ -1595,32 +1661,35 @@ export class WalletService {
           name: metadata.recipientName || 'External Account',
           accountNumber: metadata.recipientAccount,
         };
-             } else if (transaction.type === 'DEPOSIT') {
-         receiver = {
-           name: `${user.firstName} ${user.lastName}`,
-           accountNumber: wallet.virtualAccountNumber,
-         };
-       } else if (metadata.provider) {
+      } else if (transaction.type === 'DEPOSIT') {
+        receiver = {
+          name: `${user.firstName} ${user.lastName}`,
+          accountNumber: wallet.virtualAccountNumber,
+        };
+      } else if (metadata.provider) {
         receiver = {
           name: metadata.providerAccountName || 'External Account',
           accountNumber: metadata.accountNumber || 'EXT',
         };
       }
 
-             return {
-      id: transaction.id,
-      amount: transaction.amount,
-         type: transaction.type === 'DEPOSIT' && metadata.adminFunding ? 'FUNDING' : transaction.type,
-      status: transaction.status,
-      reference: transaction.reference,
-      description: transaction.description,
-         fee: metadata.fee || 0,
-      createdAt: transaction.createdAt.toISOString(),
-      metadata: transaction.metadata,
-         sender,
-         receiver,
-         bankAccount: transaction.fromAccount || transaction.toAccount || null,
-       };
+      return {
+        id: transaction.id,
+        amount: transaction.amount,
+        type:
+          transaction.type === 'DEPOSIT' && metadata.adminFunding
+            ? 'FUNDING'
+            : transaction.type,
+        status: transaction.status,
+        reference: transaction.reference,
+        description: transaction.description,
+        fee: metadata.fee || 0,
+        createdAt: transaction.createdAt.toISOString(),
+        metadata: transaction.metadata,
+        sender,
+        receiver,
+        bankAccount: transaction.fromAccount || transaction.toAccount || null,
+      };
     });
   }
 
@@ -1629,19 +1698,70 @@ export class WalletService {
    */
   private isBusinessAccount(accountName: string): boolean {
     const businessKeywords = [
-      'STORE', 'SHOP', 'ENTERPRISE', 'LTD', 'LIMITED', 'INC', 'CORP', 'CORPORATION',
-      'BUSINESS', 'COMPANY', 'VENTURES', 'TRADING', 'SERVICES', 'ENTERPRISES',
-      'MART', 'MARKET', 'SUPERMARKET', 'MALL', 'PLAZA', 'COMPLEX', 'CENTER',
-      'RESTAURANT', 'HOTEL', 'CAFE', 'BAR', 'CLUB', 'SALON', 'SPA', 'GYM',
-      'PHARMACY', 'HOSPITAL', 'CLINIC', 'SCHOOL', 'UNIVERSITY', 'COLLEGE',
-      'BANK', 'MICROFINANCE', 'INSURANCE', 'AGENCY', 'BUREAU', 'OFFICE',
-      'STUDIO', 'GALLERY', 'THEATER', 'CINEMA', 'GAS', 'PETROL', 'STATION',
-      'TRANSPORT', 'LOGISTICS', 'DELIVERY', 'COURIER', 'EXPRESS', 'FAST',
-      'QUICK', 'SPEED', 'RAPID', 'SWIFT', 'INSTANT', 'IMMEDIATE'
+      'STORE',
+      'SHOP',
+      'ENTERPRISE',
+      'LTD',
+      'LIMITED',
+      'INC',
+      'CORP',
+      'CORPORATION',
+      'BUSINESS',
+      'COMPANY',
+      'VENTURES',
+      'TRADING',
+      'SERVICES',
+      'ENTERPRISES',
+      'MART',
+      'MARKET',
+      'SUPERMARKET',
+      'MALL',
+      'PLAZA',
+      'COMPLEX',
+      'CENTER',
+      'RESTAURANT',
+      'HOTEL',
+      'CAFE',
+      'BAR',
+      'CLUB',
+      'SALON',
+      'SPA',
+      'GYM',
+      'PHARMACY',
+      'HOSPITAL',
+      'CLINIC',
+      'SCHOOL',
+      'UNIVERSITY',
+      'COLLEGE',
+      'BANK',
+      'MICROFINANCE',
+      'INSURANCE',
+      'AGENCY',
+      'BUREAU',
+      'OFFICE',
+      'STUDIO',
+      'GALLERY',
+      'THEATER',
+      'CINEMA',
+      'GAS',
+      'PETROL',
+      'STATION',
+      'TRANSPORT',
+      'LOGISTICS',
+      'DELIVERY',
+      'COURIER',
+      'EXPRESS',
+      'FAST',
+      'QUICK',
+      'SPEED',
+      'RAPID',
+      'SWIFT',
+      'INSTANT',
+      'IMMEDIATE',
     ];
 
     const normalizedName = accountName.toUpperCase().trim();
-    
+
     // Check for business keywords
     for (const keyword of businessKeywords) {
       if (normalizedName.includes(keyword)) {
@@ -1663,7 +1783,7 @@ export class WalletService {
       /HOLDINGS/i,
       /INTERNATIONAL/i,
       /GLOBAL/i,
-      /WORLDWIDE/i
+      /WORLDWIDE/i,
     ];
 
     for (const pattern of businessPatterns) {
@@ -1690,19 +1810,21 @@ export class WalletService {
     bankName: string,
     bankCode: string,
     latitude?: number,
-    longitude?: number
+    longitude?: number,
   ): Promise<{ account: any; wasUpdated: boolean }> {
     console.log('🏢 [BUSINESS ACCOUNT] Checking for business account update:', {
       accountName,
       accountNumber,
       bankName,
       latitude,
-      longitude
+      longitude,
     });
 
     // Only check for business accounts
     if (!this.isBusinessAccount(accountName)) {
-      console.log('👤 [BUSINESS ACCOUNT] Not a business account, skipping update check');
+      console.log(
+        '👤 [BUSINESS ACCOUNT] Not a business account, skipping update check',
+      );
       return { account: null, wasUpdated: false };
     }
 
@@ -1712,21 +1834,23 @@ export class WalletService {
         where: {
           accountName: {
             equals: accountName,
-            mode: 'insensitive' // Case-insensitive matching
+            mode: 'insensitive', // Case-insensitive matching
           },
           bankName: {
             equals: bankName,
-            mode: 'insensitive'
+            mode: 'insensitive',
           },
           // Different account number (this is what we're checking for)
           accountNumber: {
-            not: accountNumber
-          }
-        }
+            not: accountNumber,
+          },
+        },
       });
 
       if (!existingAccount) {
-        console.log('🏢 [BUSINESS ACCOUNT] No existing business account found with same name');
+        console.log(
+          '🏢 [BUSINESS ACCOUNT] No existing business account found with same name',
+        );
         return { account: null, wasUpdated: false };
       }
 
@@ -1737,56 +1861,62 @@ export class WalletService {
           where: {
             latitude: {
               gte: latitude - 0.001, // ~100 meters
-              lte: latitude + 0.001
+              lte: latitude + 0.001,
             },
             longitude: {
               gte: longitude - 0.001,
-              lte: longitude + 0.001
-            }
-          }
+              lte: longitude + 0.001,
+            },
+          },
         });
 
         // Check if any of these locations have transactions with the existing account
-        const locationWithExistingAccount = await this.prisma.location.findFirst({
-          where: {
-            id: {
-              in: nearbyLocations.map(loc => loc.id)
+        const locationWithExistingAccount =
+          await this.prisma.location.findFirst({
+            where: {
+              id: {
+                in: nearbyLocations.map((loc) => loc.id),
+              },
+              transactions: {
+                some: {
+                  toAccountId: existingAccount.id,
+                },
+              },
             },
-            transactions: {
-              some: {
-                toAccountId: existingAccount.id
-              }
-            }
-          }
-        });
+          });
 
         if (!locationWithExistingAccount) {
-          console.log('📍 [BUSINESS ACCOUNT] No nearby location found with existing account transactions');
+          console.log(
+            '📍 [BUSINESS ACCOUNT] No nearby location found with existing account transactions',
+          );
           return { account: null, wasUpdated: false };
         }
 
-        console.log('📍 [BUSINESS ACCOUNT] Found nearby location with existing account:', locationWithExistingAccount.name);
+        console.log(
+          '📍 [BUSINESS ACCOUNT] Found nearby location with existing account:',
+          locationWithExistingAccount.name,
+        );
       }
 
       // Update the existing account with new account number
       console.log('🔄 [BUSINESS ACCOUNT] Updating business account number:', {
         oldAccountNumber: existingAccount.accountNumber,
         newAccountNumber: accountNumber,
-        businessName: accountName
+        businessName: accountName,
       });
 
       // First, update all transactions that reference the old account to use the new account
       await this.prisma.transaction.updateMany({
         where: {
-          toAccountId: existingAccount.id
+          toAccountId: existingAccount.id,
         },
         data: {
           metadata: {
             // Preserve old account info in metadata for audit
             oldAccountNumber: existingAccount.accountNumber,
-            accountUpdatedAt: new Date().toISOString()
-          }
-        }
+            accountUpdatedAt: new Date().toISOString(),
+          },
+        },
       });
 
       // Update the existing account with new account number
@@ -1795,8 +1925,8 @@ export class WalletService {
         data: {
           accountNumber: accountNumber,
           bankCode: bankCode,
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
 
       // Clean up any other accounts with the same business name and bank but different account numbers
@@ -1805,62 +1935,73 @@ export class WalletService {
         where: {
           accountName: {
             equals: accountName,
-            mode: 'insensitive'
+            mode: 'insensitive',
           },
           bankName: {
             equals: bankName,
-            mode: 'insensitive'
+            mode: 'insensitive',
           },
           accountNumber: {
-            not: accountNumber
+            not: accountNumber,
           },
           id: {
-            not: existingAccount.id // Don't delete the one we just updated
-          }
-        }
+            not: existingAccount.id, // Don't delete the one we just updated
+          },
+        },
       });
 
       if (duplicateAccounts.length > 0) {
-        console.log(`🧹 [BUSINESS ACCOUNT] Found ${duplicateAccounts.length} duplicate business accounts to clean up`);
-        
+        console.log(
+          `🧹 [BUSINESS ACCOUNT] Found ${duplicateAccounts.length} duplicate business accounts to clean up`,
+        );
+
         for (const duplicate of duplicateAccounts) {
-          console.log(`🗑️ [BUSINESS ACCOUNT] Deleting duplicate account: ${duplicate.accountNumber}`);
-          
+          console.log(
+            `🗑️ [BUSINESS ACCOUNT] Deleting duplicate account: ${duplicate.accountNumber}`,
+          );
+
           // Update any transactions that reference this duplicate account
           await this.prisma.transaction.updateMany({
             where: {
-              toAccountId: duplicate.id
+              toAccountId: duplicate.id,
             },
             data: {
               toAccountId: updatedAccount.id, // Point to the updated account
               metadata: {
                 // Preserve info about the duplicate that was cleaned up
                 cleanedUpAccountNumber: duplicate.accountNumber,
-                cleanedUpAt: new Date().toISOString()
-              }
-            }
+                cleanedUpAt: new Date().toISOString(),
+              },
+            },
           });
 
           // Delete the duplicate account
           await this.prisma.account.delete({
-            where: { id: duplicate.id }
+            where: { id: duplicate.id },
           });
         }
-        
-        console.log('✅ [BUSINESS ACCOUNT] Duplicate accounts cleaned up successfully');
+
+        console.log(
+          '✅ [BUSINESS ACCOUNT] Duplicate accounts cleaned up successfully',
+        );
       }
 
-      console.log('✅ [BUSINESS ACCOUNT] Business account updated successfully:', {
-        id: updatedAccount.id,
-        accountName: updatedAccount.accountName,
-        oldAccountNumber: existingAccount.accountNumber,
-        newAccountNumber: updatedAccount.accountNumber
-      });
+      console.log(
+        '✅ [BUSINESS ACCOUNT] Business account updated successfully:',
+        {
+          id: updatedAccount.id,
+          accountName: updatedAccount.accountName,
+          oldAccountNumber: existingAccount.accountNumber,
+          newAccountNumber: updatedAccount.accountNumber,
+        },
+      );
 
       return { account: updatedAccount, wasUpdated: true };
-
     } catch (error) {
-      console.error('❌ [BUSINESS ACCOUNT] Error updating business account:', error);
+      console.error(
+        '❌ [BUSINESS ACCOUNT] Error updating business account:',
+        error,
+      );
       return { account: null, wasUpdated: false };
     }
   }

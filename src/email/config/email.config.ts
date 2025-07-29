@@ -4,9 +4,10 @@ export const EMAIL_CONFIG = {
     API_KEY: 're_9DfGdgC7_LZ72GHn1Q7D9zthGzKngrrrV',
     FROM_EMAIL: 'noreply@monzi.com',
     FROM_NAME: 'Monzi',
-    DESCRIPTION: 'Used for OTP verification and welcome emails after successful signup',
+    DESCRIPTION:
+      'Used for OTP verification and welcome emails after successful signup',
   },
-  
+
   // Transaction notification emails (placeholder for future API key)
   TRANSACTION: {
     API_KEY: process.env.RESEND_TRANSACTION_API_KEY || 'placeholder',
@@ -14,7 +15,7 @@ export const EMAIL_CONFIG = {
     FROM_NAME: 'Monzi Transactions',
     DESCRIPTION: 'Used for transaction notifications and receipts',
   },
-  
+
   // Promotional emails (placeholder for future API key)
   PROMOTIONAL: {
     API_KEY: process.env.RESEND_PROMOTIONAL_API_KEY || 'placeholder',
@@ -22,7 +23,7 @@ export const EMAIL_CONFIG = {
     FROM_NAME: 'Monzi Team',
     DESCRIPTION: 'Used for marketing campaigns and promotional emails',
   },
-  
+
   // Email templates configuration
   TEMPLATES: {
     OTP_EMAIL: {
@@ -46,7 +47,7 @@ export const EMAIL_CONFIG = {
       DESCRIPTION: 'Email template for promotional campaigns',
     },
   },
-  
+
   // Email sending limits and configuration
   LIMITS: {
     BULK_EMAIL_MAX_RECIPIENTS: 100,
@@ -54,14 +55,14 @@ export const EMAIL_CONFIG = {
     RETRY_ATTEMPTS: 3,
     TIMEOUT_MS: 30000,
   },
-  
+
   // Email validation patterns
   VALIDATION: {
     EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     OTP_REGEX: /^\d{6}$/,
     PHONE_REGEX: /^\+?[1-9]\d{1,14}$/,
   },
-  
+
   // Environment-specific settings
   ENVIRONMENT: {
     DEVELOPMENT: {
@@ -75,7 +76,7 @@ export const EMAIL_CONFIG = {
       MOCK_EMAILS: false,
     },
   },
-  
+
   // Error messages
   ERROR_MESSAGES: {
     INVALID_EMAIL: 'Invalid email address format',
@@ -115,5 +116,5 @@ export const getAvailableEmailTypes = (): string[] => {
 };
 
 export const getConfiguredEmailTypes = (): string[] => {
-  return getAvailableEmailTypes().filter(type => isEmailConfigured(type));
-}; 
+  return getAvailableEmailTypes().filter((type) => isEmailConfigured(type));
+};

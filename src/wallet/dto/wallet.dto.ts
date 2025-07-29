@@ -138,7 +138,8 @@ export class TransferDto {
 
   @ApiProperty({
     example: true,
-    description: 'Whether this payment is to a business account (optional - will auto-detect if not provided)',
+    description:
+      'Whether this payment is to a business account (optional - will auto-detect if not provided)',
     required: false,
   })
   @IsOptional()

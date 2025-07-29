@@ -11,7 +11,8 @@ import {
 export class ChangeTransactionPinDto {
   @ApiProperty({
     example: '1234',
-    description: 'Current 4-digit transaction PIN (only required if not using OTP)',
+    description:
+      'Current 4-digit transaction PIN (only required if not using OTP)',
     required: false,
   })
   @IsOptional()
@@ -151,4 +152,4 @@ export class ConfirmAccountDeletionDto {
   @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
   @Matches(/^\d{6}$/, { message: 'OTP must contain only numbers' })
   otpCode: string;
-} 
+}

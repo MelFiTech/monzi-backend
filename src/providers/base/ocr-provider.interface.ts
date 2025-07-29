@@ -22,4 +22,4 @@ export interface OcrProviderConfig {
   fallbackToSimulation?: boolean;
   maxProcessingTime?: number;
   supportedLanguages?: string[];
-} 
+}

@@ -90,8 +90,6 @@ export class NotificationsGateway
     });
   }
 
-
-
   /**
    * Emit wallet balance update to specific user
    * Real-time websocket notifications are always sent regardless of push notification preferences

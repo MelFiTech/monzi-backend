@@ -359,9 +359,14 @@ export class WalletController {
     @Request() req,
     @Body() tagTransactionDto: TagTransactionDto,
   ) {
-    console.log('🏷️ [WALLET API] POST /wallet/tag-transaction - Request received');
+    console.log(
+      '🏷️ [WALLET API] POST /wallet/tag-transaction - Request received',
+    );
     console.log('👤 [WALLET API] User ID:', req.user.id);
-    console.log('🏷️ [WALLET API] Transaction ID:', tagTransactionDto.transactionId);
+    console.log(
+      '🏷️ [WALLET API] Transaction ID:',
+      tagTransactionDto.transactionId,
+    );
     console.log('🏷️ [WALLET API] Is Business:', tagTransactionDto.isBusiness);
 
     const result = await this.walletService.tagTransaction(

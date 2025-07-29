@@ -10,6 +10,6 @@ declare module 'node-tesseract-ocr' {
 
   export function recognize(
     image: Buffer | string,
-    config?: TesseractConfig
+    config?: TesseractConfig,
   ): Promise<string>;
-} 
+}

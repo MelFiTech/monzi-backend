@@ -8,12 +8,30 @@ export class EmailImagesService {
   // Get optimized image URLs for email templates
   getEmailImageUrls() {
     return {
-      logo: this.cloudinaryService.getOptimizedImageUrl('monzi/emails/fkeoczu7hzdhk9hwlzsm', 200),
-      banner: this.cloudinaryService.getOptimizedImageUrl('monzi/emails/y4ndg158hw7nfpuzrxg1', 600),
-      whatsapp: this.cloudinaryService.getOptimizedImageUrl('monzi/emails/monzi/emails/whatsapp', 24),
-      instagram: this.cloudinaryService.getOptimizedImageUrl('monzi/emails/monzi/emails/instagram', 24),
-      twitter: this.cloudinaryService.getOptimizedImageUrl('monzi/emails/monzi/emails/twitter', 24),
-      monziLogo: this.cloudinaryService.getOptimizedImageUrl('monzi/emails/monzi/emails/monzi', 200),
+      logo: this.cloudinaryService.getOptimizedImageUrl(
+        'monzi/emails/fkeoczu7hzdhk9hwlzsm',
+        200,
+      ),
+      banner: this.cloudinaryService.getOptimizedImageUrl(
+        'monzi/emails/y4ndg158hw7nfpuzrxg1',
+        600,
+      ),
+      whatsapp: this.cloudinaryService.getOptimizedImageUrl(
+        'monzi/emails/monzi/emails/whatsapp',
+        24,
+      ),
+      instagram: this.cloudinaryService.getOptimizedImageUrl(
+        'monzi/emails/monzi/emails/instagram',
+        24,
+      ),
+      twitter: this.cloudinaryService.getOptimizedImageUrl(
+        'monzi/emails/monzi/emails/twitter',
+        24,
+      ),
+      monziLogo: this.cloudinaryService.getOptimizedImageUrl(
+        'monzi/emails/monzi/emails/monzi',
+        200,
+      ),
     };
   }
 
@@ -24,25 +42,43 @@ export class EmailImagesService {
 
   // Get logo URL
   getLogoUrl(): string {
-    return this.cloudinaryService.getOptimizedImageUrl('monzi/emails/fkeoczu7hzdhk9hwlzsm', 200);
+    return this.cloudinaryService.getOptimizedImageUrl(
+      'monzi/emails/fkeoczu7hzdhk9hwlzsm',
+      200,
+    );
   }
 
   // Get banner URL
   getBannerUrl(): string {
-    return this.cloudinaryService.getOptimizedImageUrl('monzi/emails/y4ndg158hw7nfpuzrxg1', 600);
+    return this.cloudinaryService.getOptimizedImageUrl(
+      'monzi/emails/y4ndg158hw7nfpuzrxg1',
+      600,
+    );
   }
 
   // Get social media icon URLs
   getSocialIconsUrls() {
     return {
-      whatsapp: this.cloudinaryService.getOptimizedImageUrl('monzi/emails/monzi/emails/whatsapp', 24),
-      instagram: this.cloudinaryService.getOptimizedImageUrl('monzi/emails/monzi/emails/instagram', 24),
-      twitter: this.cloudinaryService.getOptimizedImageUrl('monzi/emails/monzi/emails/twitter', 24),
+      whatsapp: this.cloudinaryService.getOptimizedImageUrl(
+        'monzi/emails/monzi/emails/whatsapp',
+        24,
+      ),
+      instagram: this.cloudinaryService.getOptimizedImageUrl(
+        'monzi/emails/monzi/emails/instagram',
+        24,
+      ),
+      twitter: this.cloudinaryService.getOptimizedImageUrl(
+        'monzi/emails/monzi/emails/twitter',
+        24,
+      ),
     };
   }
 
   // Get Monzi logo URL (SVG version)
   getMonziLogoUrl(): string {
-    return this.cloudinaryService.getOptimizedImageUrl('monzi/emails/monzi/emails/monzi', 200);
+    return this.cloudinaryService.getOptimizedImageUrl(
+      'monzi/emails/monzi/emails/monzi',
+      200,
+    );
   }
-} 
+}

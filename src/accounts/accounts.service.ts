@@ -44,7 +44,7 @@ export class AccountsService {
     { name: 'Keystone Bank', code: '082' },
     { name: 'Providus Bank', code: '101' },
     { name: 'Sterling Bank', code: '232' },
-    { name: 'Unity Bank', code: '215' }
+    { name: 'Unity Bank', code: '215' },
   ];
 
   // List of digital banks to prioritize (by name or code)
@@ -84,11 +84,12 @@ export class AccountsService {
 
   // NUBAN API configuration
   private readonly NUBAN_API_KEY = 'NUBAN-ODDOGOGF3226';
-  private readonly NUBAN_BASE_URL = 'https://app.nuban.com.ng/api/NUBAN-ODDOGOGF3226';
+  private readonly NUBAN_BASE_URL =
+    'https://app.nuban.com.ng/api/NUBAN-ODDOGOGF3226';
 
   // Delay function for rate limiting
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -152,30 +153,49 @@ export class AccountsService {
     const accountNumber = superResolveDto.account_number;
 
     try {
-      console.log('🔍 [SUPER RESOLVE] Starting super resolve for account:', accountNumber);
-      console.log('🏦 [SUPER RESOLVE] Using transfer provider for reliable resolution...');
+      console.log(
+        '🔍 [SUPER RESOLVE] Starting super resolve for account:',
+        accountNumber,
+      );
+      console.log(
+        '🏦 [SUPER RESOLVE] Using transfer provider for reliable resolution...',
+      );
 
       // Get banks list from transfer provider
       const banksResponse = await this.getBanks();
-      if (!banksResponse.status || !banksResponse.banks || banksResponse.banks.length === 0) {
+      if (
+        !banksResponse.status ||
+        !banksResponse.banks ||
+        banksResponse.banks.length === 0
+      ) {
         throw new HttpException(
           'Failed to fetch banks list from transfer provider',
           HttpStatus.BAD_GATEWAY,
         );
       }
 
-      let banks = banksResponse.banks;
+      const banks = banksResponse.banks;
 
       // Prioritize digital and commercial banks
-      const digitalBankCodes = this.DIGITAL_BANKS.map(b => b.code);
-      const digitalBankNames = this.DIGITAL_BANKS.map(b => b.name.toLowerCase());
-      const commercialBankCodes = this.COMMERCIAL_BANKS.map(b => b.code);
-      const commercialBankNames = this.COMMERCIAL_BANKS.map(b => b.name.toLowerCase());
+      const digitalBankCodes = this.DIGITAL_BANKS.map((b) => b.code);
+      const digitalBankNames = this.DIGITAL_BANKS.map((b) =>
+        b.name.toLowerCase(),
+      );
+      const commercialBankCodes = this.COMMERCIAL_BANKS.map((b) => b.code);
+      const commercialBankNames = this.COMMERCIAL_BANKS.map((b) =>
+        b.name.toLowerCase(),
+      );
       const digitalBanks = banks.filter(
-        b => digitalBankCodes.includes(b.code) || digitalBankNames.some(name => b.name.toLowerCase().includes(name))
+        (b) =>
+          digitalBankCodes.includes(b.code) ||
+          digitalBankNames.some((name) => b.name.toLowerCase().includes(name)),
       );
       const commercialBanks = banks.filter(
-        b => commercialBankCodes.includes(b.code) || commercialBankNames.some(name => b.name.toLowerCase().includes(name))
+        (b) =>
+          commercialBankCodes.includes(b.code) ||
+          commercialBankNames.some((name) =>
+            b.name.toLowerCase().includes(name),
+          ),
       );
       // Sort digital and commercial banks in preferred order
       digitalBanks.sort((a, b) => {
@@ -190,18 +210,28 @@ export class AccountsService {
       });
 
       // Helper to try a list of banks and return on first match
-      const tryBanks = async (banksToTry: any[]): Promise<SuperResolveAccountResponseDto | null> => {
+      const tryBanks = async (
+        banksToTry: any[],
+      ): Promise<SuperResolveAccountResponseDto | null> => {
         for (let i = 0; i < banksToTry.length; i++) {
           const bank = banksToTry[i];
           const attemptNumber = i + 1;
           try {
-            console.log(`🚀 [SUPER RESOLVE] Testing attempt ${attemptNumber}/${banksToTry.length}: ${bank.name} (${bank.code})`);
-            const verificationResponse = await this.transferProviderManager.verifyAccount({
-              accountNumber,
-              bankCode: bank.code,
-            });
-            if (verificationResponse.success && verificationResponse.data?.accountName) {
-              console.log(`✅ [SUPER RESOLVE] SUCCESS! Found account in ${bank.name} (Attempt ${attemptNumber})`);
+            console.log(
+              `🚀 [SUPER RESOLVE] Testing attempt ${attemptNumber}/${banksToTry.length}: ${bank.name} (${bank.code})`,
+            );
+            const verificationResponse =
+              await this.transferProviderManager.verifyAccount({
+                accountNumber,
+                bankCode: bank.code,
+              });
+            if (
+              verificationResponse.success &&
+              verificationResponse.data?.accountName
+            ) {
+              console.log(
+                `✅ [SUPER RESOLVE] SUCCESS! Found account in ${bank.name} (Attempt ${attemptNumber})`,
+              );
               const result = {
                 success: true,
                 message: 'Account resolved successfully',
@@ -212,13 +242,20 @@ export class AccountsService {
                 banks_tested: attemptNumber,
                 execution_time: (Date.now() - startTime) / 1000,
               };
-              console.log(`🛑 [SUPER RESOLVE] Stopping search after ${attemptNumber} attempts`);
+              console.log(
+                `🛑 [SUPER RESOLVE] Stopping search after ${attemptNumber} attempts`,
+              );
               return result;
             } else {
-              console.log(`❌ [SUPER RESOLVE] Not found in ${bank.name} (Attempt ${attemptNumber}): ${verificationResponse.message || 'Account not found'}`);
+              console.log(
+                `❌ [SUPER RESOLVE] Not found in ${bank.name} (Attempt ${attemptNumber}): ${verificationResponse.message || 'Account not found'}`,
+              );
             }
           } catch (error) {
-            console.error(`❌ [SUPER RESOLVE] Error testing ${bank.name} (Attempt ${attemptNumber}):`, error.message);
+            console.error(
+              `❌ [SUPER RESOLVE] Error testing ${bank.name} (Attempt ${attemptNumber}):`,
+              error.message,
+            );
           }
         }
         return null;
@@ -232,18 +269,25 @@ export class AccountsService {
       if (result) return result;
       // If not found in either, stop and return failure
       const executionTime = (Date.now() - startTime) / 1000;
-      console.log('❌ [SUPER RESOLVE] NO MATCH FOUND in digital or commercial banks');
-      console.log(`📊 [SUPER RESOLVE] Tested ${digitalBanks.length + commercialBanks.length} banks in ${executionTime.toFixed(2)}s`);
+      console.log(
+        '❌ [SUPER RESOLVE] NO MATCH FOUND in digital or commercial banks',
+      );
+      console.log(
+        `📊 [SUPER RESOLVE] Tested ${digitalBanks.length + commercialBanks.length} banks in ${executionTime.toFixed(2)}s`,
+      );
       return {
         success: false,
         message: 'Account not found in digital or commercial banks',
         banks_tested: digitalBanks.length + commercialBanks.length,
         execution_time: executionTime,
-        error: 'Account number not found in digital or commercial banks. Please try with a specific bank.',
+        error:
+          'Account number not found in digital or commercial banks. Please try with a specific bank.',
       };
-
     } catch (error) {
-      console.error('🚨 [SUPER RESOLVE] Error in superResolveAccount:', error.message);
+      console.error(
+        '🚨 [SUPER RESOLVE] Error in superResolveAccount:',
+        error.message,
+      );
       throw new HttpException(
         'Error during super resolve process',
         HttpStatus.INTERNAL_SERVER_ERROR,

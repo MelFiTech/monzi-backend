@@ -1,7 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
-import { TransferProviderInterface, BankTransferData, BankTransferResult, BankListResult, AccountVerificationData, AccountVerificationResult } from '../base/transfer-provider.interface';
+import {
+  TransferProviderInterface,
+  BankTransferData,
+  BankTransferResult,
+  BankListResult,
+  AccountVerificationData,
+  AccountVerificationResult,
+} from '../base/transfer-provider.interface';
 
 export interface NyraBusinessTransferRequest {
   beneficiary: {
@@ -73,14 +80,19 @@ export class NyraTransferProvider implements TransferProviderInterface {
     this.baseUrl = this.configService.get<string>('NYRA_BASE_URL');
     this.clientId = this.configService.get<string>('NYRA_CLIENT_ID');
     this.clientSecret = this.configService.get<string>('NYRA_CLIENT_SECRET');
-    this.sourceAccountNumber = this.configService.get<string>('NYRA_SOURCE_ACCOUNT_NUMBER') || '';
+    this.sourceAccountNumber =
+      this.configService.get<string>('NYRA_SOURCE_ACCOUNT_NUMBER') || '';
 
     if (!this.baseUrl || !this.clientId || !this.clientSecret) {
       this.logger.error('Nyra configuration missing');
-      throw new Error('Nyra configuration incomplete - missing baseUrl, clientId, or clientSecret');
+      throw new Error(
+        'Nyra configuration incomplete - missing baseUrl, clientId, or clientSecret',
+      );
     }
     if (!this.sourceAccountNumber) {
-      this.logger.warn('NYRA_SOURCE_ACCOUNT_NUMBER not set - transfers will fail until configured');
+      this.logger.warn(
+        'NYRA_SOURCE_ACCOUNT_NUMBER not set - transfers will fail until configured',
+      );
     }
 
     this.axiosInstance = axios.create({
@@ -94,7 +106,7 @@ export class NyraTransferProvider implements TransferProviderInterface {
   private getAuthHeaders(): { [key: string]: string } {
     return {
       'x-client-id': this.clientId,
-      'Authorization': `Bearer ${this.clientSecret}`,
+      Authorization: `Bearer ${this.clientSecret}`,
       'Content-Type': 'application/json',
     };
   }
@@ -115,7 +127,7 @@ export class NyraTransferProvider implements TransferProviderInterface {
   async transferToBank(data: BankTransferData): Promise<BankTransferResult> {
     try {
       this.logger.log(`Initiating NYRA business transfer: ${data.reference}`);
-      
+
       if (!this.sourceAccountNumber) {
         return {
           success: false,
@@ -136,21 +148,28 @@ export class NyraTransferProvider implements TransferProviderInterface {
         sender_name: data.senderName,
       };
 
-      this.logger.log(`NYRA transfer request:`, JSON.stringify(nyraRequest, null, 2));
-
-      const response = await this.axiosInstance.post<NyraBusinessTransferResponse>(
-        '/business/transfers',
-        nyraRequest,
-        {
-          headers: this.getAuthHeaders(),
-        }
+      this.logger.log(
+        `NYRA transfer request:`,
+        JSON.stringify(nyraRequest, null, 2),
       );
 
+      const response =
+        await this.axiosInstance.post<NyraBusinessTransferResponse>(
+          '/business/transfers',
+          nyraRequest,
+          {
+            headers: this.getAuthHeaders(),
+          },
+        );
+
       this.logger.log(`NYRA business transfer successful: ${data.reference}`);
-      this.logger.log(`NYRA response data:`, JSON.stringify(response.data, null, 2));
+      this.logger.log(
+        `NYRA response data:`,
+        JSON.stringify(response.data, null, 2),
+      );
 
       // Handle different possible response structures
-      const responseData = response.data.data || response.data as any;
+      const responseData = response.data.data || (response.data as any);
       const beneficiary = responseData.beneficiary || {
         account_name: data.accountName,
         account_number: data.accountNumber,
@@ -176,8 +195,11 @@ export class NyraTransferProvider implements TransferProviderInterface {
         },
       };
     } catch (error) {
-      this.logger.error(`Failed to initiate NYRA business transfer ${data.reference}:`, error.message);
-      
+      this.logger.error(
+        `Failed to initiate NYRA business transfer ${data.reference}:`,
+        error.message,
+      );
+
       // Handle specific NYRA error responses
       let errorMessage = 'Transfer initiation failed';
       if (error.response?.data?.message) {
@@ -200,14 +222,16 @@ export class NyraTransferProvider implements TransferProviderInterface {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        this.logger.log(`Getting bank list from NYRA (attempt ${attempt}/${maxRetries})`);
+        this.logger.log(
+          `Getting bank list from NYRA (attempt ${attempt}/${maxRetries})`,
+        );
 
         const response = await this.axiosInstance.get<NyraBankListResponse>(
           '/business/transfers/bank/list',
           {
             headers: this.getAuthHeaders(),
             timeout: 60000, // 60 seconds timeout
-          }
+          },
         );
 
         this.logger.log('NYRA bank list retrieved successfully');
@@ -215,25 +239,32 @@ export class NyraTransferProvider implements TransferProviderInterface {
           success: true,
           message: 'Bank list retrieved successfully',
           currency: 'NGN',
-          data: response.data.data?.map(bank => ({
-            bankName: bank.bank_name,
-            bankCode: bank.bank_code,
-          })) || [],
+          data:
+            response.data.data?.map((bank) => ({
+              bankName: bank.bank_name,
+              bankCode: bank.bank_code,
+            })) || [],
         };
       } catch (error) {
         lastError = error;
-        this.logger.warn(`Attempt ${attempt}/${maxRetries} failed to get NYRA bank list:`, error.message);
-        
+        this.logger.warn(
+          `Attempt ${attempt}/${maxRetries} failed to get NYRA bank list:`,
+          error.message,
+        );
+
         if (attempt < maxRetries) {
           // Wait before retrying (exponential backoff)
           const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
           this.logger.log(`Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     }
 
-    this.logger.error('Failed to get NYRA bank list after all retries:', lastError.message);
+    this.logger.error(
+      'Failed to get NYRA bank list after all retries:',
+      lastError.message,
+    );
     return {
       success: false,
       message: 'Failed to get bank list after multiple attempts',
@@ -242,40 +273,53 @@ export class NyraTransferProvider implements TransferProviderInterface {
     };
   }
 
-  async verifyAccount(data: AccountVerificationData): Promise<AccountVerificationResult> {
+  async verifyAccount(
+    data: AccountVerificationData,
+  ): Promise<AccountVerificationResult> {
     try {
-      this.logger.log(`Verifying account with NYRA: ${data.accountNumber} with bank: ${data.bankCode}`);
+      this.logger.log(
+        `Verifying account with NYRA: ${data.accountNumber} with bank: ${data.bankCode}`,
+      );
       this.logger.log(`Raw verification data:`, JSON.stringify(data, null, 2));
 
       const nyraRequest: NyraNameEnquiryRequest = {
         account_number: data.accountNumber,
         bank_code: data.bankCode,
       };
-      
-      this.logger.log(`NYRA request payload:`, JSON.stringify(nyraRequest, null, 2));
+
+      this.logger.log(
+        `NYRA request payload:`,
+        JSON.stringify(nyraRequest, null, 2),
+      );
 
       const response = await this.axiosInstance.post<NyraNameEnquiryResponse>(
         `/business/transfers/name-enquiry?account_number=${data.accountNumber}&bank_code=${data.bankCode}`,
         {}, // Empty body as per documentation for query params
         {
           headers: this.getAuthHeaders(),
-        }
+        },
       );
 
-      this.logger.log(`NYRA account verification successful for: ${data.accountNumber}`);
+      this.logger.log(
+        `NYRA account verification successful for: ${data.accountNumber}`,
+      );
       return {
         success: true,
         message: 'Account verification successful',
         data: {
-          accountName: response.data.data.account.name || 'Account Name Not Available',
+          accountName:
+            response.data.data.account.name || 'Account Name Not Available',
           accountNumber: response.data.data.account.number,
           bankName: response.data.data.bank_name || 'Bank Name Not Available',
           bankCode: data.bankCode,
         },
       };
     } catch (error) {
-      this.logger.error(`Failed to verify account with NYRA: ${data.accountNumber}`, error.message);
-      
+      this.logger.error(
+        `Failed to verify account with NYRA: ${data.accountNumber}`,
+        error.message,
+      );
+
       // Handle specific NYRA error responses
       let errorMessage = 'Account verification failed';
       if (error.response?.data?.message) {
@@ -299,4 +343,4 @@ export class NyraTransferProvider implements TransferProviderInterface {
   getProviderDisplayName(): string {
     return 'Nyra';
   }
-} 
+}

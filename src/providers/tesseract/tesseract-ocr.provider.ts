@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import tesseract from 'node-tesseract-ocr';
 import * as sharp from 'sharp';
-import { IOcrProvider, OcrOptions, OcrResult } from '../base/ocr-provider.interface';
+import {
+  IOcrProvider,
+  OcrOptions,
+  OcrResult,
+} from '../base/ocr-provider.interface';
 
 @Injectable()
 export class TesseractOcrProvider implements IOcrProvider {
@@ -19,19 +23,22 @@ export class TesseractOcrProvider implements IOcrProvider {
     };
   }
 
-  async extractText(imageBuffer: Buffer, options?: OcrOptions): Promise<OcrResult> {
+  async extractText(
+    imageBuffer: Buffer,
+    options?: OcrOptions,
+  ): Promise<OcrResult> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.log('Starting OCR text extraction with Tesseract');
-      
+
       // Validate input
       if (!imageBuffer || !Buffer.isBuffer(imageBuffer)) {
         throw new Error('Invalid image buffer provided');
       }
-      
+
       this.logger.log(`Image buffer size: ${imageBuffer.length} bytes`);
-      
+
       // Preprocess image if requested
       let processedBuffer = imageBuffer;
       if (options?.preprocess !== false) {
@@ -40,7 +47,10 @@ export class TesseractOcrProvider implements IOcrProvider {
           processedBuffer = await this.preprocessImage(imageBuffer);
           this.logger.log('Image preprocessing successful');
         } catch (preprocessError) {
-          this.logger.warn('Image preprocessing failed, using original:', preprocessError.message);
+          this.logger.warn(
+            'Image preprocessing failed, using original:',
+            preprocessError.message,
+          );
           processedBuffer = imageBuffer;
         }
       }
@@ -52,14 +62,16 @@ export class TesseractOcrProvider implements IOcrProvider {
       };
 
       this.logger.log('Calling Tesseract OCR with config:', ocrConfig);
-      
+
       // Extract text using Tesseract
       const text = await tesseract.recognize(processedBuffer, ocrConfig);
-      
+
       const processingTime = Date.now() - startTime;
-      
-      this.logger.log(`OCR completed in ${processingTime}ms. Extracted text: "${text.trim()}"`);
-      
+
+      this.logger.log(
+        `OCR completed in ${processingTime}ms. Extracted text: "${text.trim()}"`,
+      );
+
       return {
         success: true,
         text: text.trim(),
@@ -101,8 +113,11 @@ export class TesseractOcrProvider implements IOcrProvider {
         .png()
         .toBuffer();
     } catch (error) {
-      this.logger.warn('Image preprocessing failed, using original:', error.message);
+      this.logger.warn(
+        'Image preprocessing failed, using original:',
+        error.message,
+      );
       return imageBuffer;
     }
   }
-} 
+}

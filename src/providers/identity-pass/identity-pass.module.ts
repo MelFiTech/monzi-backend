@@ -5,4 +5,4 @@ import { IdentityPassProvider } from './identity-pass.provider';
   providers: [IdentityPassProvider],
   exports: [IdentityPassProvider],
 })
-export class IdentityPassModule {} 
+export class IdentityPassModule {}

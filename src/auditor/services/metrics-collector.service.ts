@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { TransactionStatus, TransactionType, WalletTransactionType } from '@prisma/client';
+import {
+  TransactionStatus,
+  TransactionType,
+  WalletTransactionType,
+} from '@prisma/client';
 import { CreateAuditorMetricsDto } from '../dto/auditor.dto';
 
 interface MetricsData {
@@ -16,7 +20,11 @@ interface MetricsData {
     transactionsByType: Record<string, number>;
     transactionsByStatus: Record<string, number>;
     walletTransactionsByType: Record<string, number>;
-    topUsers: Array<{ userId: string; transactionCount: number; totalVolume: number }>;
+    topUsers: Array<{
+      userId: string;
+      transactionCount: number;
+      totalVolume: number;
+    }>;
     timeSeriesData: Array<{ date: string; count: number; volume: number }>;
     systemStats: {
       avgProcessingTime: number;
@@ -46,20 +54,16 @@ export class MetricsCollectorService {
   ): Promise<MetricsData> {
     try {
       this.logger.debug(`📊 Collecting metrics for ${period} (${periodType})`);
-      
+
       const { startDate, endDate } = this.parsePeriod(period, periodType);
-      
-      const [
-        userMetrics,
-        transactionMetrics,
-        walletMetrics,
-        systemMetrics,
-      ] = await Promise.all([
-        this.collectUserMetrics(startDate, endDate, options),
-        this.collectTransactionMetrics(startDate, endDate, options),
-        this.collectWalletMetrics(startDate, endDate, options),
-        this.collectSystemMetrics(startDate, endDate),
-      ]);
+
+      const [userMetrics, transactionMetrics, walletMetrics, systemMetrics] =
+        await Promise.all([
+          this.collectUserMetrics(startDate, endDate, options),
+          this.collectTransactionMetrics(startDate, endDate, options),
+          this.collectWalletMetrics(startDate, endDate, options),
+          this.collectSystemMetrics(startDate, endDate),
+        ]);
 
       const metrics: MetricsData = {
         totalUsers: userMetrics.totalUsers,
@@ -97,7 +101,11 @@ export class MetricsCollectorService {
     options?: any,
   ): Promise<{
     totalUsers: number;
-    topUsers: Array<{ userId: string; transactionCount: number; totalVolume: number }>;
+    topUsers: Array<{
+      userId: string;
+      transactionCount: number;
+      totalVolume: number;
+    }>;
   }> {
     const userFilter = options?.userIds?.length
       ? { id: { in: options.userIds } }
@@ -143,7 +151,7 @@ export class MetricsCollectorService {
       }),
     ]);
 
-    const processedTopUsers = topUsers.map(user => ({
+    const processedTopUsers = topUsers.map((user) => ({
       userId: user.id,
       transactionCount: user.transactions.length,
       totalVolume: user.transactions.reduce((sum, tx) => sum + tx.amount, 0),
@@ -216,20 +224,28 @@ export class MetricsCollectorService {
     const totalVolume = transactionSummary._sum.amount || 0;
     const averageTransaction = transactionSummary._avg.amount || 0;
 
-    const typeBreakdown = transactionsByType.reduce((acc, item) => {
-      acc[item.type] = item._count._all;
-      return acc;
-    }, {} as Record<string, number>);
+    const typeBreakdown = transactionsByType.reduce(
+      (acc, item) => {
+        acc[item.type] = item._count._all;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
-    const statusBreakdown = transactionsByStatus.reduce((acc, item) => {
-      acc[item.status] = item._count._all;
-      return acc;
-    }, {} as Record<string, number>);
+    const statusBreakdown = transactionsByStatus.reduce(
+      (acc, item) => {
+        acc[item.status] = item._count._all;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     const completedCount = statusBreakdown[TransactionStatus.COMPLETED] || 0;
     const failedCount = statusBreakdown[TransactionStatus.FAILED] || 0;
-    const successRate = totalTransactions > 0 ? (completedCount / totalTransactions) * 100 : 0;
-    const failureRate = totalTransactions > 0 ? (failedCount / totalTransactions) * 100 : 0;
+    const successRate =
+      totalTransactions > 0 ? (completedCount / totalTransactions) * 100 : 0;
+    const failureRate =
+      totalTransactions > 0 ? (failedCount / totalTransactions) * 100 : 0;
 
     return {
       totalTransactions,
@@ -253,21 +269,25 @@ export class MetricsCollectorService {
   ): Promise<{
     walletTransactionsByType: Record<string, number>;
   }> {
-    const walletTransactionsByType = await this.prisma.walletTransaction.groupBy({
-      by: ['type'],
-      where: {
-        createdAt: {
-          gte: startDate,
-          lte: endDate,
+    const walletTransactionsByType =
+      await this.prisma.walletTransaction.groupBy({
+        by: ['type'],
+        where: {
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
+          },
         },
-      },
-      _count: { _all: true },
-    });
+        _count: { _all: true },
+      });
 
-    const typeBreakdown = walletTransactionsByType.reduce((acc, item) => {
-      acc[item.type] = item._count._all;
-      return acc;
-    }, {} as Record<string, number>);
+    const typeBreakdown = walletTransactionsByType.reduce(
+      (acc, item) => {
+        acc[item.type] = item._count._all;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       walletTransactionsByType: typeBreakdown,
@@ -320,7 +340,10 @@ export class MetricsCollectorService {
       },
     });
 
-    const errorRate = totalTransactions > 0 ? (failedTransactions / totalTransactions) * 100 : 0;
+    const errorRate =
+      totalTransactions > 0
+        ? (failedTransactions / totalTransactions) * 100
+        : 0;
     const systemHealth = Math.max(0, 100 - errorRate);
 
     return {
@@ -350,15 +373,18 @@ export class MetricsCollectorService {
     });
 
     // Group by date and aggregate
-    const dateGroups = timeSeriesData.reduce((acc, item) => {
-      const date = item.createdAt.toISOString().split('T')[0];
-      if (!acc[date]) {
-        acc[date] = { count: 0, volume: 0 };
-      }
-      acc[date].count += item._count._all;
-      acc[date].volume += item._sum.amount || 0;
-      return acc;
-    }, {} as Record<string, { count: number; volume: number }>);
+    const dateGroups = timeSeriesData.reduce(
+      (acc, item) => {
+        const date = item.createdAt.toISOString().split('T')[0];
+        if (!acc[date]) {
+          acc[date] = { count: 0, volume: 0 };
+        }
+        acc[date].count += item._count._all;
+        acc[date].volume += item._sum.amount || 0;
+        return acc;
+      },
+      {} as Record<string, { count: number; volume: number }>,
+    );
 
     return Object.entries(dateGroups).map(([date, data]) => ({
       date,
@@ -370,10 +396,13 @@ export class MetricsCollectorService {
   /**
    * Parse period string into start and end dates
    */
-  private parsePeriod(period: string, periodType: string): { startDate: Date; endDate: Date } {
+  private parsePeriod(
+    period: string,
+    periodType: string,
+  ): { startDate: Date; endDate: Date } {
     const now = new Date();
     const endDate = new Date(now);
-    let startDate = new Date(now);
+    const startDate = new Date(now);
 
     if (period === 'current') {
       switch (periodType) {
@@ -396,13 +425,13 @@ export class MetricsCollectorService {
       if (matches) {
         const amount = parseInt(matches[1]);
         const unit = matches[2];
-        
+
         switch (unit) {
           case 'days':
             startDate.setDate(now.getDate() - amount);
             break;
           case 'weeks':
-            startDate.setDate(now.getDate() - (amount * 7));
+            startDate.setDate(now.getDate() - amount * 7);
             break;
           case 'months':
             startDate.setMonth(now.getMonth() - amount);
@@ -423,7 +452,11 @@ export class MetricsCollectorService {
   /**
    * Store metrics in database
    */
-  async storeMetrics(metricsData: MetricsData, period: string, periodType: string): Promise<void> {
+  async storeMetrics(
+    metricsData: MetricsData,
+    period: string,
+    periodType: string,
+  ): Promise<void> {
     try {
       await this.prisma.auditorMetrics.upsert({
         where: {
@@ -464,7 +497,10 @@ export class MetricsCollectorService {
   /**
    * Get stored metrics
    */
-  async getStoredMetrics(period: string, periodType: string): Promise<MetricsData | null> {
+  async getStoredMetrics(
+    period: string,
+    periodType: string,
+  ): Promise<MetricsData | null> {
     try {
       const storedMetrics = await this.prisma.auditorMetrics.findUnique({
         where: {
@@ -507,7 +543,7 @@ export class MetricsCollectorService {
     transactionVolume: number;
   }> {
     const metrics = await this.getRealTimeMetrics();
-    
+
     return {
       overallHealth: metrics.systemHealth,
       uptime: metrics.metadata.systemStats.uptime,
@@ -516,4 +552,4 @@ export class MetricsCollectorService {
       transactionVolume: metrics.totalVolume,
     };
   }
-} 
+}

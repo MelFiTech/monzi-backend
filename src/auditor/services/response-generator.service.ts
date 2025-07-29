@@ -6,7 +6,9 @@ import { AdminEndpointMapperService } from './admin-endpoint-mapper.service';
 export class ResponseGeneratorService {
   private readonly logger = new Logger(ResponseGeneratorService.name);
 
-  constructor(private readonly adminEndpointMapper: AdminEndpointMapperService) {}
+  constructor(
+    private readonly adminEndpointMapper: AdminEndpointMapperService,
+  ) {}
 
   /**
    * Generate super smart, comprehensive response with intelligent suggestions
@@ -15,85 +17,141 @@ export class ResponseGeneratorService {
     originalMessage: string,
     userQuery: UserQuery,
     backendData: Record<string, any>,
-    context?: any
+    context?: any,
   ): string {
     // Extract relevant data from backend responses with proper key handling
-    const usersData = this.extractDataFromResponse(backendData['/admin/users/search'], ['users', 'data']);
-    const transactionsData = this.extractDataFromResponse(backendData['/admin/transactions'], ['transactions', 'data']);
-    const dashboardStats = this.extractDataFromResponse(backendData['/admin/dashboard/stats'], ['data', 'stats']);
-    const balanceData = this.extractDataFromResponse(backendData['/admin/wallet/total-balance'], ['data']);
-    const healthData = this.extractDataFromResponse(backendData['/admin/auditor/health'], ['data']);
+    const usersData = this.extractDataFromResponse(
+      backendData['/admin/users/search'],
+      ['users', 'data'],
+    );
+    const transactionsData = this.extractDataFromResponse(
+      backendData['/admin/transactions'],
+      ['transactions', 'data'],
+    );
+    const dashboardStats = this.extractDataFromResponse(
+      backendData['/admin/dashboard/stats'],
+      ['data', 'stats'],
+    );
+    const balanceData = this.extractDataFromResponse(
+      backendData['/admin/wallet/total-balance'],
+      ['data'],
+    );
+    const healthData = this.extractDataFromResponse(
+      backendData['/admin/auditor/health'],
+      ['data'],
+    );
 
     const users = Array.isArray(usersData) ? usersData : [];
-    const transactions = Array.isArray(transactionsData) ? transactionsData : [];
+    const transactions = Array.isArray(transactionsData)
+      ? transactionsData
+      : [];
     const totalBalance = balanceData?.totalBalance;
     const auditorHealth = healthData;
 
     // Extract all possible data types from backend responses
     const allData = this.extractAllDataFromBackend(backendData);
-    
+
     // Generate super smart, context-aware response with intelligent suggestions
     let response = '';
 
     switch (userQuery.type) {
       case 'USER_LOOKUP':
-        response = this.generateUserLookupResponse(allData, userQuery, originalMessage);
+        response = this.generateUserLookupResponse(
+          allData,
+          userQuery,
+          originalMessage,
+        );
         break;
       case 'TRANSACTION_HISTORY':
-        response = this.generateTransactionHistoryResponse(allData, userQuery, originalMessage);
+        response = this.generateTransactionHistoryResponse(
+          allData,
+          userQuery,
+          originalMessage,
+        );
         break;
       case 'WALLET_OPERATIONS':
-        response = this.generateWalletOperationsResponse(allData, userQuery, originalMessage);
+        response = this.generateWalletOperationsResponse(
+          allData,
+          userQuery,
+          originalMessage,
+        );
         break;
       case 'KYC_MANAGEMENT':
-        response = this.generateKycManagementResponse(allData, userQuery, originalMessage);
+        response = this.generateKycManagementResponse(
+          allData,
+          userQuery,
+          originalMessage,
+        );
         break;
       case 'SYSTEM_STATUS':
-        response = this.generateSystemStatusResponse(allData, userQuery, originalMessage);
+        response = this.generateSystemStatusResponse(
+          allData,
+          userQuery,
+          originalMessage,
+        );
         break;
       case 'ANALYTICS':
-        response = this.generateAnalyticsResponse(allData, userQuery, originalMessage);
+        response = this.generateAnalyticsResponse(
+          allData,
+          userQuery,
+          originalMessage,
+        );
         break;
       case 'ADMIN_OPERATIONS':
-        response = this.generateAdminOperationsResponse(allData, userQuery, originalMessage);
+        response = this.generateAdminOperationsResponse(
+          allData,
+          userQuery,
+          originalMessage,
+        );
         break;
       case 'FEE_MANAGEMENT':
-        response = this.generateFeeManagementResponse(allData, userQuery, originalMessage);
+        response = this.generateFeeManagementResponse(
+          allData,
+          userQuery,
+          originalMessage,
+        );
         break;
       case 'GENERAL_QUERY':
-        response = this.generateGeneralQueryResponse(allData, userQuery, originalMessage);
+        response = this.generateGeneralQueryResponse(
+          allData,
+          userQuery,
+          originalMessage,
+        );
         break;
       default:
         response = this.generateHelpResponse(userQuery);
     }
 
     // Add intelligent next actions and suggestions
-    response += this.generateSmartSuggestions(userQuery, allData, originalMessage);
+    response += this.generateSmartSuggestions(
+      userQuery,
+      allData,
+      originalMessage,
+    );
 
     return response;
   }
-
-
 
   /**
    * Format transaction list for display
    */
   private formatTransactionList(transactions: any[]): string {
     let result = '';
-    
+
     transactions.forEach((tx, index) => {
       const date = new Date(tx.createdAt).toLocaleDateString();
-      const statusEmoji = tx.status === 'COMPLETED' ? '✅' : tx.status === 'FAILED' ? '❌' : '⏳';
+      const statusEmoji =
+        tx.status === 'COMPLETED' ? '✅' : tx.status === 'FAILED' ? '❌' : '⏳';
       const typeEmoji = tx.type === 'DEPOSIT' ? '⬇️' : '⬆️';
-      
+
       result += `${typeEmoji} **₦${tx.amount}** ${statusEmoji} (${date})\n`;
       result += `   ${tx.description || 'No description'}\n`;
-      
+
       if (index < transactions.length - 1) {
         result += `\n`;
       }
     });
-    
+
     return result;
   }
 
@@ -114,7 +172,7 @@ export class ResponseGeneratorService {
     };
 
     // Extract data from all possible endpoints
-    Object.keys(backendData).forEach(endpoint => {
+    Object.keys(backendData).forEach((endpoint) => {
       const response = backendData[endpoint];
       if (!response || !response.success) return;
 
@@ -126,24 +184,38 @@ export class ResponseGeneratorService {
           allData.users.push(users);
         }
       } else if (endpoint.includes('/admin/transactions')) {
-        const transactions = this.extractDataFromResponse(response, ['transactions', 'data']);
+        const transactions = this.extractDataFromResponse(response, [
+          'transactions',
+          'data',
+        ]);
         if (Array.isArray(transactions)) {
           allData.transactions.push(...transactions);
         }
       } else if (endpoint.includes('/admin/dashboard/stats')) {
-        allData.dashboardStats = this.extractDataFromResponse(response, ['data', 'stats']);
+        allData.dashboardStats = this.extractDataFromResponse(response, [
+          'data',
+          'stats',
+        ]);
       } else if (endpoint.includes('/admin/wallet/total-balance')) {
         const balanceData = this.extractDataFromResponse(response, ['data']);
         allData.totalBalance = balanceData?.totalBalance;
       } else if (endpoint.includes('/admin/auditor/health')) {
-        allData.auditorHealth = this.extractDataFromResponse(response, ['data']);
+        allData.auditorHealth = this.extractDataFromResponse(response, [
+          'data',
+        ]);
       } else if (endpoint.includes('/admin/kyc/submissions')) {
-        const kyc = this.extractDataFromResponse(response, ['submissions', 'data']);
+        const kyc = this.extractDataFromResponse(response, [
+          'submissions',
+          'data',
+        ]);
         if (Array.isArray(kyc)) {
           allData.kycSubmissions.push(...kyc);
         }
       } else if (endpoint.includes('/admin/admins')) {
-        const admins = this.extractDataFromResponse(response, ['admins', 'data']);
+        const admins = this.extractDataFromResponse(response, [
+          'admins',
+          'data',
+        ]);
         if (Array.isArray(admins)) {
           allData.admins.push(...admins);
         }
@@ -153,7 +225,9 @@ export class ResponseGeneratorService {
           allData.fees.push(...fees);
         }
       } else if (endpoint.includes('/admin/wallet/balance')) {
-        allData.walletBalance = this.extractDataFromResponse(response, ['data']);
+        allData.walletBalance = this.extractDataFromResponse(response, [
+          'data',
+        ]);
       }
     });
 
@@ -163,27 +237,34 @@ export class ResponseGeneratorService {
   /**
    * Enhanced user lookup response with smart suggestions
    */
-  private generateUserLookupResponse(allData: any, userQuery: UserQuery, originalMessage: string): string {
+  private generateUserLookupResponse(
+    allData: any,
+    userQuery: UserQuery,
+    originalMessage: string,
+  ): string {
     const users = allData.users || [];
-    
+
     if (users.length === 0) {
-      const searchTerm = userQuery.userEmail || userQuery.userName || 'that user';
-      return `🤔 I couldn't find any user matching "${searchTerm}".\n\n` +
-             `**💡 Smart Suggestions:**\n` +
-             `• Double-check the spelling\n` +
-             `• Try searching with their email address\n` +
-             `• Try their full name (e.g., "John Doe")\n` +
-             `• Ask me to "show all users" to browse\n\n` +
-             `**🔍 What I can help you find:**\n` +
-             `• User profiles and account details\n` +
-             `• KYC status and verification info\n` +
-             `• Wallet balances and transaction history\n` +
-             `• Account activity and status`;
+      const searchTerm =
+        userQuery.userEmail || userQuery.userName || 'that user';
+      return (
+        `🤔 I couldn't find any user matching "${searchTerm}".\n\n` +
+        `**💡 Smart Suggestions:**\n` +
+        `• Double-check the spelling\n` +
+        `• Try searching with their email address\n` +
+        `• Try their full name (e.g., "John Doe")\n` +
+        `• Ask me to "show all users" to browse\n\n` +
+        `**🔍 What I can help you find:**\n` +
+        `• User profiles and account details\n` +
+        `• KYC status and verification info\n` +
+        `• Wallet balances and transaction history\n` +
+        `• Account activity and status`
+      );
     }
 
     const user = users[0];
     let response = `👋 **Found User: ${user.firstName || user.email}**\n\n`;
-    
+
     // Basic Info
     response += `📋 **Account Details:**\n`;
     response += `• **Email:** ${user.email}\n`;
@@ -194,7 +275,7 @@ export class ResponseGeneratorService {
     response += `• **KYC Status:** ${this.getKycStatusWithEmoji(user.kycStatus)}\n`;
     response += `• **Account Status:** ${user.isActive ? '✅ Active' : '❌ Inactive'}\n`;
     response += `• **Joined:** ${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}\n\n`;
-    
+
     // Wallet Info
     response += `💰 **Wallet Information:**\n`;
     if (user.wallet) {
@@ -207,7 +288,9 @@ export class ResponseGeneratorService {
     }
 
     // Recent Activity
-    const userTransactions = allData.transactions.filter((tx: any) => tx.userId === user.id);
+    const userTransactions = allData.transactions.filter(
+      (tx: any) => tx.userId === user.id,
+    );
     if (userTransactions.length > 0) {
       response += `\n📈 **Recent Activity:** ${userTransactions.length} transactions\n`;
       response += `• **Last Transaction:** ${new Date(userTransactions[0].createdAt).toLocaleDateString()}\n`;
@@ -219,19 +302,23 @@ export class ResponseGeneratorService {
   /**
    * Enhanced transaction history response
    */
-  private generateTransactionHistoryResponse(allData: any, userQuery: UserQuery, originalMessage: string): string {
+  private generateTransactionHistoryResponse(
+    allData: any,
+    userQuery: UserQuery,
+    originalMessage: string,
+  ): string {
     const users = allData.users || [];
     const transactions = allData.transactions || [];
-    
+
     let response = '';
-    
+
     if (users.length > 0) {
       // User-specific transaction history
       const user = users[0];
       const userTxs = transactions.filter((tx: any) => tx.userId === user.id);
-      
+
       response = `💳 **Transaction History for ${user.firstName || user.email}**\n\n`;
-      
+
       if (userTxs.length === 0) {
         response += `🤷‍♂️ No transactions found for this user.\n\n`;
         response += `**💡 Possible reasons:**\n`;
@@ -247,10 +334,13 @@ export class ResponseGeneratorService {
         response += `• **Total Transactions:** ${userTxs.length}\n`;
         response += `• **Successful:** ${userTxs.filter((tx: any) => tx.status === 'COMPLETED').length}\n`;
         response += `• **Failed:** ${userTxs.filter((tx: any) => tx.status === 'FAILED').length}\n`;
-        
-        const totalAmount = userTxs.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
+
+        const totalAmount = userTxs.reduce(
+          (sum: number, tx: any) => sum + (tx.amount || 0),
+          0,
+        );
         response += `• **Total Volume:** ₦${totalAmount.toLocaleString()}\n`;
-        
+
         if (userTxs.length > 10) {
           response += `\n*(Showing latest 10 of ${userTxs.length} transactions)*`;
         }
@@ -263,8 +353,11 @@ export class ResponseGeneratorService {
       response += `• **Total Transactions:** ${transactions.length}\n`;
       response += `• **Successful:** ${transactions.filter((tx: any) => tx.status === 'COMPLETED').length}\n`;
       response += `• **Failed:** ${transactions.filter((tx: any) => tx.status === 'FAILED').length}\n`;
-      
-      const totalVolume = transactions.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
+
+      const totalVolume = transactions.reduce(
+        (sum: number, tx: any) => sum + (tx.amount || 0),
+        0,
+      );
       response += `• **Total Volume:** ₦${totalVolume.toLocaleString()}\n`;
     } else {
       response = `🤔 No transactions found for your query.\n\n`;
@@ -274,14 +367,18 @@ export class ResponseGeneratorService {
       response += `• Check the overall system status\n`;
       response += `• Ask "show me all recent transactions"\n`;
     }
-    
+
     return response;
   }
 
   /**
    * Generate wallet operations response
    */
-  private generateWalletOperationsResponse(allData: any, userQuery: UserQuery, originalMessage: string): string {
+  private generateWalletOperationsResponse(
+    allData: any,
+    userQuery: UserQuery,
+    originalMessage: string,
+  ): string {
     const operation = userQuery.filters?.operation;
     const users = allData.users || [];
     const walletBalance = allData.walletBalance;
@@ -309,7 +406,7 @@ export class ResponseGeneratorService {
           response += `• **Total Balance:** ₦${totalBalance.toLocaleString()}\n`;
           response += `• **Active Wallets:** ${allData.dashboardStats?.wallets || 'N/A'}\n`;
         }
-        
+
         response += `\n**💡 Available Wallet Operations:**\n`;
         response += `• Check user balance: "check wallet balance for john@example.com"\n`;
         response += `• View total platform balance: "show total wallet balance"\n`;
@@ -323,7 +420,11 @@ export class ResponseGeneratorService {
   /**
    * Generate KYC management response
    */
-  private generateKycManagementResponse(allData: any, userQuery: UserQuery, originalMessage: string): string {
+  private generateKycManagementResponse(
+    allData: any,
+    userQuery: UserQuery,
+    originalMessage: string,
+  ): string {
     const kycSubmissions = allData.kycSubmissions || [];
     const users = allData.users || [];
 
@@ -337,9 +438,15 @@ export class ResponseGeneratorService {
       response += `• **Reviewed:** ${user.kycReviewedAt ? new Date(user.kycReviewedAt).toLocaleDateString() : 'Pending review'}\n`;
     } else if (kycSubmissions.length > 0) {
       response += `**KYC Submissions Overview:**\n`;
-      const pending = kycSubmissions.filter((kyc: any) => kyc.status === 'PENDING').length;
-      const approved = kycSubmissions.filter((kyc: any) => kyc.status === 'APPROVED').length;
-      const rejected = kycSubmissions.filter((kyc: any) => kyc.status === 'REJECTED').length;
+      const pending = kycSubmissions.filter(
+        (kyc: any) => kyc.status === 'PENDING',
+      ).length;
+      const approved = kycSubmissions.filter(
+        (kyc: any) => kyc.status === 'APPROVED',
+      ).length;
+      const rejected = kycSubmissions.filter(
+        (kyc: any) => kyc.status === 'REJECTED',
+      ).length;
 
       response += `• **Total Submissions:** ${kycSubmissions.length}\n`;
       response += `• **⏳ Pending:** ${pending}\n`;
@@ -359,13 +466,17 @@ export class ResponseGeneratorService {
   /**
    * Enhanced system status response
    */
-  private generateSystemStatusResponse(allData: any, userQuery: UserQuery, originalMessage: string): string {
+  private generateSystemStatusResponse(
+    allData: any,
+    userQuery: UserQuery,
+    originalMessage: string,
+  ): string {
     const dashboardStats = allData.dashboardStats;
     const totalBalance = allData.totalBalance;
     const auditorHealth = allData.auditorHealth;
 
     let response = `🚀 **Monzi Platform Status**\n\n`;
-    
+
     // Core Metrics
     response += `📊 **Core Metrics:**\n`;
     if (dashboardStats) {
@@ -373,11 +484,11 @@ export class ResponseGeneratorService {
       response += `• **💸 Total Transactions:** ${(dashboardStats.transactions || 0).toLocaleString()}\n`;
       response += `• **💰 Active Wallets:** ${(dashboardStats.wallets || 0).toLocaleString()}\n`;
     }
-    
+
     if (totalBalance !== null) {
       response += `• **💵 Platform Balance:** ₦${totalBalance.toLocaleString()}\n`;
     }
-    
+
     // System Health
     response += `\n🏥 **System Health:**\n`;
     if (auditorHealth) {
@@ -393,8 +504,12 @@ export class ResponseGeneratorService {
     // Quick Insights
     if (dashboardStats && allData.transactions.length > 0) {
       const recentTransactions = allData.transactions.slice(0, 10);
-      const successRate = (recentTransactions.filter((tx: any) => tx.status === 'COMPLETED').length / recentTransactions.length) * 100;
-      
+      const successRate =
+        (recentTransactions.filter((tx: any) => tx.status === 'COMPLETED')
+          .length /
+          recentTransactions.length) *
+        100;
+
       response += `\n📈 **Performance Insights:**\n`;
       response += `• **Transaction Success Rate:** ${Math.round(successRate)}%\n`;
       response += `• **Recent Activity:** ${recentTransactions.length} recent transactions\n`;
@@ -406,7 +521,11 @@ export class ResponseGeneratorService {
   /**
    * Generate analytics response
    */
-  private generateAnalyticsResponse(allData: any, userQuery: UserQuery, originalMessage: string): string {
+  private generateAnalyticsResponse(
+    allData: any,
+    userQuery: UserQuery,
+    originalMessage: string,
+  ): string {
     const dashboardStats = allData.dashboardStats;
     const transactions = allData.transactions || [];
     const users = allData.users || [];
@@ -416,9 +535,15 @@ export class ResponseGeneratorService {
     // Transaction Analytics
     if (transactions.length > 0) {
       response += `💸 **Transaction Analytics:**\n`;
-      const totalVolume = transactions.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
+      const totalVolume = transactions.reduce(
+        (sum: number, tx: any) => sum + (tx.amount || 0),
+        0,
+      );
       const avgTransaction = totalVolume / transactions.length;
-      const successRate = (transactions.filter((tx: any) => tx.status === 'COMPLETED').length / transactions.length) * 100;
+      const successRate =
+        (transactions.filter((tx: any) => tx.status === 'COMPLETED').length /
+          transactions.length) *
+        100;
 
       response += `• **Total Volume:** ₦${totalVolume.toLocaleString()}\n`;
       response += `• **Average Transaction:** ₦${Math.round(avgTransaction).toLocaleString()}\n`;
@@ -430,7 +555,9 @@ export class ResponseGeneratorService {
     if (users.length > 0) {
       response += `👥 **User Analytics:**\n`;
       const activeUsers = users.filter((user: any) => user.isActive).length;
-      const verifiedUsers = users.filter((user: any) => user.kycStatus === 'APPROVED').length;
+      const verifiedUsers = users.filter(
+        (user: any) => user.kycStatus === 'APPROVED',
+      ).length;
 
       response += `• **Total Users:** ${users.length.toLocaleString()}\n`;
       response += `• **Active Users:** ${activeUsers.toLocaleString()}\n`;
@@ -451,7 +578,11 @@ export class ResponseGeneratorService {
   /**
    * Generate admin operations response
    */
-  private generateAdminOperationsResponse(allData: any, userQuery: UserQuery, originalMessage: string): string {
+  private generateAdminOperationsResponse(
+    allData: any,
+    userQuery: UserQuery,
+    originalMessage: string,
+  ): string {
     const admins = allData.admins || [];
 
     let response = `👨‍💼 **Admin Management**\n\n`;
@@ -459,7 +590,9 @@ export class ResponseGeneratorService {
     if (admins.length > 0) {
       response += `**Admin Users Overview:**\n`;
       const activeAdmins = admins.filter((admin: any) => admin.isActive).length;
-      const sudoAdmins = admins.filter((admin: any) => admin.role === 'SUDO_ADMIN').length;
+      const sudoAdmins = admins.filter(
+        (admin: any) => admin.role === 'SUDO_ADMIN',
+      ).length;
 
       response += `• **Total Admins:** ${admins.length}\n`;
       response += `• **Active Admins:** ${activeAdmins}\n`;
@@ -484,7 +617,11 @@ export class ResponseGeneratorService {
   /**
    * Generate fee management response
    */
-  private generateFeeManagementResponse(allData: any, userQuery: UserQuery, originalMessage: string): string {
+  private generateFeeManagementResponse(
+    allData: any,
+    userQuery: UserQuery,
+    originalMessage: string,
+  ): string {
     const fees = allData.fees || [];
 
     let response = `💰 **Fee Management**\n\n`;
@@ -515,11 +652,15 @@ export class ResponseGeneratorService {
   /**
    * Generate general query response
    */
-  private generateGeneralQueryResponse(allData: any, userQuery: UserQuery, originalMessage: string): string {
+  private generateGeneralQueryResponse(
+    allData: any,
+    userQuery: UserQuery,
+    originalMessage: string,
+  ): string {
     let response = `🤖 **I'm here to help!**\n\n`;
-    
+
     response += `Based on your query "${originalMessage}", here's what I can help you with:\n\n`;
-    
+
     response += `**🔍 What I can find:**\n`;
     response += `• User information and profiles\n`;
     response += `• Transaction history and details\n`;
@@ -543,35 +684,41 @@ export class ResponseGeneratorService {
    * Generate help response
    */
   private generateHelpResponse(userQuery: UserQuery): string {
-    return `🤖 **Prime AI Assistant - Help**\n\n` +
-           `I'm your intelligent assistant for the Monzi platform. Here's what I can help you with:\n\n` +
-           `**👥 User Management:**\n` +
-           `• "what is john@example.com" - Get user details\n` +
-           `• "tell me about John Doe" - Find user by name\n` +
-           `• "show user profile for user123" - Get user by ID\n\n` +
-           `**💸 Transactions:**\n` +
-           `• "show transactions for this week" - Get recent transactions\n` +
-           `• "transaction history for john@example.com" - User transactions\n` +
-           `• "failed transactions today" - Filter by status\n\n` +
-           `**💰 Wallet Operations:**\n` +
-           `• "check wallet balance for user@example.com" - User balance\n` +
-           `• "total platform balance" - All wallets combined\n` +
-           `• "freeze wallet for user@example.com" - Wallet operations\n\n` +
-           `**📋 KYC Management:**\n` +
-           `• "KYC status for user@example.com" - User verification\n` +
-           `• "show pending KYC submissions" - Review queue\n` +
-           `• "approved KYC submissions" - Filter by status\n\n` +
-           `**📊 Analytics & Reports:**\n` +
-           `• "system status" - Platform overview\n` +
-           `• "dashboard metrics" - Key statistics\n` +
-           `• "transaction analytics for last month" - Detailed analysis\n\n` +
-           `Just ask me naturally, and I'll understand what you need! 🚀`;
+    return (
+      `🤖 **Prime AI Assistant - Help**\n\n` +
+      `I'm your intelligent assistant for the Monzi platform. Here's what I can help you with:\n\n` +
+      `**👥 User Management:**\n` +
+      `• "what is john@example.com" - Get user details\n` +
+      `• "tell me about John Doe" - Find user by name\n` +
+      `• "show user profile for user123" - Get user by ID\n\n` +
+      `**💸 Transactions:**\n` +
+      `• "show transactions for this week" - Get recent transactions\n` +
+      `• "transaction history for john@example.com" - User transactions\n` +
+      `• "failed transactions today" - Filter by status\n\n` +
+      `**💰 Wallet Operations:**\n` +
+      `• "check wallet balance for user@example.com" - User balance\n` +
+      `• "total platform balance" - All wallets combined\n` +
+      `• "freeze wallet for user@example.com" - Wallet operations\n\n` +
+      `**📋 KYC Management:**\n` +
+      `• "KYC status for user@example.com" - User verification\n` +
+      `• "show pending KYC submissions" - Review queue\n` +
+      `• "approved KYC submissions" - Filter by status\n\n` +
+      `**📊 Analytics & Reports:**\n` +
+      `• "system status" - Platform overview\n` +
+      `• "dashboard metrics" - Key statistics\n` +
+      `• "transaction analytics for last month" - Detailed analysis\n\n` +
+      `Just ask me naturally, and I'll understand what you need! 🚀`
+    );
   }
 
   /**
    * Generate smart suggestions based on context
    */
-  private generateSmartSuggestions(userQuery: UserQuery, allData: any, originalMessage: string): string {
+  private generateSmartSuggestions(
+    userQuery: UserQuery,
+    allData: any,
+    originalMessage: string,
+  ): string {
     let suggestions = `\n\n🎯 **Smart Suggestions:**\n`;
 
     // Context-aware suggestions based on query type and available data
@@ -626,11 +773,16 @@ export class ResponseGeneratorService {
    */
   private getKycStatusWithEmoji(status: string): string {
     switch (status) {
-      case 'APPROVED': return '✅ Approved';
-      case 'REJECTED': return '❌ Rejected';
-      case 'PENDING': return '⏳ Pending Review';
-      case 'SUBMITTED': return '📋 Submitted';
-      default: return '❓ Unknown';
+      case 'APPROVED':
+        return '✅ Approved';
+      case 'REJECTED':
+        return '❌ Rejected';
+      case 'PENDING':
+        return '⏳ Pending Review';
+      case 'SUBMITTED':
+        return '📋 Submitted';
+      default:
+        return '❓ Unknown';
     }
   }
 
@@ -655,18 +807,18 @@ export class ResponseGeneratorService {
    */
   private extractDataFromResponse(response: any, possibleKeys: string[]): any {
     if (!response) return null;
-    
+
     for (const key of possibleKeys) {
       if (response[key] !== undefined) {
         return response[key];
       }
     }
-    
+
     // If no specific key found, return the response itself if it looks like data
     if (typeof response === 'object' && !response.success && !response.error) {
       return response;
     }
-    
+
     return null;
   }
-} 
+}

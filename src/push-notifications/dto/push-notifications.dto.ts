@@ -82,7 +82,8 @@ export class RegisterPushTokenDto {
 
   @ApiPropertyOptional({
     example: 'storeClient',
-    description: 'Execution environment (storeClient, standalone, bareWorkflow)',
+    description:
+      'Execution environment (storeClient, standalone, bareWorkflow)',
   })
   @IsOptional()
   @IsString()
@@ -383,7 +384,21 @@ export class GetNotificationHistoryDto {
   @Min(0)
   offset?: number = 0;
 
-  @ApiProperty({ required: false, enum: ['TRANSACTION', 'WALLET_FUNDING', 'WALLET_DEBIT', 'TRANSFER', 'WITHDRAWAL', 'PROMOTIONAL', 'SYSTEM', 'SECURITY', 'KYC', 'GENERAL'] })
+  @ApiProperty({
+    required: false,
+    enum: [
+      'TRANSACTION',
+      'WALLET_FUNDING',
+      'WALLET_DEBIT',
+      'TRANSFER',
+      'WITHDRAWAL',
+      'PROMOTIONAL',
+      'SYSTEM',
+      'SECURITY',
+      'KYC',
+      'GENERAL',
+    ],
+  })
   @IsOptional()
   @IsString()
   type?: string;
@@ -393,7 +408,10 @@ export class GetNotificationHistoryDto {
   @IsString()
   channel?: string;
 
-  @ApiProperty({ required: false, enum: ['PENDING', 'SENT', 'DELIVERED', 'READ', 'FAILED', 'EXPIRED'] })
+  @ApiProperty({
+    required: false,
+    enum: ['PENDING', 'SENT', 'DELIVERED', 'READ', 'FAILED', 'EXPIRED'],
+  })
   @IsOptional()
   @IsString()
   status?: string;

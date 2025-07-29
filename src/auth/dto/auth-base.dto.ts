@@ -150,7 +150,8 @@ export class SignOutDto {
 export class UpdateNotificationPreferencesDto {
   @ApiProperty({
     example: true,
-    description: 'Enable/disable all push notifications (does not affect real-time websocket notifications)',
+    description:
+      'Enable/disable all push notifications (does not affect real-time websocket notifications)',
     required: false,
   })
   @IsOptional()
@@ -159,7 +160,8 @@ export class UpdateNotificationPreferencesDto {
 
   @ApiProperty({
     example: true,
-    description: 'Enable/disable transaction push notifications (does not affect real-time websocket notifications)',
+    description:
+      'Enable/disable transaction push notifications (does not affect real-time websocket notifications)',
     required: false,
   })
   @IsOptional()
@@ -168,7 +170,8 @@ export class UpdateNotificationPreferencesDto {
 
   @ApiProperty({
     example: true,
-    description: 'Enable/disable promotional push notifications (does not affect real-time websocket notifications)',
+    description:
+      'Enable/disable promotional push notifications (does not affect real-time websocket notifications)',
     required: false,
   })
   @IsOptional()
@@ -243,7 +246,8 @@ export class UpdateDeviceTokenOnLoginDto {
 
   @ApiPropertyOptional({
     example: 'storeClient',
-    description: 'Execution environment (storeClient, standalone, bareWorkflow)',
+    description:
+      'Execution environment (storeClient, standalone, bareWorkflow)',
   })
   @IsOptional()
   @IsString()
@@ -272,4 +276,4 @@ export class UpdateDeviceTokenOnLoginDto {
   @IsOptional()
   @IsString()
   manufacturer?: string;
-} 
+}

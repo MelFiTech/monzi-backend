@@ -115,10 +115,7 @@ export class KycController {
       },
     }),
   )
-  async uploadSelfie(
-    @UploadedFile() file: MulterFile,
-    @Request() req,
-  ) {
+  async uploadSelfie(@UploadedFile() file: MulterFile, @Request() req) {
     console.log('📸 [KYC API] POST /kyc/upload-selfie - Request received');
     console.log('📁 File info:', {
       filename: file?.originalname,
@@ -181,7 +178,10 @@ export class KycController {
     description: 'KYC submissions retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
   @Get('admin/submissions')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
@@ -190,7 +190,9 @@ export class KycController {
     @Query('limit') limit: string = '20',
     @Query('status') status?: string,
   ) {
-    console.log('👨‍💼 [KYC ADMIN API] GET /kyc/admin/submissions - Request received');
+    console.log(
+      '👨‍💼 [KYC ADMIN API] GET /kyc/admin/submissions - Request received',
+    );
 
     try {
       const result = await this.kycService.getAllKycSubmissions({
@@ -209,20 +211,26 @@ export class KycController {
 
   @ApiOperation({
     summary: 'Get KYC submission details (Admin only)',
-    description: 'Retrieve detailed KYC submission information including images',
+    description:
+      'Retrieve detailed KYC submission information including images',
   })
   @ApiResponse({
     status: 200,
     description: 'KYC submission details retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
   @ApiResponse({ status: 404, description: 'KYC submission not found' })
   @Get('admin/submissions/:userId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   async getKycSubmissionDetails(@Param('userId') userId: string) {
-    console.log('👨‍💼 [KYC ADMIN API] GET /kyc/admin/submissions/:userId - Request received');
+    console.log(
+      '👨‍💼 [KYC ADMIN API] GET /kyc/admin/submissions/:userId - Request received',
+    );
 
     try {
       const result = await this.kycService.getKycSubmissionDetails(userId);
@@ -244,7 +252,10 @@ export class KycController {
     description: 'KYC status updated successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
   @Post('admin/submissions/:userId/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
@@ -253,7 +264,9 @@ export class KycController {
     @Body() body: { status: string; reason?: string },
     @Request() req,
   ) {
-    console.log('👨‍💼 [KYC ADMIN API] POST /kyc/admin/submissions/:userId/status - Request received');
+    console.log(
+      '👨‍💼 [KYC ADMIN API] POST /kyc/admin/submissions/:userId/status - Request received',
+    );
 
     try {
       const adminId = req.user.id;

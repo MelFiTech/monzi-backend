@@ -10,7 +10,7 @@ import { OcrProviderManagerService } from '../providers/ocr-provider-manager.ser
   imports: [ConfigModule],
   controllers: [OcrController],
   providers: [
-    OcrService, 
+    OcrService,
     PrismaService,
     TesseractOcrProvider,
     OcrProviderManagerService,

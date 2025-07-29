@@ -9,7 +9,10 @@ import {
 
 // Transaction Source DTO
 export class TransactionSourceDto {
-  @ApiProperty({ example: 'WALLET', description: 'Source type (WALLET, BANK, PROVIDER)' })
+  @ApiProperty({
+    example: 'WALLET',
+    description: 'Source type (WALLET, BANK, PROVIDER)',
+  })
   type: string;
 
   @ApiProperty({ example: 'GOODNESS OBAJE', description: 'Account name' })
@@ -30,7 +33,10 @@ export class TransactionSourceDto {
 
 // Transaction Destination DTO
 export class TransactionDestinationDto {
-  @ApiProperty({ example: 'WALLET', description: 'Destination type (WALLET, BANK, PROVIDER)' })
+  @ApiProperty({
+    example: 'WALLET',
+    description: 'Destination type (WALLET, BANK, PROVIDER)',
+  })
   type: string;
 
   @ApiProperty({ example: 'JOHN DOE', description: 'Account name' })
@@ -57,13 +63,13 @@ export class TransactionFeeDto {
   @ApiProperty({ example: 'NGN', description: 'Fee currency' })
   currency: string;
 
-  @ApiProperty({ 
-    example: { 
-      processingFee: 25, 
-      serviceFee: 15, 
-      vatFee: 10 
-    }, 
-    description: 'Fee breakdown' 
+  @ApiProperty({
+    example: {
+      processingFee: 25,
+      serviceFee: 15,
+      vatFee: 10,
+    },
+    description: 'Fee breakdown',
   })
   breakdown?: any;
 }
@@ -85,13 +91,22 @@ export class TransactionBalanceImpactDto {
 
 // Transaction Timeline DTO
 export class TransactionTimelineDto {
-  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Transaction created' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Transaction created',
+  })
   createdAt: string;
 
-  @ApiProperty({ example: '2024-01-15T10:30:05Z', description: 'Transaction started processing' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:05Z',
+    description: 'Transaction started processing',
+  })
   processingAt?: string;
 
-  @ApiProperty({ example: '2024-01-15T10:32:00Z', description: 'Transaction completed' })
+  @ApiProperty({
+    example: '2024-01-15T10:32:00Z',
+    description: 'Transaction completed',
+  })
   completedAt?: string;
 
   @ApiProperty({ example: '2024-01-15T10:32:00Z', description: 'Last update' })
@@ -115,64 +130,70 @@ export class TransactionDetailDto {
   @ApiProperty({ example: 'COMPLETED', description: 'Transaction status' })
   status: string;
 
-  @ApiProperty({ example: 'TXN_1234567890', description: 'Transaction reference' })
+  @ApiProperty({
+    example: 'TXN_1234567890',
+    description: 'Transaction reference',
+  })
   reference: string;
 
-  @ApiProperty({ example: 'Transfer to John Doe', description: 'Transaction description' })
+  @ApiProperty({
+    example: 'Transfer to John Doe',
+    description: 'Transaction description',
+  })
   description?: string;
 
-  @ApiProperty({ 
-    type: TransactionSourceDto, 
-    description: 'Transaction source details' 
+  @ApiProperty({
+    type: TransactionSourceDto,
+    description: 'Transaction source details',
   })
   source?: TransactionSourceDto;
 
-  @ApiProperty({ 
-    type: TransactionDestinationDto, 
-    description: 'Transaction destination details' 
+  @ApiProperty({
+    type: TransactionDestinationDto,
+    description: 'Transaction destination details',
   })
   destination?: TransactionDestinationDto;
 
-  @ApiProperty({ 
-    type: TransactionFeeDto, 
-    description: 'Transaction fee details' 
+  @ApiProperty({
+    type: TransactionFeeDto,
+    description: 'Transaction fee details',
   })
   fee?: TransactionFeeDto;
 
-  @ApiProperty({ 
-    type: TransactionBalanceImpactDto, 
-    description: 'Balance impact details' 
+  @ApiProperty({
+    type: TransactionBalanceImpactDto,
+    description: 'Balance impact details',
   })
   balanceImpact?: TransactionBalanceImpactDto;
 
-  @ApiProperty({ 
-    type: TransactionTimelineDto, 
-    description: 'Transaction timeline' 
+  @ApiProperty({
+    type: TransactionTimelineDto,
+    description: 'Transaction timeline',
   })
   timeline: TransactionTimelineDto;
 
-  @ApiProperty({ 
-    example: { 
-      adminFunding: true, 
-      provider: 'BUDPAY', 
-      sessionId: 'sess123' 
-    }, 
-    description: 'Transaction metadata' 
+  @ApiProperty({
+    example: {
+      adminFunding: true,
+      provider: 'BUDPAY',
+      sessionId: 'sess123',
+    },
+    description: 'Transaction metadata',
   })
   metadata?: any;
 
-  @ApiProperty({ 
-    example: 'BUDPAY_REF_123', 
-    description: 'Provider reference' 
+  @ApiProperty({
+    example: 'BUDPAY_REF_123',
+    description: 'Provider reference',
   })
   providerReference?: string;
 
-  @ApiProperty({ 
-    example: { 
-      status: 'success', 
-      message: 'Transaction successful' 
-    }, 
-    description: 'Provider response' 
+  @ApiProperty({
+    example: {
+      status: 'success',
+      message: 'Transaction successful',
+    },
+    description: 'Provider response',
   })
   providerResponse?: any;
 }
@@ -182,27 +203,34 @@ export class TransactionDetailResponseDto {
   @ApiProperty({ example: true, description: 'Operation success status' })
   success: boolean;
 
-  @ApiProperty({ 
-    type: TransactionDetailDto, 
-    description: 'Transaction detail information' 
+  @ApiProperty({
+    type: TransactionDetailDto,
+    description: 'Transaction detail information',
   })
   transaction: TransactionDetailDto;
 }
 
 // Report Transaction DTO
 export class ReportTransactionDto {
-  @ApiProperty({ 
-    example: 'UNAUTHORIZED_TRANSACTION', 
+  @ApiProperty({
+    example: 'UNAUTHORIZED_TRANSACTION',
     description: 'Reason for reporting the transaction',
-    enum: ['UNAUTHORIZED_TRANSACTION', 'INCORRECT_AMOUNT', 'DUPLICATE_TRANSACTION', 'TECHNICAL_ISSUE', 'FRAUD_SUSPICION', 'OTHER']
+    enum: [
+      'UNAUTHORIZED_TRANSACTION',
+      'INCORRECT_AMOUNT',
+      'DUPLICATE_TRANSACTION',
+      'TECHNICAL_ISSUE',
+      'FRAUD_SUSPICION',
+      'OTHER',
+    ],
   })
   @IsNotEmpty()
   @IsString()
   reason: string;
 
-  @ApiProperty({ 
-    example: 'I did not authorize this transaction. Please investigate.', 
-    description: 'Detailed description of the issue' 
+  @ApiProperty({
+    example: 'I did not authorize this transaction. Please investigate.',
+    description: 'Detailed description of the issue',
   })
   @IsNotEmpty()
   @IsString()
@@ -216,7 +244,10 @@ export class ReportTransactionResponseDto {
   @ApiProperty({ example: true, description: 'Operation success status' })
   success: boolean;
 
-  @ApiProperty({ example: 'Transaction reported successfully', description: 'Response message' })
+  @ApiProperty({
+    example: 'Transaction reported successfully',
+    description: 'Response message',
+  })
   message: string;
 
   @ApiProperty({ example: 'report123', description: 'Report ID' })
@@ -228,21 +259,30 @@ export class TransactionReportDto {
   @ApiProperty({ example: 'report123', description: 'Report ID' })
   id: string;
 
-  @ApiProperty({ example: 'UNAUTHORIZED_TRANSACTION', description: 'Report reason' })
+  @ApiProperty({
+    example: 'UNAUTHORIZED_TRANSACTION',
+    description: 'Report reason',
+  })
   reason: string;
 
-  @ApiProperty({ example: 'I did not authorize this transaction', description: 'Report description' })
+  @ApiProperty({
+    example: 'I did not authorize this transaction',
+    description: 'Report description',
+  })
   description: string;
 
   @ApiProperty({ example: 'PENDING', description: 'Report status' })
   status: string;
 
-  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Report creation date' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Report creation date',
+  })
   createdAt: string;
 
-  @ApiProperty({ 
-    type: TransactionDetailDto, 
-    description: 'Transaction details' 
+  @ApiProperty({
+    type: TransactionDetailDto,
+    description: 'Transaction details',
   })
   transaction: TransactionDetailDto;
 }
@@ -252,9 +292,9 @@ export class GetTransactionReportsResponseDto {
   @ApiProperty({ example: true, description: 'Operation success status' })
   success: boolean;
 
-  @ApiProperty({ 
-    type: [TransactionReportDto], 
-    description: 'List of transaction reports' 
+  @ApiProperty({
+    type: [TransactionReportDto],
+    description: 'List of transaction reports',
   })
   reports: TransactionReportDto[];
 
@@ -270,19 +310,19 @@ export class GetTransactionReportsResponseDto {
 
 // Update Report Status DTO
 export class UpdateReportStatusDto {
-  @ApiProperty({ 
-    example: 'RESOLVED', 
+  @ApiProperty({
+    example: 'RESOLVED',
     description: 'New status for the report',
-    enum: ['PENDING', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED']
+    enum: ['PENDING', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED'],
   })
   @IsNotEmpty()
   @IsString()
   status: string;
 
-  @ApiProperty({ 
-    example: 'Issue resolved. Transaction was legitimate.', 
+  @ApiProperty({
+    example: 'Issue resolved. Transaction was legitimate.',
     description: 'Admin notes about the resolution',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -295,6 +335,9 @@ export class UpdateReportStatusResponseDto {
   @ApiProperty({ example: true, description: 'Operation success status' })
   success: boolean;
 
-  @ApiProperty({ example: 'Report status updated successfully', description: 'Response message' })
+  @ApiProperty({
+    example: 'Report status updated successfully',
+    description: 'Response message',
+  })
   message: string;
-} 
+}

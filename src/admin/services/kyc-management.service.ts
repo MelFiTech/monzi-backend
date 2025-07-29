@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WalletService } from '../../wallet/wallet.service';
 import { PushNotificationsService } from '../../push-notifications/push-notifications.service';
@@ -49,32 +53,76 @@ export class KycManagementService {
           createdAt: true,
           kycVerifiedAt: true,
           bvnVerifiedAt: true,
+          bvnProviderResponse: true,
+          metadata: true,
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      const submissions = users.map((user) => ({
-        userId: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        kycStatus: user.kycStatus,
-        bvn: user.bvn,
-        hasSelfie: !!user.selfieUrl,
-        submittedAt: user.createdAt.toISOString(),
-        verifiedAt: user.kycVerifiedAt?.toISOString() || null,
-        bvnVerifiedAt: user.bvnVerifiedAt?.toISOString() || null,
-        createdAt: user.createdAt.toISOString(),
-      }));
+      const submissions = users.map((user) => {
+        // Generate full name
+        const fullName = user.firstName && user.lastName 
+          ? `${user.firstName} ${user.lastName}`
+          : user.firstName || user.lastName || 'N/A';
+
+        // Extract Identity Pass data
+        let bvnProviderResponse = null;
+        let bvnCloudinaryUrl = null;
+        let bvnBase64Image = null;
+        let bvnFullData = null;
+
+        if (user.bvnProviderResponse) {
+          try {
+            bvnProviderResponse = typeof user.bvnProviderResponse === 'string' 
+              ? JSON.parse(user.bvnProviderResponse) 
+              : user.bvnProviderResponse;
+          } catch (error) {
+            console.error('Error parsing bvnProviderResponse:', error);
+          }
+        }
+
+        if (user.metadata) {
+          try {
+            const metadata = typeof user.metadata === 'string' 
+              ? JSON.parse(user.metadata) 
+              : user.metadata;
+            
+            bvnCloudinaryUrl = metadata.bvnCloudinaryUrl || null;
+            bvnBase64Image = metadata.bvnBase64Image || null;
+            bvnFullData = metadata.bvnFullData || null;
+          } catch (error) {
+            console.error('Error parsing user metadata:', error);
+          }
+        }
+
+        return {
+          userId: user.id,
+          email: user.email,
+          phone: user.phone,
+          fullName: fullName,
+          kycStatus: user.kycStatus,
+          bvn: user.bvn,
+          hasSelfie: !!user.selfieUrl,
+          selfieUrl: user.selfieUrl,
+          submittedAt: user.createdAt.toISOString(),
+          verifiedAt: user.kycVerifiedAt?.toISOString() || null,
+          bvnVerifiedAt: user.bvnVerifiedAt?.toISOString() || null,
+          createdAt: user.createdAt.toISOString(),
+          // Include Identity Pass data
+          bvnProviderResponse,
+          bvnCloudinaryUrl,
+          bvnBase64Image,
+          bvnFullData,
+        };
+      });
 
       const total = submissions.length;
 
       const stats = {
         total: submissions.length,
-        pending: submissions.filter(s => s.kycStatus === 'PENDING').length,
-        verified: submissions.filter(s => s.kycStatus === 'APPROVED').length,
-        rejected: submissions.filter(s => s.kycStatus === 'REJECTED').length,
+        pending: submissions.filter((s) => s.kycStatus === 'PENDING').length,
+        verified: submissions.filter((s) => s.kycStatus === 'APPROVED').length,
+        rejected: submissions.filter((s) => s.kycStatus === 'REJECTED').length,
       };
 
       console.log('✅ [KYC SERVICE] KYC submissions retrieved successfully');
@@ -95,7 +143,7 @@ export class KycManagementService {
   }
 
   async getPendingKycSubmissions(): Promise<GetKycSubmissionsResponse> {
-    console.log('🔍 [KYC SERVICE] Getting pending KYC submissions');
+    console.log('⏳ [KYC SERVICE] Getting pending KYC submissions');
 
     try {
       const users = await this.prisma.user.findMany({
@@ -117,35 +165,88 @@ export class KycManagementService {
           createdAt: true,
           kycVerifiedAt: true,
           bvnVerifiedAt: true,
+          bvnProviderResponse: true,
+          metadata: true,
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      const submissions = users.map((user) => ({
-        userId: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        kycStatus: user.kycStatus,
-        bvn: user.bvn,
-        hasSelfie: !!user.selfieUrl,
-        submittedAt: user.createdAt.toISOString(),
-        verifiedAt: user.kycVerifiedAt?.toISOString() || null,
-        bvnVerifiedAt: user.bvnVerifiedAt?.toISOString() || null,
-        createdAt: user.createdAt.toISOString(),
-      }));
+      const submissions = users.map((user) => {
+        // Generate full name
+        const fullName = user.firstName && user.lastName 
+          ? `${user.firstName} ${user.lastName}`
+          : user.firstName || user.lastName || 'N/A';
+
+        // Extract Identity Pass data
+        let bvnProviderResponse = null;
+        let bvnCloudinaryUrl = null;
+        let bvnBase64Image = null;
+        let bvnFullData = null;
+
+        if (user.bvnProviderResponse) {
+          try {
+            bvnProviderResponse = typeof user.bvnProviderResponse === 'string' 
+              ? JSON.parse(user.bvnProviderResponse) 
+              : user.bvnProviderResponse;
+          } catch (error) {
+            console.error('Error parsing bvnProviderResponse:', error);
+          }
+        }
+
+        if (user.metadata) {
+          try {
+            const metadata = typeof user.metadata === 'string' 
+              ? JSON.parse(user.metadata) 
+              : user.metadata;
+            
+            bvnCloudinaryUrl = metadata.bvnCloudinaryUrl || null;
+            bvnBase64Image = metadata.bvnBase64Image || null;
+            bvnFullData = metadata.bvnFullData || null;
+          } catch (error) {
+            console.error('Error parsing user metadata:', error);
+          }
+        }
+
+        return {
+          userId: user.id,
+          email: user.email,
+          phone: user.phone,
+          fullName: fullName,
+          kycStatus: user.kycStatus,
+          bvn: user.bvn,
+          hasSelfie: !!user.selfieUrl,
+          selfieUrl: user.selfieUrl,
+          submittedAt: user.createdAt.toISOString(),
+          verifiedAt: user.kycVerifiedAt?.toISOString() || null,
+          bvnVerifiedAt: user.bvnVerifiedAt?.toISOString() || null,
+          createdAt: user.createdAt.toISOString(),
+          // Include Identity Pass data
+          bvnProviderResponse,
+          bvnCloudinaryUrl,
+          bvnBase64Image,
+          bvnFullData,
+        };
+      });
+
+      const total = submissions.length;
+
+      const stats = {
+        total: submissions.length,
+        pending: submissions.filter((s) => s.kycStatus === 'PENDING').length,
+        verified: submissions.filter((s) => s.kycStatus === 'APPROVED').length,
+        rejected: submissions.filter((s) => s.kycStatus === 'REJECTED').length,
+      };
 
       console.log('✅ [KYC SERVICE] Pending KYC submissions retrieved successfully');
-      console.log('📊 Pending submissions:', submissions.length);
+      console.log('📊 Total pending submissions:', total);
 
       return {
         success: true,
         submissions,
-        total: submissions.length,
-        pending: submissions.length,
-        verified: 0,
-        rejected: 0,
+        total,
+        pending: stats.pending,
+        verified: stats.verified,
+        rejected: stats.rejected,
       };
     } catch (error) {
       console.error('❌ [KYC SERVICE] Error getting pending KYC submissions:', error);
@@ -156,7 +257,10 @@ export class KycManagementService {
   async getKycSubmissionDetails(
     userId: string,
   ): Promise<KycSubmissionDetailResponse> {
-    console.log('🔍 [KYC SERVICE] Getting KYC submission details for user:', userId);
+    console.log(
+      '🔍 [KYC SERVICE] Getting KYC submission details for user:',
+      userId,
+    );
 
     try {
       const user = await this.prisma.user.findUnique({
@@ -176,6 +280,8 @@ export class KycManagementService {
           kycVerifiedAt: true,
           bvnVerifiedAt: true,
           isVerified: true,
+          bvnProviderResponse: true,
+          metadata: true,
         },
       });
 
@@ -183,14 +289,51 @@ export class KycManagementService {
         throw new NotFoundException('User not found');
       }
 
+      // Generate full name
+      const fullName = user.firstName && user.lastName 
+        ? `${user.firstName} ${user.lastName}`
+        : user.firstName || user.lastName || 'N/A';
+
+      // Generate full image URL
+      const selfieImageUrl = user.selfieUrl 
+        ? `${process.env.BASE_URL || 'http://localhost:3000'}${user.selfieUrl}`
+        : undefined;
+
+      // Extract Identity Pass data from metadata
+      let bvnProviderResponse = null;
+      let bvnCloudinaryUrl = null;
+      let bvnBase64Image = null;
+      let bvnFullData = null;
+
+      if (user.bvnProviderResponse) {
+        try {
+          bvnProviderResponse = typeof user.bvnProviderResponse === 'string' 
+            ? JSON.parse(user.bvnProviderResponse) 
+            : user.bvnProviderResponse;
+        } catch (error) {
+          console.error('Error parsing bvnProviderResponse:', error);
+        }
+      }
+
+      if (user.metadata) {
+        try {
+          const metadata = typeof user.metadata === 'string' 
+            ? JSON.parse(user.metadata) 
+            : user.metadata;
+          
+          bvnCloudinaryUrl = metadata.bvnCloudinaryUrl || null;
+          bvnBase64Image = metadata.bvnBase64Image || null;
+          bvnFullData = metadata.bvnFullData || null;
+        } catch (error) {
+          console.error('Error parsing user metadata:', error);
+        }
+      }
+
       const submission = {
         userId: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
         phone: user.phone,
-        dateOfBirth: user.dateOfBirth?.toISOString(),
-        gender: user.gender,
+        fullName: fullName,
         kycStatus: user.kycStatus,
         bvn: user.bvn,
         hasSelfie: !!user.selfieUrl,
@@ -202,14 +345,24 @@ export class KycManagementService {
         createdAt: user.createdAt.toISOString(),
       };
 
-      console.log('✅ [KYC SERVICE] KYC submission details retrieved successfully');
+      console.log(
+        '✅ [KYC SERVICE] KYC submission details retrieved successfully',
+      );
 
       return {
         success: true,
         submission,
+        selfieImageUrl,
+        bvnProviderResponse,
+        bvnCloudinaryUrl,
+        bvnBase64Image,
+        bvnFullData,
       };
     } catch (error) {
-      console.error('❌ [KYC SERVICE] Error getting KYC submission details:', error);
+      console.error(
+        '❌ [KYC SERVICE] Error getting KYC submission details:',
+        error,
+      );
       if (error instanceof NotFoundException) {
         throw error;
       }
@@ -246,15 +399,18 @@ export class KycManagementService {
         throw new NotFoundException('User not found');
       }
 
-      if (user.kycStatus !== 'UNDER_REVIEW') {
+      if (user.kycStatus !== 'PENDING' && user.kycStatus !== 'UNDER_REVIEW') {
         throw new BadRequestException(
-          `Cannot review KYC submission. Current status: ${user.kycStatus}`,
+          `Cannot review KYC submission. Current status: ${user.kycStatus}. Only PENDING and UNDER_REVIEW statuses can be reviewed.`,
         );
       }
 
       // Admin can approve KYC even without selfie upload
       // This allows manual approval based on other criteria (e.g., BVN verification)
-      console.log('ℹ️ [KYC SERVICE] Selfie status:', user.selfieUrl ? 'Uploaded' : 'Not uploaded');
+      console.log(
+        'ℹ️ [KYC SERVICE] Selfie status:',
+        user.selfieUrl ? 'Uploaded' : 'Not uploaded',
+      );
 
       let newStatus: string;
       let walletCreated = false;
@@ -300,10 +456,7 @@ export class KycManagementService {
             virtualAccountNumber,
           );
         } catch (walletError) {
-          console.error(
-            '❌ [KYC SERVICE] Error creating wallet:',
-            walletError,
-          );
+          console.error('❌ [KYC SERVICE] Error creating wallet:', walletError);
           // Don't fail the approval if wallet creation fails, but log it
         }
 
@@ -331,9 +484,10 @@ export class KycManagementService {
           );
 
           // Send email notification
-          const userFullName = user.firstName && user.lastName 
-            ? `${user.firstName} ${user.lastName}` 
-            : user.firstName || user.lastName || 'User';
+          const userFullName =
+            user.firstName && user.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : user.firstName || user.lastName || 'User';
 
           await this.emailService.sendKycApprovalEmail({
             email: user.email,
@@ -343,9 +497,14 @@ export class KycManagementService {
             walletProvider: 'Monzi',
           });
 
-          console.log('📧 [KYC SERVICE] KYC approval notifications sent successfully');
+          console.log(
+            '📧 [KYC SERVICE] KYC approval notifications sent successfully',
+          );
         } catch (notificationError) {
-          console.error('❌ [KYC SERVICE] Error sending KYC approval notifications:', notificationError);
+          console.error(
+            '❌ [KYC SERVICE] Error sending KYC approval notifications:',
+            notificationError,
+          );
           // Don't fail the approval if notifications fail
         }
       } else {
@@ -383,7 +542,10 @@ export class KycManagementService {
 
           console.log('📧 [KYC SERVICE] KYC rejection notification sent');
         } catch (notificationError) {
-          console.error('❌ [KYC SERVICE] Error sending KYC rejection notification:', notificationError);
+          console.error(
+            '❌ [KYC SERVICE] Error sending KYC rejection notification:',
+            notificationError,
+          );
         }
       }
 
@@ -397,10 +559,13 @@ export class KycManagementService {
       };
     } catch (error) {
       console.error('❌ [KYC SERVICE] Error reviewing KYC submission:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to review KYC submission');
     }
   }
-} 
+}

@@ -68,16 +68,18 @@ export class AuthProfileService {
       selfieUrl: user.selfieUrl || undefined,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
-      wallet: user.wallet ? {
-        id: user.wallet.id,
-        balance: user.wallet.balance,
-        currency: user.wallet.currency,
-        virtualAccountNumber: user.wallet.virtualAccountNumber,
-        provider: user.wallet.provider,
-        isActive: user.wallet.isActive,
-        createdAt: user.wallet.createdAt.toISOString(),
-        updatedAt: user.wallet.updatedAt.toISOString(),
-      } : undefined,
+      wallet: user.wallet
+        ? {
+            id: user.wallet.id,
+            balance: user.wallet.balance,
+            currency: user.wallet.currency,
+            virtualAccountNumber: user.wallet.virtualAccountNumber,
+            provider: user.wallet.provider,
+            isActive: user.wallet.isActive,
+            createdAt: user.wallet.createdAt.toISOString(),
+            updatedAt: user.wallet.updatedAt.toISOString(),
+          }
+        : undefined,
     };
   }
 
@@ -155,16 +157,16 @@ export class AuthProfileService {
         id: transactionId,
         userId,
       },
-              include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-            },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
           },
         },
+      },
     });
 
     if (!transaction) {
@@ -188,7 +190,12 @@ export class AuthProfileService {
       reference: transaction.reference,
       description: transaction.description,
       source: this.buildTransactionSource(transaction, metadata, user, wallet),
-      destination: this.buildTransactionDestination(transaction, metadata, user, wallet),
+      destination: this.buildTransactionDestination(
+        transaction,
+        metadata,
+        user,
+        wallet,
+      ),
       fee: this.buildTransactionFee(transaction, metadata),
       balanceImpact: this.buildBalanceImpact(transaction, metadata),
       timeline: {
@@ -209,11 +216,17 @@ export class AuthProfileService {
   }
 
   // Build transaction source
-  private buildTransactionSource(transaction: any, metadata: any, user: any, wallet: any) {
+  private buildTransactionSource(
+    transaction: any,
+    metadata: any,
+    user: any,
+    wallet: any,
+  ) {
     if (transaction.type === 'WITHDRAWAL' || transaction.type === 'TRANSFER') {
       return {
         type: 'WALLET',
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        name:
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
         accountNumber: wallet?.virtualAccountNumber,
         provider: wallet?.provider,
       };
@@ -230,7 +243,7 @@ export class AuthProfileService {
           bankCode: metadata.bankCode,
         };
       }
-      
+
       // Fallback to old metadata structure
       if (metadata.sourceType === 'BANK') {
         return {
@@ -241,7 +254,7 @@ export class AuthProfileService {
           bankCode: metadata.sourceBankCode,
         };
       }
-      
+
       // If no sender info available, provide meaningful external source
       if (metadata.provider) {
         return {
@@ -251,7 +264,7 @@ export class AuthProfileService {
           provider: metadata.provider,
         };
       }
-      
+
       return {
         type: 'EXTERNAL',
         name: 'External Bank Transfer',
@@ -263,11 +276,17 @@ export class AuthProfileService {
   }
 
   // Build transaction destination
-  private buildTransactionDestination(transaction: any, metadata: any, user: any, wallet: any) {
+  private buildTransactionDestination(
+    transaction: any,
+    metadata: any,
+    user: any,
+    wallet: any,
+  ) {
     if (transaction.type === 'DEPOSIT') {
       return {
         type: 'WALLET',
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        name:
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
         accountNumber: wallet?.virtualAccountNumber,
         provider: wallet?.provider,
       };
@@ -312,7 +331,8 @@ export class AuthProfileService {
       previousBalance: metadata.balanceImpact.previousBalance || 0,
       newBalance: metadata.balanceImpact.newBalance || 0,
       balanceChange: metadata.balanceImpact.balanceChange || 0,
-      effectiveAmount: metadata.balanceImpact.effectiveAmount || transaction.amount,
+      effectiveAmount:
+        metadata.balanceImpact.effectiveAmount || transaction.amount,
     };
   }
-} 
+}

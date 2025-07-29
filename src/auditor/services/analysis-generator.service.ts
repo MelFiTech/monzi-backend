@@ -20,27 +20,34 @@ export class AnalysisGeneratorService {
     try {
       const prompt = this.buildFinancialAnalysisPrompt(systemData);
       const response = await this.geminiApiService.generateContent(prompt);
-      
+
       // Try to parse structured response
       try {
         const parsed = JSON.parse(response);
         return {
           summary: parsed.summary || 'Financial analysis completed',
           findings: parsed.findings || { analysis: response },
-          recommendations: parsed.recommendations || { note: 'See analysis for recommendations' },
+          recommendations: parsed.recommendations || {
+            note: 'See analysis for recommendations',
+          },
           riskLevel: parsed.riskLevel || AuditorRiskLevel.LOW,
         };
       } catch {
         // Fallback to unstructured response
         return {
           summary: 'Financial analysis completed',
-          findings: { analysis: response || 'Unable to generate financial analysis at this time.' },
+          findings: {
+            analysis:
+              response || 'Unable to generate financial analysis at this time.',
+          },
           recommendations: { note: 'See analysis for recommendations' },
           riskLevel: AuditorRiskLevel.LOW,
         };
       }
     } catch (error) {
-      this.logger.error(`Error generating financial analysis: ${error.message}`);
+      this.logger.error(
+        `Error generating financial analysis: ${error.message}`,
+      );
       return {
         summary: 'Error generating financial analysis',
         findings: { error: error.message },
@@ -62,19 +69,24 @@ export class AnalysisGeneratorService {
     try {
       const prompt = this.buildRiskAssessmentPrompt(systemData);
       const response = await this.geminiApiService.generateContent(prompt);
-      
+
       try {
         const parsed = JSON.parse(response);
         return {
           summary: parsed.summary || 'Risk assessment completed',
           findings: parsed.findings || { analysis: response },
-          recommendations: parsed.recommendations || { note: 'See analysis for recommendations' },
+          recommendations: parsed.recommendations || {
+            note: 'See analysis for recommendations',
+          },
           riskLevel: parsed.riskLevel || AuditorRiskLevel.MEDIUM,
         };
       } catch {
         return {
           summary: 'Risk assessment completed',
-          findings: { analysis: response || 'Unable to generate risk assessment at this time.' },
+          findings: {
+            analysis:
+              response || 'Unable to generate risk assessment at this time.',
+          },
           recommendations: { note: 'See analysis for recommendations' },
           riskLevel: AuditorRiskLevel.MEDIUM,
         };
@@ -102,19 +114,24 @@ export class AnalysisGeneratorService {
     try {
       const prompt = this.buildComplianceAuditPrompt(systemData);
       const response = await this.geminiApiService.generateContent(prompt);
-      
+
       try {
         const parsed = JSON.parse(response);
         return {
           summary: parsed.summary || 'Compliance audit completed',
           findings: parsed.findings || { analysis: response },
-          recommendations: parsed.recommendations || { note: 'See analysis for recommendations' },
+          recommendations: parsed.recommendations || {
+            note: 'See analysis for recommendations',
+          },
           riskLevel: parsed.riskLevel || AuditorRiskLevel.LOW,
         };
       } catch {
         return {
           summary: 'Compliance audit completed',
-          findings: { analysis: response || 'Unable to generate compliance audit at this time.' },
+          findings: {
+            analysis:
+              response || 'Unable to generate compliance audit at this time.',
+          },
           recommendations: { note: 'See analysis for recommendations' },
           riskLevel: AuditorRiskLevel.LOW,
         };
@@ -137,9 +154,13 @@ export class AnalysisGeneratorService {
     try {
       const prompt = this.buildSystemHealthPrompt(systemData);
       const response = await this.geminiApiService.generateContent(prompt);
-      return response || 'Unable to generate system health analysis at this time.';
+      return (
+        response || 'Unable to generate system health analysis at this time.'
+      );
     } catch (error) {
-      this.logger.error(`Error generating system health analysis: ${error.message}`);
+      this.logger.error(
+        `Error generating system health analysis: ${error.message}`,
+      );
       return '❌ Error generating system health analysis. Please try again.';
     }
   }
@@ -231,14 +252,20 @@ Format the response in a clear, bullet-pointed manner with specific metrics and 
   async generateCustomAnalysis(
     systemData: any,
     analysisType: string,
-    customPrompt?: string
+    customPrompt?: string,
   ): Promise<string> {
     try {
-      const prompt = customPrompt || this.buildGenericAnalysisPrompt(systemData, analysisType);
+      const prompt =
+        customPrompt ||
+        this.buildGenericAnalysisPrompt(systemData, analysisType);
       const response = await this.geminiApiService.generateContent(prompt);
-      return response || `Unable to generate ${analysisType} analysis at this time.`;
+      return (
+        response || `Unable to generate ${analysisType} analysis at this time.`
+      );
     } catch (error) {
-      this.logger.error(`Error generating ${analysisType} analysis: ${error.message}`);
+      this.logger.error(
+        `Error generating ${analysisType} analysis: ${error.message}`,
+      );
       return `❌ Error generating ${analysisType} analysis. Please try again.`;
     }
   }
@@ -246,7 +273,10 @@ Format the response in a clear, bullet-pointed manner with specific metrics and 
   /**
    * Build generic analysis prompt
    */
-  private buildGenericAnalysisPrompt(systemData: any, analysisType: string): string {
+  private buildGenericAnalysisPrompt(
+    systemData: any,
+    analysisType: string,
+  ): string {
     return `Perform a ${analysisType} analysis on the following system data:
 
 System Data:

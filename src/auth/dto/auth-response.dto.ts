@@ -22,6 +22,12 @@ export class RegisterResponseDto {
     description: 'OTP expiration time',
   })
   otpExpiresAt: string;
+
+  @ApiProperty({
+    example: false,
+    description: 'Whether the account was restored from archive',
+  })
+  restored: boolean;
 }
 
 // OTP Response
@@ -149,7 +155,7 @@ export class UserProfileDto {
     required: false,
     example: {
       id: 'wallet123',
-      balance: 1500.00,
+      balance: 1500.0,
       currency: 'NGN',
       virtualAccountNumber: '9038123456',
       provider: 'BUDPAY',
@@ -236,7 +242,8 @@ export class NotificationPreferencesResponseDto {
   message: string;
 
   @ApiProperty({
-    description: 'Updated push notification preferences (does not affect real-time websocket notifications)',
+    description:
+      'Updated push notification preferences (does not affect real-time websocket notifications)',
     type: 'object',
     properties: {
       notificationsEnabled: { type: 'boolean', example: true },
@@ -264,7 +271,8 @@ export class DeviceTokenUpdateResponseDto {
 
   @ApiProperty({
     example: true,
-    description: 'Whether the device was actually updated (different from previous)',
+    description:
+      'Whether the device was actually updated (different from previous)',
   })
   deviceUpdated: boolean;
-} 
+}

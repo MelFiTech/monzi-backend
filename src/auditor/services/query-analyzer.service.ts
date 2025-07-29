@@ -2,8 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AdminEndpointMapperService } from './admin-endpoint-mapper.service';
 
 export interface UserQuery {
-  type: 'USER_LOOKUP' | 'TRANSACTION_HISTORY' | 'SYSTEM_STATUS' | 'WALLET_OPERATIONS' | 
-        'KYC_MANAGEMENT' | 'ADMIN_OPERATIONS' | 'FEE_MANAGEMENT' | 'ANALYTICS' | 'GENERAL_QUERY';
+  type:
+    | 'USER_LOOKUP'
+    | 'TRANSACTION_HISTORY'
+    | 'SYSTEM_STATUS'
+    | 'WALLET_OPERATIONS'
+    | 'KYC_MANAGEMENT'
+    | 'ADMIN_OPERATIONS'
+    | 'FEE_MANAGEMENT'
+    | 'ANALYTICS'
+    | 'GENERAL_QUERY';
   userId?: string;
   userName?: string;
   userEmail?: string;
@@ -34,7 +42,9 @@ export interface UserQuery {
 export class QueryAnalyzerService {
   private readonly logger = new Logger(QueryAnalyzerService.name);
 
-  constructor(private readonly adminEndpointMapper: AdminEndpointMapperService) {}
+  constructor(
+    private readonly adminEndpointMapper: AdminEndpointMapperService,
+  ) {}
 
   /**
    * Super smart query analysis with comprehensive intent recognition
@@ -42,10 +52,10 @@ export class QueryAnalyzerService {
   analyzeUserQuery(message: string): UserQuery {
     const lowerMessage = message.toLowerCase();
     const extractedEntities = this.extractAllEntities(message);
-    
+
     // Analyze intent with high confidence scoring
     const intentAnalysis = this.analyzeIntent(lowerMessage, extractedEntities);
-    
+
     const baseQuery: UserQuery = {
       type: intentAnalysis.type,
       intent: intentAnalysis.intent,
@@ -127,7 +137,10 @@ export class QueryAnalyzerService {
   /**
    * Advanced intent analysis with confidence scoring
    */
-  private analyzeIntent(lowerMessage: string, entities: any): {
+  private analyzeIntent(
+    lowerMessage: string,
+    entities: any,
+  ): {
     type: UserQuery['type'];
     intent: string;
     confidence: number;
@@ -162,7 +175,11 @@ export class QueryAnalyzerService {
           /(?:check|lookup|find)\s+user/i,
         ],
         intent: 'Find and display comprehensive user information',
-        endpoints: ['/admin/users', '/admin/users/:userId', '/admin/kyc/submissions/:userId'],
+        endpoints: [
+          '/admin/users',
+          '/admin/users/:userId',
+          '/admin/kyc/submissions/:userId',
+        ],
         confidence: 0.9,
       },
 
@@ -176,7 +193,10 @@ export class QueryAnalyzerService {
           /(?:transaction|payment|transfer)s?\s+(?:for|by|from|of)\s+/i,
         ],
         intent: 'Retrieve and analyze transaction history',
-        endpoints: ['/admin/transactions', '/admin/transactions/:transactionId'],
+        endpoints: [
+          '/admin/transactions',
+          '/admin/transactions/:transactionId',
+        ],
         confidence: 0.85,
       },
 
@@ -191,7 +211,12 @@ export class QueryAnalyzerService {
           /(?:total|platform)\s+balance/i,
         ],
         intent: 'Perform wallet operations and balance checks',
-        endpoints: ['/admin/wallet/balance', '/admin/wallet/total-balance', '/admin/fund-wallet', '/admin/debit-wallet'],
+        endpoints: [
+          '/admin/wallet/balance',
+          '/admin/wallet/total-balance',
+          '/admin/fund-wallet',
+          '/admin/debit-wallet',
+        ],
         confidence: 0.9,
       },
 
@@ -205,11 +230,13 @@ export class QueryAnalyzerService {
           /identity\s+verification/i,
         ],
         intent: 'Manage KYC submissions and verification process',
-        endpoints: ['/admin/kyc/submissions', '/admin/kyc/submissions/:userId', '/admin/kyc/submissions/pending'],
+        endpoints: [
+          '/admin/kyc/submissions',
+          '/admin/kyc/submissions/:userId',
+          '/admin/kyc/submissions/pending',
+        ],
         confidence: 0.95,
       },
-
-
 
       // ANALYTICS
       {
@@ -221,7 +248,11 @@ export class QueryAnalyzerService {
           /(?:monthly|weekly|daily)\s+(?:report|stats|analysis)/i,
         ],
         intent: 'Generate analytics and business insights',
-        endpoints: ['/admin/dashboard/stats', '/admin/transactions', '/admin/users'],
+        endpoints: [
+          '/admin/dashboard/stats',
+          '/admin/transactions',
+          '/admin/users',
+        ],
         confidence: 0.75,
       },
 
@@ -238,7 +269,12 @@ export class QueryAnalyzerService {
           /(?:activity|action)\s+logs?/i,
         ],
         intent: 'Manage admin users and permissions',
-        endpoints: ['/admin/admins', '/admin/create-admin', '/admin/admins/:adminId', '/admin/logs'],
+        endpoints: [
+          '/admin/admins',
+          '/admin/create-admin',
+          '/admin/admins/:adminId',
+          '/admin/logs',
+        ],
         confidence: 0.9,
       },
 
@@ -329,7 +365,7 @@ export class QueryAnalyzerService {
       /(?:tell me about|who is|what is|user|for|about)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g,
       /([A-Z][a-z]+\s+[A-Z][a-z]+)/g, // Two capitalized words
     ];
-    
+
     const names: string[] = [];
     for (const pattern of namePatterns) {
       const matches = message.matchAll(pattern);
@@ -352,7 +388,7 @@ export class QueryAnalyzerService {
       /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*NGN/gi,
       /amount\s*:?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/gi,
     ];
-    
+
     const amounts: number[] = [];
     for (const pattern of amountPatterns) {
       const matches = message.matchAll(pattern);
@@ -377,7 +413,7 @@ export class QueryAnalyzerService {
       /(today|yesterday|tomorrow)/gi,
       /(last|this|next)\s+(week|month|year)/gi,
     ];
-    
+
     const dates: string[] = [];
     for (const pattern of datePatterns) {
       const matches = message.match(pattern);
@@ -397,7 +433,7 @@ export class QueryAnalyzerService {
       /(?:user|transaction|wallet|admin)\s*(?:id|ID)\s*:?\s*([a-zA-Z0-9_-]+)/gi,
       /([a-zA-Z0-9]{20,})/g, // Long alphanumeric strings (likely IDs)
     ];
-    
+
     const ids: string[] = [];
     for (const pattern of idPatterns) {
       const matches = message.matchAll(pattern);
@@ -414,12 +450,8 @@ export class QueryAnalyzerService {
    * Extract phone numbers
    */
   private extractPhoneNumbers(message: string): string[] {
-    const phonePatterns = [
-      /\+234\d{10}/g,
-      /0\d{10}/g,
-      /\d{11}/g,
-    ];
-    
+    const phonePatterns = [/\+234\d{10}/g, /0\d{10}/g, /\d{11}/g];
+
     const phones: string[] = [];
     for (const pattern of phonePatterns) {
       const matches = message.match(pattern);
@@ -436,17 +468,17 @@ export class QueryAnalyzerService {
   private extractTransactionFilters(message: string): Record<string, any> {
     const filters: Record<string, any> = {};
     const lowerMessage = message.toLowerCase();
-    
+
     // Transaction status
     if (lowerMessage.includes('completed')) filters.status = 'COMPLETED';
     if (lowerMessage.includes('pending')) filters.status = 'PENDING';
     if (lowerMessage.includes('failed')) filters.status = 'FAILED';
-    
+
     // Transaction type
     if (lowerMessage.includes('transfer')) filters.type = 'TRANSFER';
     if (lowerMessage.includes('deposit')) filters.type = 'DEPOSIT';
     if (lowerMessage.includes('withdrawal')) filters.type = 'WITHDRAWAL';
-    
+
     return filters;
   }
 
@@ -455,11 +487,19 @@ export class QueryAnalyzerService {
    */
   private extractWalletOperation(message: string): string | undefined {
     const lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.includes('fund') || lowerMessage.includes('credit') || lowerMessage.includes('add money')) {
+
+    if (
+      lowerMessage.includes('fund') ||
+      lowerMessage.includes('credit') ||
+      lowerMessage.includes('add money')
+    ) {
       return 'FUND';
     }
-    if (lowerMessage.includes('debit') || lowerMessage.includes('withdraw') || lowerMessage.includes('remove')) {
+    if (
+      lowerMessage.includes('debit') ||
+      lowerMessage.includes('withdraw') ||
+      lowerMessage.includes('remove')
+    ) {
       return 'DEBIT';
     }
     if (lowerMessage.includes('freeze') || lowerMessage.includes('lock')) {
@@ -471,7 +511,7 @@ export class QueryAnalyzerService {
     if (lowerMessage.includes('balance') || lowerMessage.includes('check')) {
       return 'BALANCE_CHECK';
     }
-    
+
     return undefined;
   }
 
@@ -481,11 +521,11 @@ export class QueryAnalyzerService {
   private extractKycFilters(message: string): Record<string, any> {
     const filters: Record<string, any> = {};
     const lowerMessage = message.toLowerCase();
-    
+
     if (lowerMessage.includes('pending')) filters.status = 'PENDING';
     if (lowerMessage.includes('approved')) filters.status = 'APPROVED';
     if (lowerMessage.includes('rejected')) filters.status = 'REJECTED';
-    
+
     return filters;
   }
 
@@ -495,11 +535,12 @@ export class QueryAnalyzerService {
   private extractAnalyticsFilters(message: string): Record<string, any> {
     const filters: Record<string, any> = {};
     const lowerMessage = message.toLowerCase();
-    
+
     if (lowerMessage.includes('revenue')) filters.type = 'revenue';
     if (lowerMessage.includes('user growth')) filters.type = 'user_growth';
-    if (lowerMessage.includes('transaction volume')) filters.type = 'transaction_volume';
-    
+    if (lowerMessage.includes('transaction volume'))
+      filters.type = 'transaction_volume';
+
     return filters;
   }
 
@@ -509,11 +550,11 @@ export class QueryAnalyzerService {
   private extractAdminFilters(message: string): Record<string, any> {
     const filters: Record<string, any> = {};
     const lowerMessage = message.toLowerCase();
-    
+
     if (lowerMessage.includes('sudo')) filters.role = 'SUDO_ADMIN';
     if (lowerMessage.includes('admin')) filters.role = 'ADMIN';
     if (lowerMessage.includes('customer rep')) filters.role = 'CUSTOMER_REP';
-    
+
     return filters;
   }
 
@@ -523,11 +564,11 @@ export class QueryAnalyzerService {
   private extractFeeFilters(message: string): Record<string, any> {
     const filters: Record<string, any> = {};
     const lowerMessage = message.toLowerCase();
-    
+
     if (lowerMessage.includes('transfer')) filters.type = 'TRANSFER';
     if (lowerMessage.includes('deposit')) filters.type = 'DEPOSIT';
     if (lowerMessage.includes('withdrawal')) filters.type = 'WITHDRAWAL';
-    
+
     return filters;
   }
 
@@ -536,30 +577,41 @@ export class QueryAnalyzerService {
    */
   private extractTimeFrame(message: string): UserQuery['timeFrame'] {
     const lowerMessage = message.toLowerCase();
-    
+
     if (lowerMessage.includes('today')) {
       return { period: 'today' };
     }
     if (lowerMessage.includes('yesterday')) {
       return { period: 'yesterday' };
     }
-    if (lowerMessage.includes('this week') || lowerMessage.includes('last week')) {
+    if (
+      lowerMessage.includes('this week') ||
+      lowerMessage.includes('last week')
+    ) {
       return { period: 'week' };
     }
-    if (lowerMessage.includes('this month') || lowerMessage.includes('last month')) {
+    if (
+      lowerMessage.includes('this month') ||
+      lowerMessage.includes('last month')
+    ) {
       return { period: 'month' };
     }
-    if (lowerMessage.includes('this year') || lowerMessage.includes('last year')) {
+    if (
+      lowerMessage.includes('this year') ||
+      lowerMessage.includes('last year')
+    ) {
       return { period: 'year' };
     }
-    
+
     // Enhanced custom date ranges with better parsing
-    const dateRangeMatch = message.match(/(?:from|between)\s+([^,\s]+(?:\s+[^,\s]+)*)\s+(?:to|and)\s+([^,\s]+(?:\s+[^,\s]+)*)/i);
+    const dateRangeMatch = message.match(
+      /(?:from|between)\s+([^,\s]+(?:\s+[^,\s]+)*)\s+(?:to|and)\s+([^,\s]+(?:\s+[^,\s]+)*)/i,
+    );
     if (dateRangeMatch) {
       try {
         const startDate = this.parseNaturalDate(dateRangeMatch[1]);
         const endDate = this.parseNaturalDate(dateRangeMatch[2]);
-        
+
         if (startDate && endDate) {
           return {
             start: startDate.toISOString(),
@@ -568,29 +620,37 @@ export class QueryAnalyzerService {
           };
         }
       } catch (error) {
-        this.logger.warn(`Failed to parse date range: ${dateRangeMatch[1]} to ${dateRangeMatch[2]}`);
+        this.logger.warn(
+          `Failed to parse date range: ${dateRangeMatch[1]} to ${dateRangeMatch[2]}`,
+        );
       }
     }
-    
+
     return undefined;
   }
 
   /**
    * Extract user identifier from message
    */
-  private extractUserIdentifier(message: string): { name?: string; email?: string } | null {
+  private extractUserIdentifier(
+    message: string,
+  ): { name?: string; email?: string } | null {
     // Email pattern
-    const emailMatch = message.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
+    const emailMatch = message.match(
+      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
+    );
     if (emailMatch) {
       return { email: emailMatch[0] };
     }
-    
+
     // Name pattern (look for capitalized words that might be names)
-    const nameMatch = message.match(/(?:for|of|user)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
+    const nameMatch = message.match(
+      /(?:for|of|user)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+    );
     if (nameMatch) {
       return { name: nameMatch[1] };
     }
-    
+
     return null;
   }
 
@@ -600,7 +660,7 @@ export class QueryAnalyzerService {
   private parseNaturalDate(dateString: string): Date | null {
     try {
       const lowerDate = dateString.toLowerCase().trim();
-      
+
       // Handle common date formats
       if (lowerDate.includes('july') || lowerDate.includes('jul')) {
         const dayMatch = lowerDate.match(/(\d+)(?:st|nd|rd|th)?/);
@@ -610,7 +670,7 @@ export class QueryAnalyzerService {
           return new Date(year, 6, day); // July is month 6 (0-indexed)
         }
       }
-      
+
       if (lowerDate.includes('june') || lowerDate.includes('jun')) {
         const dayMatch = lowerDate.match(/(\d+)(?:st|nd|rd|th)?/);
         if (dayMatch) {
@@ -619,7 +679,7 @@ export class QueryAnalyzerService {
           return new Date(year, 5, day); // June is month 5
         }
       }
-      
+
       if (lowerDate.includes('august') || lowerDate.includes('aug')) {
         const dayMatch = lowerDate.match(/(\d+)(?:st|nd|rd|th)?/);
         if (dayMatch) {
@@ -628,7 +688,7 @@ export class QueryAnalyzerService {
           return new Date(year, 7, day); // August is month 7
         }
       }
-      
+
       // Handle MM/DD format
       const mmddMatch = lowerDate.match(/(\d{1,2})\/(\d{1,2})/);
       if (mmddMatch) {
@@ -637,7 +697,7 @@ export class QueryAnalyzerService {
         const year = new Date().getFullYear();
         return new Date(year, month, day);
       }
-      
+
       // Handle YYYY-MM-DD format
       const isoMatch = lowerDate.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
       if (isoMatch) {
@@ -646,17 +706,17 @@ export class QueryAnalyzerService {
         const day = parseInt(isoMatch[3]);
         return new Date(year, month, day);
       }
-      
+
       // Try parsing as is
       const parsed = new Date(dateString);
       if (!isNaN(parsed.getTime())) {
         return parsed;
       }
-      
+
       return null;
     } catch (error) {
       this.logger.warn(`Failed to parse date: ${dateString}`);
       return null;
     }
   }
-} 
+}

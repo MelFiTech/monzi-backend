@@ -40,21 +40,22 @@ export class AdminEndpointMapperService {
           'Get all users: /admin/users',
           'Search users: /admin/users?search=john',
           'Filter by KYC: /admin/users?kycStatus=APPROVED',
-          'Paginate: /admin/users?page=1&limit=20'
-        ]
+          'Paginate: /admin/users?page=1&limit=20',
+        ],
       },
       {
         path: '/admin/users/:userId',
         method: 'GET',
-        description: 'Get detailed user information including wallet, transactions, and KYC',
+        description:
+          'Get detailed user information including wallet, transactions, and KYC',
         category: 'User Management',
         params: ['userId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'CUSTOMER_REP'],
         examples: [
           'Get user details: /admin/users/user123',
-          'View user profile with full transaction history'
-        ]
+          'View user profile with full transaction history',
+        ],
       },
       {
         path: '/admin/users',
@@ -64,7 +65,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['userId', 'reason'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Delete user with reason']
+        examples: ['Delete user with reason'],
       },
       {
         path: '/admin/edit-user',
@@ -74,7 +75,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['userId', 'firstName', 'lastName', 'email', 'phone'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Update user profile information']
+        examples: ['Update user profile information'],
       },
 
       // ==================== TRANSACTION MANAGEMENT ====================
@@ -83,15 +84,24 @@ export class AdminEndpointMapperService {
         method: 'GET',
         description: 'Get all transactions with filtering and search',
         category: 'Transaction Management',
-        queryParams: ['page', 'limit', 'search', 'status', 'type', 'userId', 'startDate', 'endDate'],
+        queryParams: [
+          'page',
+          'limit',
+          'search',
+          'status',
+          'type',
+          'userId',
+          'startDate',
+          'endDate',
+        ],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'CUSTOMER_REP'],
         examples: [
           'Get all transactions: /admin/transactions',
           'Filter by user: /admin/transactions?userId=user123',
           'Filter by date: /admin/transactions?startDate=2024-01-01&endDate=2024-12-31',
-          'Filter by status: /admin/transactions?status=COMPLETED'
-        ]
+          'Filter by status: /admin/transactions?status=COMPLETED',
+        ],
       },
       {
         path: '/admin/transactions/:transactionId',
@@ -101,7 +111,7 @@ export class AdminEndpointMapperService {
         params: ['transactionId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'CUSTOMER_REP'],
-        examples: ['Get transaction details: /admin/transactions/txn123']
+        examples: ['Get transaction details: /admin/transactions/txn123'],
       },
 
       // ==================== WALLET MANAGEMENT ====================
@@ -115,8 +125,8 @@ export class AdminEndpointMapperService {
         roles: ['SUDO_ADMIN', 'ADMIN'],
         examples: [
           'Get user wallet balance: /admin/wallet/balance?userId=user123',
-          'Get specific wallet: /admin/wallet/balance?walletId=wallet123'
-        ]
+          'Get specific wallet: /admin/wallet/balance?walletId=wallet123',
+        ],
       },
       {
         path: '/admin/wallet/total-balance',
@@ -125,7 +135,7 @@ export class AdminEndpointMapperService {
         category: 'Wallet Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get total platform balance']
+        examples: ['Get total platform balance'],
       },
       {
         path: '/admin/fund-wallet',
@@ -135,7 +145,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['userId', 'amount', 'reason', 'reference'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Fund user wallet with amount and reason']
+        examples: ['Fund user wallet with amount and reason'],
       },
       {
         path: '/admin/debit-wallet',
@@ -145,7 +155,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['userId', 'amount', 'reason', 'reference'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Debit user wallet with amount and reason']
+        examples: ['Debit user wallet with amount and reason'],
       },
       {
         path: '/admin/create-wallet',
@@ -155,7 +165,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['userId', 'walletType'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Create new wallet for user']
+        examples: ['Create new wallet for user'],
       },
       {
         path: '/admin/wallet/freeze',
@@ -165,7 +175,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['userId', 'reason'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Freeze wallet with reason']
+        examples: ['Freeze wallet with reason'],
       },
       {
         path: '/admin/wallet/unfreeze',
@@ -175,7 +185,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['userId', 'reason'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Unfreeze wallet with reason']
+        examples: ['Unfreeze wallet with reason'],
       },
       {
         path: '/admin/validate-wallet/:walletId',
@@ -185,7 +195,7 @@ export class AdminEndpointMapperService {
         params: ['walletId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Validate wallet: /admin/validate-wallet/wallet123']
+        examples: ['Validate wallet: /admin/validate-wallet/wallet123'],
       },
       {
         path: '/admin/reconcile-wallet/:walletId',
@@ -195,7 +205,7 @@ export class AdminEndpointMapperService {
         params: ['walletId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Reconcile wallet: /admin/reconcile-wallet/wallet123']
+        examples: ['Reconcile wallet: /admin/reconcile-wallet/wallet123'],
       },
       {
         path: '/admin/validate-all-wallets',
@@ -204,7 +214,7 @@ export class AdminEndpointMapperService {
         category: 'Wallet Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Validate all wallets in system']
+        examples: ['Validate all wallets in system'],
       },
       {
         path: '/admin/reset-wallet/:walletId',
@@ -214,7 +224,7 @@ export class AdminEndpointMapperService {
         params: ['walletId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Reset wallet: /admin/reset-wallet/wallet123']
+        examples: ['Reset wallet: /admin/reset-wallet/wallet123'],
       },
 
       // ==================== KYC MANAGEMENT ====================
@@ -228,8 +238,8 @@ export class AdminEndpointMapperService {
         roles: ['SUDO_ADMIN', 'ADMIN', 'CUSTOMER_REP'],
         examples: [
           'Get all KYC: /admin/kyc/submissions',
-          'Filter pending: /admin/kyc/submissions?status=PENDING'
-        ]
+          'Filter pending: /admin/kyc/submissions?status=PENDING',
+        ],
       },
       {
         path: '/admin/kyc/submissions/pending',
@@ -238,7 +248,7 @@ export class AdminEndpointMapperService {
         category: 'KYC Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'CUSTOMER_REP'],
-        examples: ['Get pending KYC submissions']
+        examples: ['Get pending KYC submissions'],
       },
       {
         path: '/admin/kyc/submissions/:userId',
@@ -248,7 +258,7 @@ export class AdminEndpointMapperService {
         params: ['userId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'CUSTOMER_REP'],
-        examples: ['Get user KYC: /admin/kyc/submissions/user123']
+        examples: ['Get user KYC: /admin/kyc/submissions/user123'],
       },
       {
         path: '/admin/kyc/submissions/:userId/review',
@@ -259,7 +269,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['status', 'reviewNotes', 'reviewedBy'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Review KYC submission']
+        examples: ['Review KYC submission'],
       },
 
       // ==================== DASHBOARD & ANALYTICS ====================
@@ -273,8 +283,8 @@ export class AdminEndpointMapperService {
         roles: ['SUDO_ADMIN', 'ADMIN', 'CUSTOMER_REP'],
         examples: [
           'Get dashboard stats: /admin/dashboard/stats',
-          'Get stats for period: /admin/dashboard/stats?period=last_30_days'
-        ]
+          'Get stats for period: /admin/dashboard/stats?period=last_30_days',
+        ],
       },
 
       // ==================== FEE MANAGEMENT ====================
@@ -285,7 +295,7 @@ export class AdminEndpointMapperService {
         category: 'Fee Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get all fee configurations']
+        examples: ['Get all fee configurations'],
       },
       {
         path: '/admin/fees/:type',
@@ -295,17 +305,23 @@ export class AdminEndpointMapperService {
         params: ['type'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get fee config: /admin/fees/TRANSFER']
+        examples: ['Get fee config: /admin/fees/TRANSFER'],
       },
       {
         path: '/admin/fees',
         method: 'POST',
         description: 'Set or update fee configuration',
         category: 'Fee Management',
-        bodyParams: ['type', 'percentage', 'fixedAmount', 'minAmount', 'maxAmount'],
+        bodyParams: [
+          'type',
+          'percentage',
+          'fixedAmount',
+          'minAmount',
+          'maxAmount',
+        ],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Set fee configuration']
+        examples: ['Set fee configuration'],
       },
       {
         path: '/admin/fees/:type',
@@ -315,7 +331,7 @@ export class AdminEndpointMapperService {
         params: ['type'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Delete fee: /admin/fees/TRANSFER']
+        examples: ['Delete fee: /admin/fees/TRANSFER'],
       },
 
       // ==================== PROVIDER MANAGEMENT ====================
@@ -326,7 +342,7 @@ export class AdminEndpointMapperService {
         category: 'Provider Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get all providers: /admin/providers']
+        examples: ['Get all providers: /admin/providers'],
       },
       {
         path: '/admin/providers/switch',
@@ -336,7 +352,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['provider', 'config'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Switch to new provider']
+        examples: ['Switch to new provider'],
       },
       {
         path: '/admin/providers/current',
@@ -345,7 +361,7 @@ export class AdminEndpointMapperService {
         category: 'Provider Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get current provider']
+        examples: ['Get current provider'],
       },
       {
         path: '/admin/transfer-providers',
@@ -354,7 +370,7 @@ export class AdminEndpointMapperService {
         category: 'Provider Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get transfer providers']
+        examples: ['Get transfer providers'],
       },
       {
         path: '/admin/transfer-providers/switch',
@@ -364,7 +380,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['provider', 'config'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Switch transfer provider']
+        examples: ['Switch transfer provider'],
       },
       {
         path: '/admin/transfer-providers/current',
@@ -373,7 +389,7 @@ export class AdminEndpointMapperService {
         category: 'Provider Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get current transfer provider']
+        examples: ['Get current transfer provider'],
       },
 
       // ==================== TESTING ENDPOINTS ====================
@@ -384,7 +400,7 @@ export class AdminEndpointMapperService {
         category: 'Testing & Validation',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'DEVELOPER'],
-        examples: ['Test Polaris API']
+        examples: ['Test Polaris API'],
       },
       {
         path: '/admin/test-budpay-api',
@@ -393,7 +409,7 @@ export class AdminEndpointMapperService {
         category: 'Testing & Validation',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'DEVELOPER'],
-        examples: ['Test BudPay API']
+        examples: ['Test BudPay API'],
       },
       {
         path: '/admin/test-bank-list',
@@ -402,7 +418,7 @@ export class AdminEndpointMapperService {
         category: 'Testing & Validation',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'DEVELOPER'],
-        examples: ['Test bank list API']
+        examples: ['Test bank list API'],
       },
       {
         path: '/admin/test-account-verification',
@@ -412,7 +428,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['accountNumber', 'bankCode'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'DEVELOPER'],
-        examples: ['Test account verification']
+        examples: ['Test account verification'],
       },
       {
         path: '/admin/test-bank-transfer',
@@ -422,7 +438,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['amount', 'accountNumber', 'bankCode'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN', 'DEVELOPER'],
-        examples: ['Test bank transfer']
+        examples: ['Test bank transfer'],
       },
 
       // ==================== WALLET VALIDATION ====================
@@ -434,7 +450,7 @@ export class AdminEndpointMapperService {
         params: ['walletId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Validate wallet: /admin/validate-wallet/wallet123']
+        examples: ['Validate wallet: /admin/validate-wallet/wallet123'],
       },
       {
         path: '/admin/reconcile-wallet/:walletId',
@@ -444,7 +460,7 @@ export class AdminEndpointMapperService {
         params: ['walletId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Reconcile wallet: /admin/reconcile-wallet/wallet123']
+        examples: ['Reconcile wallet: /admin/reconcile-wallet/wallet123'],
       },
       {
         path: '/admin/validate-all-wallets',
@@ -453,7 +469,7 @@ export class AdminEndpointMapperService {
         category: 'Wallet Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Validate all wallets in system']
+        examples: ['Validate all wallets in system'],
       },
       {
         path: '/admin/reset-wallet/:walletId',
@@ -463,7 +479,7 @@ export class AdminEndpointMapperService {
         params: ['walletId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Reset wallet: /admin/reset-wallet/wallet123']
+        examples: ['Reset wallet: /admin/reset-wallet/wallet123'],
       },
       {
         path: '/admin/reset-wallet-by-account/:accountNumber',
@@ -473,7 +489,9 @@ export class AdminEndpointMapperService {
         params: ['accountNumber'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Reset wallet by account: /admin/reset-wallet-by-account/1234567890']
+        examples: [
+          'Reset wallet by account: /admin/reset-wallet-by-account/1234567890',
+        ],
       },
 
       // ==================== ADVANCED FEE MANAGEMENT ====================
@@ -484,7 +502,7 @@ export class AdminEndpointMapperService {
         category: 'Fee Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get fee configurations']
+        examples: ['Get fee configurations'],
       },
       {
         path: '/admin/fee-configurations/:id',
@@ -494,7 +512,7 @@ export class AdminEndpointMapperService {
         params: ['id'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get fee config: /admin/fee-configurations/config123']
+        examples: ['Get fee config: /admin/fee-configurations/config123'],
       },
       {
         path: '/admin/fee-configurations',
@@ -504,7 +522,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['name', 'type', 'percentage', 'fixedAmount'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Create fee configuration']
+        examples: ['Create fee configuration'],
       },
       {
         path: '/admin/fee-configurations/:id',
@@ -515,7 +533,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['name', 'type', 'percentage', 'fixedAmount'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Update fee configuration']
+        examples: ['Update fee configuration'],
       },
       {
         path: '/admin/fee-configurations/:id',
@@ -525,7 +543,7 @@ export class AdminEndpointMapperService {
         params: ['id'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Delete fee configuration']
+        examples: ['Delete fee configuration'],
       },
       {
         path: '/admin/funding-fees',
@@ -534,7 +552,7 @@ export class AdminEndpointMapperService {
         category: 'Fee Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get funding fees']
+        examples: ['Get funding fees'],
       },
       {
         path: '/admin/funding-fees/:provider',
@@ -544,7 +562,7 @@ export class AdminEndpointMapperService {
         params: ['provider'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get provider funding fees']
+        examples: ['Get provider funding fees'],
       },
       {
         path: '/admin/funding-fees/:provider',
@@ -555,7 +573,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['percentage', 'fixedAmount', 'minAmount', 'maxAmount'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Set provider funding fees']
+        examples: ['Set provider funding fees'],
       },
 
       // ==================== ROLES & PERMISSIONS ====================
@@ -566,17 +584,24 @@ export class AdminEndpointMapperService {
         category: 'Admin Management',
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get roles and permissions']
+        examples: ['Get roles and permissions'],
       },
       {
         path: '/admin/logs',
         method: 'GET',
         description: 'Get admin activity logs',
         category: 'Admin Management',
-        queryParams: ['page', 'limit', 'userId', 'action', 'startDate', 'endDate'],
+        queryParams: [
+          'page',
+          'limit',
+          'userId',
+          'action',
+          'startDate',
+          'endDate',
+        ],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get admin logs: /admin/logs']
+        examples: ['Get admin logs: /admin/logs'],
       },
 
       // ==================== ADMIN MANAGEMENT ====================
@@ -588,7 +613,7 @@ export class AdminEndpointMapperService {
         queryParams: ['page', 'limit', 'role', 'status'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get all admins: /admin/admins']
+        examples: ['Get all admins: /admin/admins'],
       },
       {
         path: '/admin/admins/:adminId',
@@ -598,7 +623,7 @@ export class AdminEndpointMapperService {
         params: ['adminId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN', 'ADMIN'],
-        examples: ['Get admin: /admin/admins/admin123']
+        examples: ['Get admin: /admin/admins/admin123'],
       },
       {
         path: '/admin/create-admin',
@@ -608,7 +633,7 @@ export class AdminEndpointMapperService {
         bodyParams: ['email', 'firstName', 'lastName', 'role', 'permissions'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN'],
-        examples: ['Create new admin user']
+        examples: ['Create new admin user'],
       },
       {
         path: '/admin/admins/:adminId',
@@ -616,10 +641,16 @@ export class AdminEndpointMapperService {
         description: 'Update admin user',
         category: 'Admin Management',
         params: ['adminId'],
-        bodyParams: ['firstName', 'lastName', 'role', 'permissions', 'isActive'],
+        bodyParams: [
+          'firstName',
+          'lastName',
+          'role',
+          'permissions',
+          'isActive',
+        ],
         requiresAuth: true,
         roles: ['SUDO_ADMIN'],
-        examples: ['Update admin user']
+        examples: ['Update admin user'],
       },
       {
         path: '/admin/admins/:adminId',
@@ -629,8 +660,8 @@ export class AdminEndpointMapperService {
         params: ['adminId'],
         requiresAuth: true,
         roles: ['SUDO_ADMIN'],
-        examples: ['Delete admin user']
-      }
+        examples: ['Delete admin user'],
+      },
     ];
   }
 
@@ -641,34 +672,42 @@ export class AdminEndpointMapperService {
     const endpoints = this.getAdminEndpoints();
     const lowerQuery = query.toLowerCase();
 
-    return endpoints.filter(endpoint => {
+    return endpoints.filter((endpoint) => {
       // Category filter
       if (category && endpoint.category !== category) return false;
 
       // Search in description, path, and examples
-      const searchText = `${endpoint.description} ${endpoint.path} ${endpoint.examples?.join(' ') || ''}`.toLowerCase();
-      
+      const searchText =
+        `${endpoint.description} ${endpoint.path} ${endpoint.examples?.join(' ') || ''}`.toLowerCase();
+
       // Check for keyword matches
       const keywords = lowerQuery.split(' ');
-      return keywords.some(keyword => searchText.includes(keyword));
+      return keywords.some((keyword) => searchText.includes(keyword));
     });
   }
 
   /**
    * Get endpoint by exact path
    */
-  getEndpointByPath(path: string, method: string = 'GET'): AdminEndpoint | null {
+  getEndpointByPath(
+    path: string,
+    method: string = 'GET',
+  ): AdminEndpoint | null {
     const endpoints = this.getAdminEndpoints();
-    return endpoints.find(endpoint => 
-      endpoint.path === path && endpoint.method === method
-    ) || null;
+    return (
+      endpoints.find(
+        (endpoint) => endpoint.path === path && endpoint.method === method,
+      ) || null
+    );
   }
 
   /**
    * Get endpoints by category
    */
   getEndpointsByCategory(category: string): AdminEndpoint[] {
-    return this.getAdminEndpoints().filter(endpoint => endpoint.category === category);
+    return this.getAdminEndpoints().filter(
+      (endpoint) => endpoint.category === category,
+    );
   }
 
   /**
@@ -676,7 +715,7 @@ export class AdminEndpointMapperService {
    */
   getCategories(): string[] {
     const endpoints = this.getAdminEndpoints();
-    return [...new Set(endpoints.map(endpoint => endpoint.category))];
+    return [...new Set(endpoints.map((endpoint) => endpoint.category))];
   }
 
   /**
@@ -685,14 +724,14 @@ export class AdminEndpointMapperService {
   async executeAdminCall(
     endpoint: AdminEndpoint,
     params: Record<string, any> = {},
-    authToken?: string
+    authToken?: string,
   ): Promise<any> {
     try {
       let url = `${this.baseUrl}${endpoint.path}`;
-      
+
       // Replace path parameters
       if (endpoint.params) {
-        endpoint.params.forEach(param => {
+        endpoint.params.forEach((param) => {
           if (params[param]) {
             url = url.replace(`:${param}`, params[param]);
           }
@@ -702,7 +741,7 @@ export class AdminEndpointMapperService {
       // Add query parameters
       if (endpoint.queryParams && endpoint.method === 'GET') {
         const queryParams = new URLSearchParams();
-        endpoint.queryParams.forEach(param => {
+        endpoint.queryParams.forEach((param) => {
           if (params[param] !== undefined) {
             queryParams.append(param, params[param]);
           }
@@ -723,38 +762,40 @@ export class AdminEndpointMapperService {
       }
 
       let response;
-      
+
       switch (endpoint.method) {
         case 'GET':
           response = await firstValueFrom(
-            this.httpService.get(url, { headers })
+            this.httpService.get(url, { headers }),
           );
           break;
         case 'POST':
-          const postBody = endpoint.bodyParams ? 
-            Object.fromEntries(
-              endpoint.bodyParams
-                .filter(param => params[param] !== undefined)
-                .map(param => [param, params[param]])
-            ) : params;
+          const postBody = endpoint.bodyParams
+            ? Object.fromEntries(
+                endpoint.bodyParams
+                  .filter((param) => params[param] !== undefined)
+                  .map((param) => [param, params[param]]),
+              )
+            : params;
           response = await firstValueFrom(
-            this.httpService.post(url, postBody, { headers })
+            this.httpService.post(url, postBody, { headers }),
           );
           break;
         case 'PUT':
-          const putBody = endpoint.bodyParams ? 
-            Object.fromEntries(
-              endpoint.bodyParams
-                .filter(param => params[param] !== undefined)
-                .map(param => [param, params[param]])
-            ) : params;
+          const putBody = endpoint.bodyParams
+            ? Object.fromEntries(
+                endpoint.bodyParams
+                  .filter((param) => params[param] !== undefined)
+                  .map((param) => [param, params[param]]),
+              )
+            : params;
           response = await firstValueFrom(
-            this.httpService.put(url, putBody, { headers })
+            this.httpService.put(url, putBody, { headers }),
           );
           break;
         case 'DELETE':
           response = await firstValueFrom(
-            this.httpService.delete(url, { headers })
+            this.httpService.delete(url, { headers }),
           );
           break;
         default:
@@ -763,7 +804,10 @@ export class AdminEndpointMapperService {
 
       return response.data;
     } catch (error) {
-      this.logger.error(`Error executing admin call to ${endpoint.path}:`, error);
+      this.logger.error(
+        `Error executing admin call to ${endpoint.path}:`,
+        error,
+      );
       throw error;
     }
   }

@@ -3,7 +3,8 @@ import axios from 'axios';
 
 @Injectable()
 export class IdentityPassProvider {
-  private readonly baseUrl = process.env.IDENTITY_PASS_BASE_URL || 'https://api.prembly.com';
+  private readonly baseUrl =
+    process.env.IDENTITY_PASS_BASE_URL || 'https://api.prembly.com';
   private readonly apiKey = process.env.IDENTITY_PASS_API_KEY;
   private readonly appId = process.env.IDENTITY_PASS_APP_ID;
 
@@ -11,7 +12,7 @@ export class IdentityPassProvider {
     try {
       const url = `${this.baseUrl}/identitypass/verification/bvn`;
       const headers = {
-        'accept': 'application/json',
+        accept: 'application/json',
         'app-id': this.appId,
         'content-type': 'application/x-www-form-urlencoded',
         'x-api-key': this.apiKey,
@@ -24,9 +25,12 @@ export class IdentityPassProvider {
       return response.data;
     } catch (error) {
       if (error.response) {
-        throw new BadRequestException(error.response.data?.detail || 'Identity Pass BVN verification failed');
+        throw new BadRequestException(
+          error.response.data?.detail ||
+            'Identity Pass BVN verification failed',
+        );
       }
       throw new BadRequestException('Identity Pass BVN verification failed');
     }
   }
-} 
+}

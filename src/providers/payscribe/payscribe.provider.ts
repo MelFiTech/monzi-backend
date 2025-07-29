@@ -19,7 +19,7 @@ export class PayscribeProvider {
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.publicKey}`,
+        Authorization: `Bearer ${this.publicKey}`,
       },
     });
 
@@ -36,7 +36,7 @@ export class PayscribeProvider {
       (error) => {
         console.error('❌ [PAYSCRIBE] Request error:', error);
         return Promise.reject(error);
-      }
+      },
     );
 
     // Add response interceptor for logging
@@ -56,11 +56,15 @@ export class PayscribeProvider {
           data: error.response?.data,
         });
         return Promise.reject(error);
-      }
+      },
     );
   }
 
-  async makeRequest<T>(method: string, endpoint: string, data?: any): Promise<T> {
+  async makeRequest<T>(
+    method: string,
+    endpoint: string,
+    data?: any,
+  ): Promise<T> {
     try {
       const response = await this.axiosInstance.request({
         method,
@@ -77,4 +81,4 @@ export class PayscribeProvider {
   getAxiosInstance(): AxiosInstance {
     return this.axiosInstance;
   }
-} 
+}

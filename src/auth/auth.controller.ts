@@ -67,7 +67,8 @@ export class AuthController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Registration failed - validation errors or user already exists',
+    description:
+      'Registration failed - validation errors or user already exists',
   })
   async register(
     @Body() registerDto: RegisterDto,
@@ -162,7 +163,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Resend Email OTP',
     description:
-      'Resend the 6-digit OTP code to the user\'s email if they didn\'t receive it or if it expired',
+      "Resend the 6-digit OTP code to the user's email if they didn't receive it or if it expired",
   })
   @ApiResponse({
     status: 200,
@@ -177,9 +178,7 @@ export class AuthController {
     status: 404,
     description: 'User not found',
   })
-  async resendOtp(
-    @Body() resendOtpDto: ResendOtpDto,
-  ): Promise<OtpResponseDto> {
+  async resendOtp(@Body() resendOtpDto: ResendOtpDto): Promise<OtpResponseDto> {
     console.log('🔍 [AUTH API] POST /auth/resend-otp - Resend OTP');
     console.log('📧 Email:', resendOtpDto.email);
 
@@ -245,13 +244,15 @@ export class AuthController {
     name: 'type',
     required: false,
     type: String,
-    description: 'Filter by transaction type (TRANSFER, PAYMENT, WITHDRAWAL, DEPOSIT)',
+    description:
+      'Filter by transaction type (TRANSFER, PAYMENT, WITHDRAWAL, DEPOSIT)',
   })
   @ApiQuery({
     name: 'status',
     required: false,
     type: String,
-    description: 'Filter by transaction status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)',
+    description:
+      'Filter by transaction status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)',
   })
   @ApiResponse({
     status: 200,
@@ -266,7 +267,7 @@ export class AuthController {
             type: 'object',
             properties: {
               id: { type: 'string', example: 'txn_123' },
-              amount: { type: 'number', example: 5000.00 },
+              amount: { type: 'number', example: 5000.0 },
               currency: { type: 'string', example: 'NGN' },
               type: { type: 'string', example: 'TRANSFER' },
               status: { type: 'string', example: 'COMPLETED' },
@@ -283,7 +284,7 @@ export class AuthController {
                   bankName: { type: 'string', example: 'First Bank' },
                   bankCode: { type: 'string', example: '000016' },
                   accountName: { type: 'string', example: 'John Doe' },
-                }
+                },
               },
               toAccount: {
                 type: 'object',
@@ -293,10 +294,10 @@ export class AuthController {
                   bankName: { type: 'string', example: 'GTBank' },
                   bankCode: { type: 'string', example: '000013' },
                   accountName: { type: 'string', example: 'Jane Smith' },
-                }
-              }
-            }
-          }
+                },
+              },
+            },
+          },
         },
         total: { type: 'number', example: 150 },
         page: { type: 'number', example: 1 },
@@ -304,16 +305,16 @@ export class AuthController {
         stats: {
           type: 'object',
           properties: {
-            totalAmount: { type: 'number', example: 250000.00 },
+            totalAmount: { type: 'number', example: 250000.0 },
             totalTransactions: { type: 'number', example: 150 },
             completed: { type: 'number', example: 145 },
             pending: { type: 'number', example: 3 },
             failed: { type: 'number', example: 2 },
             cancelled: { type: 'number', example: 0 },
-          }
-        }
-      }
-    }
+          },
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 401,
@@ -326,7 +327,9 @@ export class AuthController {
     @Query('type') type?: string,
     @Query('status') status?: string,
   ) {
-    console.log('💸 [AUTH API] GET /auth/transactions - User transactions request');
+    console.log(
+      '💸 [AUTH API] GET /auth/transactions - User transactions request',
+    );
     console.log('🆔 User ID:', req.user.id);
     console.log('📊 Query params:', { limit, offset, type, status });
 
@@ -339,7 +342,13 @@ export class AuthController {
     );
 
     console.log('✅ [AUTH API] User transactions retrieved successfully');
-    console.log('📄 Found', result.transactions.length, 'transactions of', result.total, 'total');
+    console.log(
+      '📄 Found',
+      result.transactions.length,
+      'transactions of',
+      result.total,
+      'total',
+    );
 
     return result;
   }
@@ -349,7 +358,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get detailed transaction information by ID',
-    description: 'Retrieve specific transaction details by its unique identifier.',
+    description:
+      'Retrieve specific transaction details by its unique identifier.',
   })
   @ApiResponse({
     status: 200,
@@ -368,11 +378,16 @@ export class AuthController {
     @Request() req,
     @Param('id') id: string,
   ): Promise<TransactionDetailResponseDto> {
-    console.log('🔍 [AUTH API] GET /auth/transactions/:id - Get transaction by ID');
+    console.log(
+      '🔍 [AUTH API] GET /auth/transactions/:id - Get transaction by ID',
+    );
     console.log('🆔 User ID:', req.user.id);
     console.log('🔗 Transaction ID:', id);
 
-    const result = await this.authService.getUserTransactionDetail(req.user.id, id);
+    const result = await this.authService.getUserTransactionDetail(
+      req.user.id,
+      id,
+    );
 
     console.log('✅ [AUTH API] Transaction details retrieved successfully');
     console.log('📄 Response:', result);
@@ -389,18 +404,27 @@ export class AuthController {
     description: 'Transaction reported successfully',
     type: ReportTransactionResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Invalid request or already reported' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request or already reported',
+  })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   async reportTransaction(
     @Request() req,
     @Param('id') transactionId: string,
     @Body() reportDto: ReportTransactionDto,
   ): Promise<ReportTransactionResponseDto> {
-    console.log('🚨 [AUTH API] POST /auth/transactions/:id/report - Report transaction');
+    console.log(
+      '🚨 [AUTH API] POST /auth/transactions/:id/report - Report transaction',
+    );
     console.log('🆔 User ID:', req.user.id);
     console.log('🔗 Transaction ID:', transactionId);
 
-    const result = await this.authService.reportTransaction(req.user.id, transactionId, reportDto);
+    const result = await this.authService.reportTransaction(
+      req.user.id,
+      transactionId,
+      reportDto,
+    );
     console.log('✅ [AUTH API] Transaction reported successfully');
     console.log('📄 Response:', result);
     return result;
@@ -409,8 +433,18 @@ export class AuthController {
   @Get('transaction-reports')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user transaction reports' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of reports to return', type: Number })
-  @ApiQuery({ name: 'offset', required: false, description: 'Number of reports to skip', type: Number })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of reports to return',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    description: 'Number of reports to skip',
+    type: Number,
+  })
   @ApiResponse({
     status: 200,
     description: 'Transaction reports retrieved successfully',
@@ -421,13 +455,19 @@ export class AuthController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ): Promise<GetTransactionReportsResponseDto> {
-    console.log('📋 [AUTH API] GET /auth/transaction-reports - Get user transaction reports');
+    console.log(
+      '📋 [AUTH API] GET /auth/transaction-reports - Get user transaction reports',
+    );
     console.log('🆔 User ID:', req.user.id);
 
     const limitNum = limit ? parseInt(limit, 10) : 20;
     const offsetNum = offset ? parseInt(offset, 10) : 0;
 
-    const result = await this.authService.getUserTransactionReports(req.user.id, limitNum, offsetNum);
+    const result = await this.authService.getUserTransactionReports(
+      req.user.id,
+      limitNum,
+      offsetNum,
+    );
     console.log('✅ [AUTH API] Transaction reports retrieved successfully');
     console.log('📄 Response:', result);
     return result;
@@ -436,7 +476,8 @@ export class AuthController {
   @Post('request-reset-otp')
   @ApiOperation({
     summary: 'Request OTP for PIN/Passcode reset',
-    description: 'Request a 6-digit OTP code to reset transaction PIN or passcode',
+    description:
+      'Request a 6-digit OTP code to reset transaction PIN or passcode',
   })
   @ApiResponse({
     status: 200,
@@ -450,7 +491,9 @@ export class AuthController {
   async requestResetOtp(
     @Body() dto: RequestPinResetOtpDto,
   ): Promise<OtpRequestResponseDto> {
-    console.log('🔐 [AUTH API] POST /auth/request-reset-otp - Request reset OTP');
+    console.log(
+      '🔐 [AUTH API] POST /auth/request-reset-otp - Request reset OTP',
+    );
     console.log('📧 Email:', dto.email);
 
     const result = await this.authService.requestResetOtp(dto);
@@ -465,7 +508,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Change transaction PIN',
-    description: 'Change the 4-digit wallet transaction PIN. Can use current PIN or OTP for verification. Requires authentication.',
+    description:
+      'Change the 4-digit wallet transaction PIN. Can use current PIN or OTP for verification. Requires authentication.',
   })
   @ApiResponse({
     status: 200,
@@ -487,7 +531,10 @@ export class AuthController {
     console.log('🔐 [AUTH API] POST /auth/change-transaction-pin - Change PIN');
     console.log('🆔 User ID:', req.user.id);
 
-    const result = await this.authService.changeTransactionPin(req.user.id, dto);
+    const result = await this.authService.changeTransactionPin(
+      req.user.id,
+      dto,
+    );
 
     console.log('✅ [AUTH API] Transaction PIN changed successfully');
 
@@ -497,7 +544,8 @@ export class AuthController {
   @Post('reset-transaction-pin')
   @ApiOperation({
     summary: 'Reset transaction PIN using OTP',
-    description: 'Reset the 4-digit wallet transaction PIN using OTP. No authentication required - use this when user forgot their PIN.',
+    description:
+      'Reset the 4-digit wallet transaction PIN using OTP. No authentication required - use this when user forgot their PIN.',
   })
   @ApiResponse({
     status: 200,
@@ -534,7 +582,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Change login passcode',
-    description: 'Change the 6-digit login passcode. Can use current passcode or OTP for verification. Requires authentication.',
+    description:
+      'Change the 6-digit login passcode. Can use current passcode or OTP for verification. Requires authentication.',
   })
   @ApiResponse({
     status: 200,
@@ -566,7 +615,8 @@ export class AuthController {
   @Post('reset-passcode')
   @ApiOperation({
     summary: 'Reset login passcode using OTP',
-    description: 'Reset the 6-digit login passcode using OTP. No authentication required - use this when user forgot their passcode.',
+    description:
+      'Reset the 6-digit login passcode using OTP. No authentication required - use this when user forgot their passcode.',
   })
   @ApiResponse({
     status: 200,
@@ -603,7 +653,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Request account deletion',
-    description: 'Request to delete/deactivate the user account. An OTP will be sent for confirmation.',
+    description:
+      'Request to delete/deactivate the user account. An OTP will be sent for confirmation.',
   })
   @ApiResponse({
     status: 200,
@@ -618,11 +669,16 @@ export class AuthController {
     @Request() req,
     @Body() dto: RequestAccountDeletionDto,
   ): Promise<OtpRequestResponseDto> {
-    console.log('🗑️ [AUTH API] POST /auth/request-account-deletion - Request deletion');
+    console.log(
+      '🗑️ [AUTH API] POST /auth/request-account-deletion - Request deletion',
+    );
     console.log('🆔 User ID:', req.user.id);
     console.log('📝 Reason:', dto.reason);
 
-    const result = await this.authService.requestAccountDeletion(req.user.id, dto);
+    const result = await this.authService.requestAccountDeletion(
+      req.user.id,
+      dto,
+    );
 
     console.log('✅ [AUTH API] Account deletion OTP sent successfully');
 
@@ -634,7 +690,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Confirm account deletion',
-    description: 'Confirm account deletion with OTP code. This will deactivate the account.',
+    description:
+      'Confirm account deletion with OTP code. This will deactivate the account.',
   })
   @ApiResponse({
     status: 200,
@@ -652,7 +709,10 @@ export class AuthController {
     console.log('🗑️ [AUTH API] POST /auth/confirm-account-deletion');
     console.log('👤 User ID:', req.user.id);
 
-    const result = await this.authService.confirmAccountDeletion(req.user.id, dto);
+    const result = await this.authService.confirmAccountDeletion(
+      req.user.id,
+      dto,
+    );
 
     console.log('✅ [AUTH API] Account deletion confirmed');
     console.log('📄 Response:', result);
@@ -665,7 +725,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Sign out user',
-    description: 'Sign out user and optionally disable transaction notifications while keeping promotional notifications.',
+    description:
+      'Sign out user and optionally disable transaction notifications while keeping promotional notifications.',
   })
   @ApiResponse({
     status: 200,
@@ -697,7 +758,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Update push notification preferences',
-    description: 'Update user push notification preferences for different types of notifications. These preferences only affect push notifications, not real-time websocket notifications.',
+    description:
+      'Update user push notification preferences for different types of notifications. These preferences only affect push notifications, not real-time websocket notifications.',
   })
   @ApiResponse({
     status: 200,
@@ -716,7 +778,10 @@ export class AuthController {
     console.log('👤 User ID:', req.user.id);
     console.log('📱 New preferences:', dto);
 
-    const result = await this.authService.updateNotificationPreferences(req.user.id, dto);
+    const result = await this.authService.updateNotificationPreferences(
+      req.user.id,
+      dto,
+    );
 
     console.log('✅ [AUTH API] Notification preferences updated');
     console.log('📄 Response:', result);
@@ -729,7 +794,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get push notification preferences',
-    description: 'Get current user push notification preferences. These preferences only affect push notifications, not real-time websocket notifications.',
+    description:
+      'Get current user push notification preferences. These preferences only affect push notifications, not real-time websocket notifications.',
   })
   @ApiResponse({
     status: 200,
@@ -746,7 +812,9 @@ export class AuthController {
     console.log('🔔 [AUTH API] GET /auth/notification-preferences');
     console.log('👤 User ID:', req.user.id);
 
-    const result = await this.authService.getNotificationPreferences(req.user.id);
+    const result = await this.authService.getNotificationPreferences(
+      req.user.id,
+    );
 
     console.log('✅ [AUTH API] Notification preferences retrieved');
     console.log('📄 Response:', result);
@@ -759,7 +827,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Update device token on login',
-    description: 'Update the device token for the authenticated user. This should be called after successful login to ensure push notifications go to the current device.',
+    description:
+      'Update the device token for the authenticated user. This should be called after successful login to ensure push notifications go to the current device.',
   })
   @ApiResponse({
     status: 200,

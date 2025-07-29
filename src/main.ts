@@ -12,14 +12,14 @@ async function bootstrap() {
     // Enable CORS
     app.enableCors();
 
-  // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+    // Global validation pipe
+    app.useGlobalPipes(
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    );
 
     // Swagger configuration (simplified for production)
     if (process.env.NODE_ENV !== 'production') {

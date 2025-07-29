@@ -62,7 +62,7 @@ export class AuditorController {
       });
 
       this.logger.log(`✅ Created auditor configuration: ${config.name}`);
-      
+
       return {
         success: true,
         message: 'Auditor configuration created successfully',
@@ -95,7 +95,10 @@ export class AuditorController {
       });
 
       if (!config) {
-        throw new HttpException('Configuration not found', HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Configuration not found',
+          HttpStatus.NOT_FOUND,
+        );
       }
 
       return {
@@ -128,7 +131,7 @@ export class AuditorController {
       });
 
       this.logger.log(`✅ Updated auditor configuration: ${config.name}`);
-      
+
       return {
         success: true,
         message: 'Configuration updated successfully',
@@ -182,7 +185,9 @@ export class AuditorController {
     @Body() dto: PrimeChatMessageDto,
   ): Promise<PrimeChatResponse> {
     try {
-      this.logger.log(`🤖 Prime chat message: ${dto.message.substring(0, 100)}...`);
+      this.logger.log(
+        `🤖 Prime chat message: ${dto.message.substring(0, 100)}...`,
+      );
 
       let sessionId = dto.sessionId;
       let chat;
@@ -203,7 +208,7 @@ export class AuditorController {
       if (!chat) {
         // Create new chat session
         sessionId = `prime_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
+
         // Get or create default configuration
         let config = await this.prisma.auditorConfiguration.findFirst({
           where: { isActive: true },
@@ -272,7 +277,9 @@ export class AuditorController {
           role: AuditorMessageRole.ASSISTANT,
           content: geminiResponse.response,
           metadata: geminiResponse.metadata,
-          tokens: geminiResponse.metadata.tokens?.input_tokens + geminiResponse.metadata.tokens?.output_tokens,
+          tokens:
+            geminiResponse.metadata.tokens?.input_tokens +
+            geminiResponse.metadata.tokens?.output_tokens,
         },
       });
 
@@ -290,7 +297,9 @@ export class AuditorController {
         });
       }
 
-      this.logger.log(`✅ Prime chat response generated for session: ${sessionId}`);
+      this.logger.log(
+        `✅ Prime chat response generated for session: ${sessionId}`,
+      );
 
       return {
         success: true,
@@ -360,29 +369,36 @@ export class AuditorController {
       this.logger.log(`📊 Generating ${dto.type} analysis`);
 
       let analysisResult;
-      
+
       if (dto.type === AuditorReportType.FINANCIAL_ANALYSIS) {
         const metrics = await this.metricsCollectorService.collectMetrics(
           dto.timeframe || 'last_30_days',
           'daily',
         );
-        analysisResult = await this.geminiAiService.generateFinancialAnalysis(
-          metrics,
-        );
+        analysisResult =
+          await this.geminiAiService.generateFinancialAnalysis(metrics);
       } else if (dto.type === AuditorReportType.RISK_ASSESSMENT) {
         // Get user and transaction data
-        const userData = dto.userIds ? await this.getUserData(dto.userIds) : null;
-        const transactionData = dto.transactionIds ? 
-          await this.getTransactionData(dto.transactionIds) : null;
-        
-        analysisResult = await this.geminiAiService.generateRiskAssessment(
-          { userData, transactionData },
-        );
+        const userData = dto.userIds
+          ? await this.getUserData(dto.userIds)
+          : null;
+        const transactionData = dto.transactionIds
+          ? await this.getTransactionData(dto.transactionIds)
+          : null;
+
+        analysisResult = await this.geminiAiService.generateRiskAssessment({
+          userData,
+          transactionData,
+        });
       } else if (dto.type === AuditorReportType.COMPLIANCE_AUDIT) {
         const systemData = await this.getSystemData();
-        analysisResult = await this.geminiAiService.generateComplianceAudit(systemData);
+        analysisResult =
+          await this.geminiAiService.generateComplianceAudit(systemData);
       } else {
-        throw new HttpException('Unsupported analysis type', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Unsupported analysis type',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       // Create a temporary system chat for this report
@@ -454,21 +470,33 @@ export class AuditorController {
    * Get metrics
    */
   @Get('metrics')
-  async getMetrics(@Query() query: CollectMetricsDto): Promise<AuditorResponse> {
+  async getMetrics(
+    @Query() query: CollectMetricsDto,
+  ): Promise<AuditorResponse> {
     try {
       const period = query.period || 'current';
       const periodType = query.periodType || 'daily';
-      
+
       let metrics;
-      
+
       if (query.realTime) {
         metrics = await this.metricsCollectorService.getRealTimeMetrics();
       } else {
-        metrics = await this.metricsCollectorService.getStoredMetrics(period, periodType);
+        metrics = await this.metricsCollectorService.getStoredMetrics(
+          period,
+          periodType,
+        );
         if (!metrics) {
           // Collect and store metrics if not available
-          metrics = await this.metricsCollectorService.collectMetrics(period, periodType);
-          await this.metricsCollectorService.storeMetrics(metrics, period, periodType);
+          metrics = await this.metricsCollectorService.collectMetrics(
+            period,
+            periodType,
+          );
+          await this.metricsCollectorService.storeMetrics(
+            metrics,
+            period,
+            periodType,
+          );
         }
       }
 
@@ -491,7 +519,9 @@ export class AuditorController {
    * Store metrics
    */
   @Post('metrics')
-  async storeMetrics(@Body() dto: CreateAuditorMetricsDto): Promise<AuditorResponse> {
+  async storeMetrics(
+    @Body() dto: CreateAuditorMetricsDto,
+  ): Promise<AuditorResponse> {
     try {
       const metrics = await this.prisma.auditorMetrics.create({
         data: dto,
@@ -594,7 +624,7 @@ export class AuditorController {
   async getHealthCheck(): Promise<HealthCheckResponse> {
     try {
       const startTime = Date.now();
-      
+
       // Check database
       const dbStartTime = Date.now();
       await this.prisma.$queryRaw`SELECT 1`;
@@ -604,7 +634,8 @@ export class AuditorController {
       const geminiHealth = await this.geminiAiService.checkHealth();
 
       // Get system metrics
-      const systemHealth = await this.metricsCollectorService.getSystemHealthSummary();
+      const systemHealth =
+        await this.metricsCollectorService.getSystemHealthSummary();
 
       // Get memory usage
       const memoryUsage = process.memoryUsage();
@@ -697,4 +728,4 @@ export class AuditorController {
       timestamp: new Date(),
     };
   }
-} 
+}

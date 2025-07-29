@@ -188,8 +188,6 @@ export class AdminController {
     return result;
   }
 
-
-
   @Put('kyc/submissions/:userId/review')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
@@ -247,7 +245,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get available wallet providers',
-    description: 'Get list of available wallet providers and current active provider',
+    description:
+      'Get list of available wallet providers and current active provider',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -451,7 +450,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get available transfer providers',
-    description: 'Get list of available transfer providers and current active provider',
+    description:
+      'Get list of available transfer providers and current active provider',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -481,15 +481,18 @@ export class AdminController {
     );
 
     const providers = await this.adminService.getAvailableTransferProviders();
-    const currentProvider = await this.adminService.getCurrentTransferProvider();
+    const currentProvider =
+      await this.adminService.getCurrentTransferProvider();
 
-    console.log('✅ [ADMIN API] Available transfer providers retrieved successfully');
+    console.log(
+      '✅ [ADMIN API] Available transfer providers retrieved successfully',
+    );
     console.log('📄 Current Provider:', currentProvider);
 
     return {
       success: true,
       currentProvider,
-      providers: providers.map(p => p.toString()),
+      providers: providers.map((p) => p.toString()),
       isAdminConfigured: false, // Placeholder
     };
   }
@@ -547,7 +550,9 @@ export class AdminController {
     );
     console.log('🏦 New Provider:', body.provider);
 
-    const result = await this.adminService.switchTransferProvider(body.provider);
+    const result = await this.adminService.switchTransferProvider(
+      body.provider,
+    );
 
     console.log('✅ [ADMIN API] Transfer provider switched successfully');
     console.log('📄 Response:', result);
@@ -590,7 +595,9 @@ export class AdminController {
 
     const provider = await this.adminService.getCurrentTransferProvider();
 
-    console.log('✅ [ADMIN API] Current transfer provider retrieved successfully');
+    console.log(
+      '✅ [ADMIN API] Current transfer provider retrieved successfully',
+    );
     console.log('📄 Current Provider:', provider);
 
     return {
@@ -607,7 +614,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Test bank list retrieval',
-    description: 'Test the bank list retrieval from the current transfer provider',
+    description:
+      'Test the bank list retrieval from the current transfer provider',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -649,8 +657,8 @@ export class AdminController {
     return {
       success: true,
       provider: 'SMEPLUG', // Placeholder
-      bankCount: result.success ? (result.data?.length || 0) : 0,
-      banks: result.success ? (result.data || []) : [],
+      bankCount: result.success ? result.data?.length || 0 : 0,
+      banks: result.success ? result.data || [] : [],
     };
   }
 
@@ -822,7 +830,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get all transfer fee tiers',
-    description: 'Retrieve all transfer fee tiers with amount-based pricing (applies to all providers)',
+    description:
+      'Retrieve all transfer fee tiers with amount-based pricing (applies to all providers)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -830,7 +839,9 @@ export class AdminController {
     type: GetTransferFeeTiersResponse,
   })
   async getTransferFeeTiers(): Promise<GetTransferFeeTiersResponse> {
-    console.log('📊 [ADMIN API] GET /admin/transfer-fees - Retrieving transfer fee tiers');
+    console.log(
+      '📊 [ADMIN API] GET /admin/transfer-fees - Retrieving transfer fee tiers',
+    );
     const result = await this.adminService.getTransferFeeTiers();
     console.log('✅ [ADMIN API] Transfer fee tiers retrieved successfully');
     console.log('📄 Response Data:', { totalTiers: result.tiers.length });
@@ -920,14 +931,18 @@ export class AdminController {
     status: HttpStatus.OK,
     description: 'Transfer fee tier deleted successfully',
   })
-  async deleteTransferFeeTier(@Param('id') id: string): Promise<{ success: boolean; message: string }> {
-    console.log('🗑️ [ADMIN API] DELETE /admin/transfer-fees/:id - Deleting transfer fee tier');
+  async deleteTransferFeeTier(
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; message: string }> {
+    console.log(
+      '🗑️ [ADMIN API] DELETE /admin/transfer-fees/:id - Deleting transfer fee tier',
+    );
     console.log('📝 Tier ID:', id);
     await this.adminService.deleteTransferFeeTier(id);
     console.log('✅ [ADMIN API] Transfer fee tier deleted successfully');
     return {
       success: true,
-      message: 'Transfer fee tier deleted successfully'
+      message: 'Transfer fee tier deleted successfully',
     };
   }
 
@@ -936,13 +951,18 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Calculate transfer fee for amount',
-    description: 'Calculate the transfer fee based on amount and tier structure (applies to all providers)',
+    description:
+      'Calculate the transfer fee based on amount and tier structure (applies to all providers)',
   })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        amount: { type: 'number', example: 5000, description: 'Transfer amount' },
+        amount: {
+          type: 'number',
+          example: 5000,
+          description: 'Transfer amount',
+        },
       },
       required: ['amount'],
     },
@@ -951,18 +971,20 @@ export class AdminController {
     status: HttpStatus.OK,
     description: 'Transfer fee calculated successfully',
   })
-  async calculateTransferFee(
-    @Body() body: { amount: number },
-  ): Promise<{
+  async calculateTransferFee(@Body() body: { amount: number }): Promise<{
     success: boolean;
     amount: number;
     fee: number;
     totalAmount: number;
     tier?: TransferFeeTierResponse;
   }> {
-    console.log('🧮 [ADMIN API] POST /admin/transfer-fees/calculate - Calculating transfer fee');
+    console.log(
+      '🧮 [ADMIN API] POST /admin/transfer-fees/calculate - Calculating transfer fee',
+    );
     console.log('📝 Amount:', body.amount);
-    const result = await this.adminService.calculateTransferFeeFromTiers(body.amount);
+    const result = await this.adminService.calculateTransferFeeFromTiers(
+      body.amount,
+    );
     console.log('✅ [ADMIN API] Transfer fee calculated successfully');
     console.log('📄 Fee:', result.fee, 'Total:', body.amount + result.fee);
     return {
@@ -979,16 +1001,25 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Seed default transfer fee tiers',
-    description: 'Create default universal transfer fee tiers (₦10-₦9,999: ₦25, ₦10,000-₦49,999: ₦50, ₦50,000+: ₦100)',
+    description:
+      'Create default universal transfer fee tiers (₦10-₦9,999: ₦25, ₦10,000-₦49,999: ₦50, ₦50,000+: ₦100)',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Default transfer fee tiers seeded successfully',
   })
-  async seedDefaultTransferFeeTiers(): Promise<{ success: boolean; message: string; data: any[] }> {
-    console.log('🌱 [ADMIN API] POST /admin/transfer-fees/seed - Seeding default transfer fee tiers');
+  async seedDefaultTransferFeeTiers(): Promise<{
+    success: boolean;
+    message: string;
+    data: any[];
+  }> {
+    console.log(
+      '🌱 [ADMIN API] POST /admin/transfer-fees/seed - Seeding default transfer fee tiers',
+    );
     const result = await this.adminService.seedDefaultTransferFeeTiers();
-    console.log('✅ [ADMIN API] Default transfer fee tiers seeded successfully');
+    console.log(
+      '✅ [ADMIN API] Default transfer fee tiers seeded successfully',
+    );
     return result;
   }
 
@@ -1022,7 +1053,8 @@ export class AdminController {
     name: 'status',
     required: false,
     type: String,
-    description: 'Filter by user status (active, inactive, verified, unverified)',
+    description:
+      'Filter by user status (active, inactive, verified, unverified)',
     example: 'active',
   })
   @ApiQuery({
@@ -1044,7 +1076,12 @@ export class AdminController {
     @Query('search') search?: string,
   ): Promise<GetUsersResponse> {
     console.log('👥 [ADMIN API] GET /admin/users - Retrieving users');
-    console.log('📊 [ADMIN API] Query params:', { limit, offset, status, search });
+    console.log('📊 [ADMIN API] Query params:', {
+      limit,
+      offset,
+      status,
+      search,
+    });
 
     const result = await this.adminService.getUsers(
       limit ? Number(limit) : 20,
@@ -1054,7 +1091,13 @@ export class AdminController {
     );
 
     console.log('✅ [ADMIN API] Users retrieved successfully');
-    console.log('📄 [ADMIN API] Found', result.users.length, 'users of', result.total, 'total');
+    console.log(
+      '📄 [ADMIN API] Found',
+      result.users.length,
+      'users of',
+      result.total,
+      'total',
+    );
 
     return result;
   }
@@ -1080,8 +1123,12 @@ export class AdminController {
     status: HttpStatus.NOT_FOUND,
     description: 'User not found',
   })
-  async getUserDetail(@Param('userId') userId: string): Promise<GetUserDetailResponse> {
-    console.log('🔍 [ADMIN API] GET /admin/users/:userId - Getting user details');
+  async getUserDetail(
+    @Param('userId') userId: string,
+  ): Promise<GetUserDetailResponse> {
+    console.log(
+      '🔍 [ADMIN API] GET /admin/users/:userId - Getting user details',
+    );
     console.log('👤 [ADMIN API] User ID:', userId);
 
     const result = await this.adminService.getUserDetail(userId);
@@ -1095,7 +1142,8 @@ export class AdminController {
   @Delete('users')
   @ApiOperation({
     summary: 'Delete user',
-    description: 'Delete a user by ID or email. This will also delete associated wallet, transactions, and other related data.',
+    description:
+      'Delete a user by ID or email. This will also delete associated wallet, transactions, and other related data.',
   })
   @ApiBody({
     type: DeleteUserDto,
@@ -1114,7 +1162,9 @@ export class AdminController {
     status: HttpStatus.NOT_FOUND,
     description: 'User not found',
   })
-  async deleteUser(@Body(ValidationPipe) deleteUserDto: DeleteUserDto): Promise<DeleteUserResponse> {
+  async deleteUser(
+    @Body(ValidationPipe) deleteUserDto: DeleteUserDto,
+  ): Promise<DeleteUserResponse> {
     console.log('🗑️ [ADMIN API] DELETE /admin/users - Deleting user');
     console.log('📝 [ADMIN API] Delete criteria:', deleteUserDto);
 
@@ -1137,7 +1187,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
   @ApiOperation({
     summary: 'Get all transactions',
-    description: 'Retrieve all transactions with pagination and filtering options',
+    description:
+      'Retrieve all transactions with pagination and filtering options',
   })
   @ApiQuery({
     name: 'limit',
@@ -1195,8 +1246,18 @@ export class AdminController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<GetTransactionsResponse> {
-    console.log('💸 [ADMIN API] GET /admin/transactions - Retrieving transactions');
-    console.log('📊 [ADMIN API] Query params:', { limit, offset, type, status, userId, startDate, endDate });
+    console.log(
+      '💸 [ADMIN API] GET /admin/transactions - Retrieving transactions',
+    );
+    console.log('📊 [ADMIN API] Query params:', {
+      limit,
+      offset,
+      type,
+      status,
+      userId,
+      startDate,
+      endDate,
+    });
 
     const result = await this.adminService.getTransactions(
       limit ? Number(limit) : 20,
@@ -1209,7 +1270,13 @@ export class AdminController {
     );
 
     console.log('✅ [ADMIN API] Transactions retrieved successfully');
-    console.log('📄 [ADMIN API] Found', result.transactions.length, 'transactions of', result.total, 'total');
+    console.log(
+      '📄 [ADMIN API] Found',
+      result.transactions.length,
+      'transactions of',
+      result.total,
+      'total',
+    );
 
     return result;
   }
@@ -1235,8 +1302,12 @@ export class AdminController {
     status: HttpStatus.NOT_FOUND,
     description: 'Transaction not found',
   })
-  async getTransactionDetail(@Param('transactionId') transactionId: string): Promise<GetTransactionDetailResponse> {
-    console.log('🔍 [ADMIN API] GET /admin/transactions/:transactionId - Getting transaction details');
+  async getTransactionDetail(
+    @Param('transactionId') transactionId: string,
+  ): Promise<GetTransactionDetailResponse> {
+    console.log(
+      '🔍 [ADMIN API] GET /admin/transactions/:transactionId - Getting transaction details',
+    );
     console.log('💳 [ADMIN API] Transaction ID:', transactionId);
 
     const result = await this.adminService.getTransactionDetail(transactionId);
@@ -1254,7 +1325,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Get dashboard statistics',
-    description: 'Get comprehensive dashboard statistics including users, transactions, and wallets',
+    description:
+      'Get comprehensive dashboard statistics including users, transactions, and wallets',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -1305,7 +1377,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Fund user wallet',
-    description: 'Admin endpoint to fund a user wallet by userId, email, or account number',
+    description:
+      'Admin endpoint to fund a user wallet by userId, email, or account number',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -1352,7 +1425,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Debit user wallet',
-    description: 'Admin endpoint to debit from a user wallet by userId, email, or account number',
+    description:
+      'Admin endpoint to debit from a user wallet by userId, email, or account number',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -1370,7 +1444,9 @@ export class AdminController {
   async debitWallet(
     @Body(ValidationPipe) dto: DebitWalletDto,
   ): Promise<WalletOperationResponse> {
-    console.log('💸 [ADMIN API] POST /admin/debit-wallet - Debit wallet request');
+    console.log(
+      '💸 [ADMIN API] POST /admin/debit-wallet - Debit wallet request',
+    );
     console.log('📝 Request data:', {
       userId: dto.userId,
       email: dto.email,
@@ -1399,7 +1475,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Edit user information',
-    description: 'Admin endpoint to edit any user field including email, phone, names, KYC status, etc.',
+    description:
+      'Admin endpoint to edit any user field including email, phone, names, KYC status, etc.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -1420,7 +1497,9 @@ export class AdminController {
     console.log('✏️ [ADMIN API] PUT /admin/edit-user - Edit user request');
     console.log('📝 Request data:', {
       userId: dto.userId,
-      updatingFields: Object.keys(dto).filter(key => key !== 'userId' && dto[key] !== undefined),
+      updatingFields: Object.keys(dto).filter(
+        (key) => key !== 'userId' && dto[key] !== undefined,
+      ),
     });
 
     const result = await this.adminService.editUser(dto);
@@ -1440,7 +1519,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Create wallet for user',
-    description: 'Admin endpoint to create a wallet for a user with specific provider',
+    description:
+      'Admin endpoint to create a wallet for a user with specific provider',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -1458,7 +1538,9 @@ export class AdminController {
   async createWallet(
     @Body(ValidationPipe) dto: CreateWalletDto,
   ): Promise<CreateWalletResponse> {
-    console.log('🏦 [ADMIN API] POST /admin/create-wallet - Create wallet request');
+    console.log(
+      '🏦 [ADMIN API] POST /admin/create-wallet - Create wallet request',
+    );
     console.log('📝 Request data:', {
       userId: dto.userId,
       email: dto.email,
@@ -1488,7 +1570,8 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Promote existing user to admin',
-    description: 'SUDO_ADMIN only: Promote an existing user to admin role with specific permissions',
+    description:
+      'SUDO_ADMIN only: Promote an existing user to admin role with specific permissions',
   })
   @ApiBody({ type: CreateAdminDto })
   @ApiResponse({
@@ -1508,7 +1591,9 @@ export class AdminController {
     @Request() req,
     @Body(ValidationPipe) createAdminDto: CreateAdminDto,
   ): Promise<CreateAdminResponse> {
-    console.log('👑 [ADMIN API] POST /admin/create-admin - Promoting user to admin');
+    console.log(
+      '👑 [ADMIN API] POST /admin/create-admin - Promoting user to admin',
+    );
     console.log('📝 Request Data:', {
       email: createAdminDto.email,
       role: createAdminDto.role,
@@ -1520,7 +1605,7 @@ export class AdminController {
       req.user.id,
       req.user.email,
       req.ip,
-      req.headers['user-agent']
+      req.headers['user-agent'],
     );
 
     console.log('✅ [ADMIN API] User promoted to admin successfully');
@@ -1593,7 +1678,13 @@ export class AdminController {
     );
 
     console.log('✅ [ADMIN API] Admins retrieved successfully');
-    console.log('📄 Found', result.admins.length, 'admins of', result.total, 'total');
+    console.log(
+      '📄 Found',
+      result.admins.length,
+      'admins of',
+      result.total,
+      'total',
+    );
 
     return result;
   }
@@ -1625,7 +1716,9 @@ export class AdminController {
     description: 'Unauthorized - Requires ADMIN or SUDO_ADMIN role',
   })
   async getAdminDetail(@Param('adminId') adminId: string): Promise<AdminDto> {
-    console.log('🔍 [ADMIN API] GET /admin/admins/:adminId - Getting admin details');
+    console.log(
+      '🔍 [ADMIN API] GET /admin/admins/:adminId - Getting admin details',
+    );
     console.log('👤 Admin ID:', adminId);
 
     const result = await this.adminService.getAdminDetail(adminId);
@@ -1642,7 +1735,8 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Update admin user',
-    description: 'SUDO_ADMIN only: Update admin information, role, and permissions',
+    description:
+      'SUDO_ADMIN only: Update admin information, role, and permissions',
   })
   @ApiParam({
     name: 'adminId',
@@ -1718,7 +1812,9 @@ export class AdminController {
     @Param('adminId') adminId: string,
     @Body(ValidationPipe) deleteAdminDto: DeleteAdminDto,
   ): Promise<DeleteAdminResponse> {
-    console.log('🗑️ [ADMIN API] DELETE /admin/admins/:adminId - Deleting admin');
+    console.log(
+      '🗑️ [ADMIN API] DELETE /admin/admins/:adminId - Deleting admin',
+    );
     console.log('👤 Admin ID:', adminId);
     console.log('📝 Reason:', deleteAdminDto.reason);
 
@@ -1745,14 +1841,22 @@ export class AdminController {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
-        message: { type: 'string', example: 'Role permissions retrieved successfully' },
+        message: {
+          type: 'string',
+          example: 'Role permissions retrieved successfully',
+        },
         roles: {
           type: 'object',
           properties: {
             ADMIN: {
               type: 'array',
               items: { type: 'string' },
-              example: ['VIEW_USERS', 'VIEW_TRANSACTIONS', 'VIEW_KYC', 'APPROVE_KYC'],
+              example: [
+                'VIEW_USERS',
+                'VIEW_TRANSACTIONS',
+                'VIEW_KYC',
+                'APPROVE_KYC',
+              ],
             },
             CUSTOMER_REP: {
               type: 'array',
@@ -1775,7 +1879,9 @@ export class AdminController {
     },
   })
   async getRolePermissions() {
-    console.log('📋 [ADMIN API] GET /admin/roles/permissions - Getting role permissions');
+    console.log(
+      '📋 [ADMIN API] GET /admin/roles/permissions - Getting role permissions',
+    );
 
     const result = await this.adminService.getRolePermissions();
 
@@ -1790,13 +1896,15 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get admin action logs',
-    description: 'Retrieve logs of all admin actions with filtering and pagination',
+    description:
+      'Retrieve logs of all admin actions with filtering and pagination',
   })
   @ApiQuery({
     name: 'action',
     required: false,
     type: String,
-    description: 'Filter by action type (e.g., CREATE_ADMIN, UPDATE_ADMIN, DELETE_ADMIN)',
+    description:
+      'Filter by action type (e.g., CREATE_ADMIN, UPDATE_ADMIN, DELETE_ADMIN)',
   })
   @ApiQuery({
     name: 'adminEmail',
@@ -1853,8 +1961,14 @@ export class AdminController {
     @Query('offset') offset?: number,
   ): Promise<GetAdminLogsResponse> {
     console.log('📋 [ADMIN API] GET /admin/logs - Retrieving admin logs');
-    console.log('📊 Query params:', { 
-      action, adminEmail, targetEmail, startDate, endDate, limit, offset 
+    console.log('📊 Query params:', {
+      action,
+      adminEmail,
+      targetEmail,
+      startDate,
+      endDate,
+      limit,
+      offset,
     });
 
     const result = await this.adminService.getAdminLogs(
@@ -1868,7 +1982,13 @@ export class AdminController {
     );
 
     console.log('✅ [ADMIN API] Admin logs retrieved successfully');
-    console.log('📄 Found', result.logs.length, 'logs of', result.total, 'total');
+    console.log(
+      '📄 Found',
+      result.logs.length,
+      'logs of',
+      result.total,
+      'total',
+    );
 
     return result;
   }
@@ -1932,10 +2052,16 @@ export class AdminController {
     @Query('accountNumber') accountNumber?: string,
   ) {
     console.log('💰 [ADMIN API] GET /admin/wallet/balance - Request received');
-    console.log('🔍 [ADMIN API] Query params:', { userId, email, accountNumber });
+    console.log('🔍 [ADMIN API] Query params:', {
+      userId,
+      email,
+      accountNumber,
+    });
 
     if (!userId && !email && !accountNumber) {
-      throw new BadRequestException('Must provide userId, email, or accountNumber');
+      throw new BadRequestException(
+        'Must provide userId, email, or accountNumber',
+      );
     }
 
     const result = await this.adminService.getWalletBalance({
@@ -1969,7 +2095,9 @@ export class AdminController {
     type: TotalWalletBalanceResponse,
   })
   async getTotalWalletBalance(): Promise<TotalWalletBalanceResponse> {
-    console.log('💰 [ADMIN API] GET /admin/wallet/total-balance - Request received');
+    console.log(
+      '💰 [ADMIN API] GET /admin/wallet/total-balance - Request received',
+    );
 
     const result = await this.adminService.getTotalWalletBalance();
 
@@ -1990,7 +2118,8 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Freeze a user wallet',
-    description: 'Freeze a wallet to prevent transactions. Must provide userId, email, or accountNumber',
+    description:
+      'Freeze a wallet to prevent transactions. Must provide userId, email, or accountNumber',
   })
   @ApiBody({ type: FreezeWalletDto })
   @ApiResponse({
@@ -2014,8 +2143,14 @@ export class AdminController {
     console.log('👤 [ADMIN API] Admin ID:', req.user.id);
     console.log('📝 [ADMIN API] Request Data:', freezeWalletDto);
 
-    if (!freezeWalletDto.userId && !freezeWalletDto.email && !freezeWalletDto.accountNumber) {
-      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    if (
+      !freezeWalletDto.userId &&
+      !freezeWalletDto.email &&
+      !freezeWalletDto.accountNumber
+    ) {
+      throw new BadRequestException(
+        'Must provide userId, email, or accountNumber',
+      );
     }
 
     const result = await this.adminService.freezeWallet(
@@ -2041,7 +2176,8 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Unfreeze a user wallet',
-    description: 'Unfreeze a wallet to allow transactions again. Must provide userId, email, or accountNumber',
+    description:
+      'Unfreeze a wallet to allow transactions again. Must provide userId, email, or accountNumber',
   })
   @ApiBody({ type: UnfreezeWalletDto })
   @ApiResponse({
@@ -2061,12 +2197,20 @@ export class AdminController {
     @Request() req,
     @Body(ValidationPipe) unfreezeWalletDto: UnfreezeWalletDto,
   ): Promise<WalletFreezeResponse> {
-    console.log('🔥 [ADMIN API] POST /admin/wallet/unfreeze - Request received');
+    console.log(
+      '🔥 [ADMIN API] POST /admin/wallet/unfreeze - Request received',
+    );
     console.log('👤 [ADMIN API] Admin ID:', req.user.id);
     console.log('📝 [ADMIN API] Request Data:', unfreezeWalletDto);
 
-    if (!unfreezeWalletDto.userId && !unfreezeWalletDto.email && !unfreezeWalletDto.accountNumber) {
-      throw new BadRequestException('Must provide userId, email, or accountNumber');
+    if (
+      !unfreezeWalletDto.userId &&
+      !unfreezeWalletDto.email &&
+      !unfreezeWalletDto.accountNumber
+    ) {
+      throw new BadRequestException(
+        'Must provide userId, email, or accountNumber',
+      );
     }
 
     const result = await this.adminService.unfreezeWallet(
@@ -2092,13 +2236,15 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get provider wallet details',
-    description: 'Retrieve detailed information about the current wallet provider account including balance and status',
+    description:
+      'Retrieve detailed information about the current wallet provider account including balance and status',
   })
   @ApiQuery({
     name: 'provider',
     required: false,
     type: String,
-    description: 'Provider to get wallet details for (optional - uses current provider if not specified)',
+    description:
+      'Provider to get wallet details for (optional - uses current provider if not specified)',
     example: 'NYRA',
   })
   @ApiResponse({
@@ -2113,12 +2259,18 @@ export class AdminController {
   async getProviderWalletDetails(
     @Query(ValidationPipe) query: GetProviderWalletDetailsQueryDto,
   ): Promise<ProviderWalletDetailsResponse> {
-    console.log('🏦 [ADMIN API] GET /admin/wallet/provider-details - Retrieving provider wallet details');
+    console.log(
+      '🏦 [ADMIN API] GET /admin/wallet/provider-details - Retrieving provider wallet details',
+    );
     console.log('📊 Query params:', query);
 
-    const result = await this.adminService.getProviderWalletDetails(query.provider);
+    const result = await this.adminService.getProviderWalletDetails(
+      query.provider,
+    );
 
-    console.log('✅ [ADMIN API] Provider wallet details retrieved successfully');
+    console.log(
+      '✅ [ADMIN API] Provider wallet details retrieved successfully',
+    );
     console.log('📄 Response Data:', result);
 
     return result;
@@ -2148,11 +2300,11 @@ export class AdminController {
             balance: { type: 'number' },
             formattedBalance: { type: 'string' },
             currency: { type: 'string' },
-            lastUpdated: { type: 'string' }
-          }
-        }
-      }
-    }
+            lastUpdated: { type: 'string' },
+          },
+        },
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -2163,11 +2315,15 @@ export class AdminController {
     description: 'Forbidden - Insufficient permissions',
   })
   async getNyraBusinessWalletBalance() {
-    console.log('🏦 [ADMIN API] GET /admin/wallet/nyra-business-balance - Retrieving NYRA business wallet balance');
+    console.log(
+      '🏦 [ADMIN API] GET /admin/wallet/nyra-business-balance - Retrieving NYRA business wallet balance',
+    );
 
     const result = await this.adminService.getNyraBusinessWalletBalance();
 
-    console.log('✅ [ADMIN API] NYRA business wallet balance retrieved successfully');
+    console.log(
+      '✅ [ADMIN API] NYRA business wallet balance retrieved successfully',
+    );
     console.log('📄 Response Data:', result);
 
     return result;
@@ -2181,10 +2337,26 @@ export class AdminController {
     summary: 'Get webhook logs',
     description: 'Retrieve webhook processing logs with filtering options',
   })
-  @ApiQuery({ name: 'provider', required: false, description: 'Filter by provider' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by status (processed, pending, error)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of logs to return' })
-  @ApiQuery({ name: 'offset', required: false, description: 'Number of logs to skip' })
+  @ApiQuery({
+    name: 'provider',
+    required: false,
+    description: 'Filter by provider',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by status (processed, pending, error)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of logs to return',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    description: 'Number of logs to skip',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Webhook logs retrieved successfully',
@@ -2195,7 +2367,9 @@ export class AdminController {
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
   ) {
-    console.log('📋 [ADMIN API] GET /admin/webhooks/logs - Retrieving webhook logs');
+    console.log(
+      '📋 [ADMIN API] GET /admin/webhooks/logs - Retrieving webhook logs',
+    );
     console.log('📊 Query params:', { provider, status, limit, offset });
 
     const result = await this.adminService.getWebhookLogs({
@@ -2223,7 +2397,8 @@ export class AdminController {
   @Roles(UserRole.SUDO_ADMIN)
   @ApiOperation({
     summary: 'Migrate existing users to NYRA accounts',
-    description: 'Creates NYRA accounts for existing users while keeping their original accounts as backup funding sources. Supports dry-run mode for testing.',
+    description:
+      'Creates NYRA accounts for existing users while keeping their original accounts as backup funding sources. Supports dry-run mode for testing.',
   })
   @ApiQuery({
     name: 'dryRun',
@@ -2252,7 +2427,10 @@ export class AdminController {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
-        message: { type: 'string', example: 'Migration completed: 15/20 users migrated successfully' },
+        message: {
+          type: 'string',
+          example: 'Migration completed: 15/20 users migrated successfully',
+        },
         totalUsers: { type: 'number', example: 20 },
         processedUsers: { type: 'number', example: 20 },
         successfulMigrations: { type: 'number', example: 15 },
@@ -2275,7 +2453,10 @@ export class AdminController {
             properties: {
               userId: { type: 'string' },
               email: { type: 'string' },
-              status: { type: 'string', enum: ['success', 'failed', 'skipped'] },
+              status: {
+                type: 'string',
+                enum: ['success', 'failed', 'skipped'],
+              },
               oldProvider: { type: 'string' },
               oldAccountNumber: { type: 'string' },
               nyraAccountNumber: { type: 'string' },
@@ -2297,7 +2478,9 @@ export class AdminController {
     @Query('userId') userId?: string,
     @Query('limit') limit?: number,
   ) {
-    console.log('🔄 [ADMIN API] POST /admin/migrate-to-nyra - Request received');
+    console.log(
+      '🔄 [ADMIN API] POST /admin/migrate-to-nyra - Request received',
+    );
     console.log('⚙️ [ADMIN API] Options:', { dryRun, userId, limit });
 
     const result = await this.adminService.migrateUsersToNyra({
@@ -2376,11 +2559,17 @@ export class AdminController {
     @Param('id') reportId: string,
     @Body() updateDto: UpdateAdminReportStatusDto,
   ): Promise<UpdateAdminReportStatusResponseDto> {
-    console.log('🔄 [ADMIN API] PUT /admin/transaction-reports/:id/status - Update report status');
+    console.log(
+      '🔄 [ADMIN API] PUT /admin/transaction-reports/:id/status - Update report status',
+    );
     console.log('🆔 Admin ID:', req.user.id);
     console.log('📋 Report ID:', reportId);
 
-    const result = await this.adminService.updateTransactionReportStatus(reportId, req.user.id, updateDto);
+    const result = await this.adminService.updateTransactionReportStatus(
+      reportId,
+      req.user.id,
+      updateDto,
+    );
     console.log('✅ [ADMIN API] Report status updated successfully');
     return result;
   }

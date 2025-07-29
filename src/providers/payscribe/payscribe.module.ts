@@ -6,4 +6,4 @@ import { PayscribeKycProvider } from './payscribe-kyc.provider';
   providers: [PayscribeProvider, PayscribeKycProvider],
   exports: [PayscribeProvider, PayscribeKycProvider],
 })
-export class PayscribeModule {} 
+export class PayscribeModule {}

@@ -175,7 +175,8 @@ export class PushNotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Send bulk push notifications by mixed IDs and emails (Admin)',
-    description: 'Send push notifications to multiple users by user IDs and/or email addresses',
+    description:
+      'Send push notifications to multiple users by user IDs and/or email addresses',
   })
   @ApiResponse({
     status: 200,
@@ -213,7 +214,8 @@ export class PushNotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Send notification to all users (Admin)',
-    description: 'Send push notification to all active users with notifications enabled',
+    description:
+      'Send push notification to all active users with notifications enabled',
   })
   @ApiResponse({
     status: 200,
@@ -252,7 +254,7 @@ export class PushNotificationsController {
   async cleanupInactiveTokens(@Query('days') days?: string) {
     // Parse the days parameter or use default
     const daysNumber = days ? parseInt(days, 10) : 30;
-    
+
     // Validate the parsed number
     if (isNaN(daysNumber) || daysNumber < 1) {
       return {
@@ -262,9 +264,8 @@ export class PushNotificationsController {
       };
     }
 
-    const cleanedUp = await this.pushNotificationsService.cleanupInactiveTokens(
-      daysNumber,
-    );
+    const cleanedUp =
+      await this.pushNotificationsService.cleanupInactiveTokens(daysNumber);
     return {
       success: true,
       message: `Cleaned up ${cleanedUp} inactive tokens`,

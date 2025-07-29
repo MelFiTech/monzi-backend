@@ -130,7 +130,9 @@ export class KycService {
       let fallbackTried = false;
       let errorMsg = '';
       try {
-        const identityPassRes = await this.identityPassProvider.verifyBVN(verifyBvnDto.bvn);
+        const identityPassRes = await this.identityPassProvider.verifyBVN(
+          verifyBvnDto.bvn,
+        );
         if (identityPassRes.status && identityPassRes.data) {
           bvnVerificationResult = {
             success: true,
@@ -140,18 +142,25 @@ export class KycService {
             raw: identityPassRes,
           };
         } else {
-          errorMsg = identityPassRes.detail || 'Identity Pass BVN verification failed';
+          errorMsg =
+            identityPassRes.detail || 'Identity Pass BVN verification failed';
         }
       } catch (err) {
         errorMsg = err?.message || 'Identity Pass BVN verification failed';
       }
 
       // Fallback to Payscribe if Identity Pass fails or returns incomplete data
-      if (!bvnVerificationResult || !bvnVerificationResult.data?.firstName || !bvnVerificationResult.data?.lastName) {
+      if (
+        !bvnVerificationResult ||
+        !bvnVerificationResult.data?.firstName ||
+        !bvnVerificationResult.data?.lastName
+      ) {
         fallbackTried = true;
         providerUsed = 'payscribe';
         try {
-          const payscribeRes = await this.payscribeKycProvider.verifyBVN(verifyBvnDto.bvn);
+          const payscribeRes = await this.payscribeKycProvider.verifyBVN(
+            verifyBvnDto.bvn,
+          );
           if (payscribeRes && payscribeRes.data) {
             bvnVerificationResult = {
               success: true,
@@ -161,7 +170,8 @@ export class KycService {
               raw: payscribeRes,
             };
           } else {
-            errorMsg = payscribeRes?.message || 'Payscribe BVN verification failed';
+            errorMsg =
+              payscribeRes?.message || 'Payscribe BVN verification failed';
           }
         } catch (err) {
           errorMsg = err?.message || 'Payscribe BVN verification failed';
@@ -199,26 +209,31 @@ export class KycService {
         const userGender = user.gender.toUpperCase();
         const bvnGender = bvnData.gender.toUpperCase();
         if (userGender !== bvnGender) {
-          verificationErrors.push(`Gender mismatch: Registration (${user.gender}) vs BVN (${bvnData.gender})`);
+          verificationErrors.push(
+            `Gender mismatch: Registration (${user.gender}) vs BVN (${bvnData.gender})`,
+          );
         }
       }
       if (bvnData.dateOfBirth && user.dateOfBirth) {
         // Parse and normalize dates from various formats
         const userDob = user.dateOfBirth.toISOString().split('T')[0]; // YYYY-MM-DD
         const bvnDob = this.normalizeDateOfBirth(bvnData.dateOfBirth);
-        
+
         if (userDob !== bvnDob) {
-          verificationErrors.push(`Date of birth mismatch: Registration (${userDob}) vs BVN (${bvnData.dateOfBirth})`);
+          verificationErrors.push(
+            `Date of birth mismatch: Registration (${userDob}) vs BVN (${bvnData.dateOfBirth})`,
+          );
         }
       }
       let kycStatus: 'UNDER_REVIEW' | 'REJECTED' = 'UNDER_REVIEW';
       let statusMessage = '';
-      let walletCreated = false;
+      const walletCreated = false;
       if (verificationErrors.length > 0) {
         kycStatus = 'REJECTED';
         statusMessage = `BVN verification failed: ${verificationErrors.join('; ')}`;
       } else {
-        statusMessage = 'BVN verification successful! Please upload your selfie to complete KYC verification.';
+        statusMessage =
+          'BVN verification successful! Please upload your selfie to complete KYC verification.';
       }
 
       // Save all fields, including base64 image, from Identity Pass response
@@ -240,21 +255,27 @@ export class KycService {
         try {
           console.log('📸 [KYC SERVICE] Uploading BVN image to Cloudinary...');
           const base64Image = bvnData.base64Image || bvnData.photo;
-          
+
           // Convert base64 to buffer
           const imageBuffer = Buffer.from(base64Image, 'base64');
-          
+
           // Upload to Cloudinary with specific folder
           const uploadResult = await this.cloudinaryService.uploadBuffer(
             imageBuffer,
             `kyc/bvn/${userId}`,
-            'bvn_verification'
+            'bvn_verification',
           );
-          
+
           bvnCloudinaryUrl = uploadResult.secure_url;
-          console.log('✅ [KYC SERVICE] BVN image uploaded to Cloudinary:', bvnCloudinaryUrl);
+          console.log(
+            '✅ [KYC SERVICE] BVN image uploaded to Cloudinary:',
+            bvnCloudinaryUrl,
+          );
         } catch (error) {
-          console.error('❌ [KYC SERVICE] Failed to upload BVN image to Cloudinary:', error);
+          console.error(
+            '❌ [KYC SERVICE] Failed to upload BVN image to Cloudinary:',
+            error,
+          );
           // Continue without Cloudinary upload - we still have the base64
         }
       }
@@ -284,11 +305,15 @@ export class KycService {
         bvnData,
         kycStatus,
         walletCreated,
-        verificationErrors: verificationErrors.length > 0 ? verificationErrors : undefined,
+        verificationErrors:
+          verificationErrors.length > 0 ? verificationErrors : undefined,
       };
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      throw new HttpException('Error verifying BVN', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        'Error verifying BVN',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -402,13 +427,16 @@ export class KycService {
       // Format: monzi/kyc/FirstnameLastname-timestamp (e.g., "monzi/kyc/GoodnessObaje-1752150022599")
       const publicId = `monzi/kyc/${cleanFirstName}${cleanLastName}-${timestamp}`;
 
-      console.log('📁 [KYC SERVICE] Uploading to Cloudinary with public ID:', publicId);
+      console.log(
+        '📁 [KYC SERVICE] Uploading to Cloudinary with public ID:',
+        publicId,
+      );
 
       // Upload to Cloudinary
       const uploadResult = await this.cloudinaryService.uploadBuffer(
         file.buffer,
         'monzi/kyc',
-        publicId
+        publicId,
       );
 
       if (!uploadResult || !uploadResult.secure_url) {
@@ -719,30 +747,32 @@ export class KycService {
       ]);
 
       // Process users to include provider information
-      const processedUsers = users.map(user => {
+      const processedUsers = users.map((user) => {
         let providerInfo = null;
         let bvnCloudinaryUrl = null;
-        
+
         if (user.bvnProviderResponse) {
-          const response = typeof user.bvnProviderResponse === 'string' 
-            ? JSON.parse(user.bvnProviderResponse) 
-            : user.bvnProviderResponse;
-          
+          const response =
+            typeof user.bvnProviderResponse === 'string'
+              ? JSON.parse(user.bvnProviderResponse)
+              : user.bvnProviderResponse;
+
           providerInfo = {
             provider: response.provider || 'unknown',
             success: response.success || false,
             timestamp: response.timestamp || null,
           };
         }
-        
+
         if (user.metadata) {
-          const metadata = typeof user.metadata === 'string' 
-            ? JSON.parse(user.metadata) 
-            : user.metadata;
-          
+          const metadata =
+            typeof user.metadata === 'string'
+              ? JSON.parse(user.metadata)
+              : user.metadata;
+
           bvnCloudinaryUrl = metadata.bvnCloudinaryUrl || null;
         }
-        
+
         return {
           ...user,
           providerInfo,
@@ -806,12 +836,13 @@ export class KycService {
       let bvnCloudinaryUrl = null;
       let bvnBase64Image = null;
       let bvnFullData = null;
-      
+
       if (user.metadata) {
-        const metadata = typeof user.metadata === 'string' 
-          ? JSON.parse(user.metadata) 
-          : user.metadata;
-        
+        const metadata =
+          typeof user.metadata === 'string'
+            ? JSON.parse(user.metadata)
+            : user.metadata;
+
         bvnCloudinaryUrl = metadata.bvnCloudinaryUrl || null;
         bvnBase64Image = metadata.bvnBase64Image || null;
         bvnFullData = metadata.bvnFullData || null;
@@ -929,26 +960,35 @@ export class KycService {
    */
   private normalizeDateOfBirth(dateString: string): string {
     if (!dateString) return '';
-    
+
     // Remove any extra whitespace
     dateString = dateString.trim();
-    
+
     // Handle DD-MMM-YYYY format (e.g., "09-Sep-1996")
     const ddMmmYyyyPattern = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/;
     const ddMmmYyyyMatch = dateString.match(ddMmmYyyyPattern);
     if (ddMmmYyyyMatch) {
       const [, day, month, year] = ddMmmYyyyMatch;
       const monthMap: { [key: string]: string } = {
-        'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
-        'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
-        'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+        jan: '01',
+        feb: '02',
+        mar: '03',
+        apr: '04',
+        may: '05',
+        jun: '06',
+        jul: '07',
+        aug: '08',
+        sep: '09',
+        oct: '10',
+        nov: '11',
+        dec: '12',
       };
       const monthNum = monthMap[month.toLowerCase()];
       if (monthNum) {
         return `${year}-${monthNum}-${day.padStart(2, '0')}`;
       }
     }
-    
+
     // Handle DD-MM-YYYY format (e.g., "09-09-1996")
     const ddMmYyyyPattern = /^(\d{1,2})-(\d{1,2})-(\d{4})$/;
     const ddMmYyyyMatch = dateString.match(ddMmYyyyPattern);
@@ -956,13 +996,13 @@ export class KycService {
       const [, day, month, year] = ddMmYyyyMatch;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
-    
+
     // Handle YYYY-MM-DD format (already correct)
     const yyyyMmDdPattern = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
     if (yyyyMmDdPattern.test(dateString)) {
       return dateString;
     }
-    
+
     // Handle DD/MM/YYYY format (e.g., "09/09/1996")
     const ddSlashMmSlashYyyyPattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
     const ddSlashMmSlashYyyyMatch = dateString.match(ddSlashMmSlashYyyyPattern);
@@ -970,7 +1010,7 @@ export class KycService {
       const [, day, month, year] = ddSlashMmSlashYyyyMatch;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
-    
+
     // Handle MM/DD/YYYY format (e.g., "09/09/1996" - American format)
     const mmSlashDdSlashYyyyPattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
     const mmSlashDdSlashYyyyMatch = dateString.match(mmSlashDdSlashYyyyPattern);
@@ -978,7 +1018,7 @@ export class KycService {
       const [, month, day, year] = mmSlashDdSlashYyyyMatch;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
-    
+
     // If no pattern matches, try to parse as Date and format
     try {
       const date = new Date(dateString);
@@ -988,7 +1028,7 @@ export class KycService {
     } catch (error) {
       console.warn(`Could not parse date: ${dateString}`);
     }
-    
+
     // Return original string if no pattern matches
     return dateString;
   }

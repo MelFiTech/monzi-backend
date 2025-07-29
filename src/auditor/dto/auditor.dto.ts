@@ -1,4 +1,14 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsEnum, IsObject, IsArray, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsEnum,
+  IsObject,
+  IsArray,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum AuditorMessageRole {
@@ -318,4 +328,4 @@ export class HealthCheckResponse {
     model: string;
   };
   timestamp: Date;
-} 
+}

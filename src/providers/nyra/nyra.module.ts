@@ -8,4 +8,4 @@ import { NyraTransferProvider } from './nyra-transfer.provider';
   providers: [NyraWalletProvider, NyraTransferProvider],
   exports: [NyraWalletProvider, NyraTransferProvider],
 })
-export class NyraModule {} 
+export class NyraModule {}

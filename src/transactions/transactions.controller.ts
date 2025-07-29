@@ -1,10 +1,18 @@
-import { Controller, Post, Get, Body, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
-import { 
-  CalculateFeeDto, 
-  FeeCalculationResponseDto, 
-  GetFeeTiersResponseDto 
+import {
+  CalculateFeeDto,
+  FeeCalculationResponseDto,
+  GetFeeTiersResponseDto,
 } from './dto/transaction.dto';
 
 @ApiTags('Transactions')
@@ -16,7 +24,8 @@ export class TransactionsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Calculate transaction fee',
-    description: 'Calculate the fee for a transaction based on amount, type, and provider',
+    description:
+      'Calculate the fee for a transaction based on amount, type, and provider',
   })
   @ApiResponse({
     status: 200,
@@ -27,7 +36,9 @@ export class TransactionsController {
     status: 400,
     description: 'Invalid request parameters',
   })
-  async calculateFee(@Body() dto: CalculateFeeDto): Promise<FeeCalculationResponseDto> {
+  async calculateFee(
+    @Body() dto: CalculateFeeDto,
+  ): Promise<FeeCalculationResponseDto> {
     return this.transactionsService.calculateFee(dto);
   }
 
@@ -47,7 +58,9 @@ export class TransactionsController {
     description: 'Fee tiers retrieved successfully',
     type: GetFeeTiersResponseDto,
   })
-  async getFeeTiers(@Query('provider') provider?: string): Promise<GetFeeTiersResponseDto> {
+  async getFeeTiers(
+    @Query('provider') provider?: string,
+  ): Promise<GetFeeTiersResponseDto> {
     return this.transactionsService.getFeeTiers(provider);
   }
 }

@@ -12,7 +12,10 @@ export class CloudinaryService {
     });
   }
 
-  async uploadImage(file: Express.Multer.File, folder: string = 'monzi'): Promise<any> {
+  async uploadImage(
+    file: Express.Multer.File,
+    folder: string = 'monzi',
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -25,14 +28,18 @@ export class CloudinaryService {
           } else {
             resolve(result);
           }
-        }
+        },
       );
 
       uploadStream.end(file.buffer);
     });
   }
 
-  async uploadBuffer(buffer: Buffer, folder: string = 'monzi', publicId?: string): Promise<any> {
+  async uploadBuffer(
+    buffer: Buffer,
+    folder: string = 'monzi',
+    publicId?: string,
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -46,14 +53,17 @@ export class CloudinaryService {
           } else {
             resolve(result);
           }
-        }
+        },
       );
 
       uploadStream.end(buffer);
     });
   }
 
-  async uploadImageFromPath(filePath: string, folder: string = 'monzi'): Promise<any> {
+  async uploadImageFromPath(
+    filePath: string,
+    folder: string = 'monzi',
+  ): Promise<any> {
     return cloudinary.uploader.upload(filePath, {
       folder,
       resource_type: 'auto',
@@ -78,7 +88,11 @@ export class CloudinaryService {
   }
 
   // Method to get thumbnail URL
-  getThumbnailUrl(publicId: string, width: number = 150, height: number = 150): string {
+  getThumbnailUrl(
+    publicId: string,
+    width: number = 150,
+    height: number = 150,
+  ): string {
     return cloudinary.url(publicId, {
       width,
       height,
@@ -86,4 +100,4 @@ export class CloudinaryService {
       quality: 'auto',
     });
   }
-} 
+}

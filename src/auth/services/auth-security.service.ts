@@ -100,7 +100,9 @@ export class AuthSecurityService {
     if (!wallet.pin) {
       // First time setting PIN, only OTP is required
       if (!otpCode) {
-        throw new BadRequestException('OTP is required for first-time PIN setup');
+        throw new BadRequestException(
+          'OTP is required for first-time PIN setup',
+        );
       }
 
       // Verify OTP
@@ -122,7 +124,9 @@ export class AuthSecurityService {
 
     // User has existing PIN
     if (currentPin && otpCode) {
-      throw new BadRequestException('Provide either current PIN or OTP, not both');
+      throw new BadRequestException(
+        'Provide either current PIN or OTP, not both',
+      );
     }
 
     if (!currentPin && !otpCode) {
@@ -185,7 +189,9 @@ export class AuthSecurityService {
     }
 
     if (currentPasscode && otpCode) {
-      throw new BadRequestException('Provide either current passcode or OTP, not both');
+      throw new BadRequestException(
+        'Provide either current passcode or OTP, not both',
+      );
     }
 
     if (!currentPasscode && !otpCode) {
@@ -194,7 +200,10 @@ export class AuthSecurityService {
 
     if (currentPasscode) {
       // Verify current passcode
-      const isPasscodeValid = await bcrypt.compare(currentPasscode, user.passcode);
+      const isPasscodeValid = await bcrypt.compare(
+        currentPasscode,
+        user.passcode,
+      );
       if (!isPasscodeValid) {
         throw new BadRequestException('Invalid current passcode');
       }
@@ -376,6 +385,16 @@ export class AuthSecurityService {
     // Find user
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        wallet: true,
+        transactions: {
+          where: {
+            status: {
+              in: ['PENDING', 'PROCESSING']
+            }
+          }
+        }
+      }
     });
 
     if (!user) {
@@ -385,20 +404,31 @@ export class AuthSecurityService {
     // Verify OTP
     await this.verifyOtp(user, otpCode);
 
-    // Deactivate user account
+    // Always perform soft delete (archive) for user self-deletion
+    console.log('📦 [AUTH] Performing soft delete (archive) for user self-deletion');
+    
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         isActive: false,
         otpCode: null,
         otpExpiresAt: null,
+        metadata: {
+          ...(user.metadata as any || {}),
+          archivedAt: new Date().toISOString(),
+          archiveReason: 'User self-deletion',
+          originalEmail: user.email,
+          originalPhone: user.phone,
+          originalBvn: user.bvn,
+          selfDeletion: true,
+        },
       },
     });
 
-    console.log('✅ [AUTH] Account deleted successfully');
+    console.log('✅ [AUTH] Account archived successfully (soft delete)');
     return {
       success: true,
-      message: 'Account deleted successfully',
+      message: 'Account archived successfully (soft delete)',
     };
   }
 
@@ -408,7 +438,11 @@ export class AuthSecurityService {
   }
 
   // Send Email OTP
-  private async sendEmailOtp(email: string, otpCode: string, userId: string): Promise<void> {
+  private async sendEmailOtp(
+    email: string,
+    otpCode: string,
+    userId: string,
+  ): Promise<void> {
     try {
       await this.emailService.sendOtpEmail({
         email,
@@ -426,11 +460,13 @@ export class AuthSecurityService {
   // Verify OTP
   private async verifyOtp(user: any, otpCode: string): Promise<void> {
     if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
     }
 
     if (user.otpCode !== otpCode) {
       throw new BadRequestException('Invalid OTP code');
     }
   }
-} 
+}

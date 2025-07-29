@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WalletService } from '../../wallet/wallet.service';
 import {
@@ -26,7 +30,12 @@ export class UserManagementService {
     status?: string,
     search?: string,
   ): Promise<GetUsersResponse> {
-    console.log('🔍 [USER SERVICE] Getting users with filters:', { limit, offset, status, search });
+    console.log('🔍 [USER SERVICE] Getting users with filters:', {
+      limit,
+      offset,
+      status,
+      search,
+    });
 
     try {
       const where: any = {};
@@ -67,6 +76,10 @@ export class UserManagementService {
                 id: true,
                 balance: true,
                 isFrozen: true,
+                virtualAccountNumber: true,
+                provider: true,
+                isActive: true,
+                currency: true,
               },
             },
           },
@@ -92,6 +105,11 @@ export class UserManagementService {
         bvnVerifiedAt: user.bvnVerifiedAt?.toISOString() || null,
         isOnboarded: user.isOnboarded,
         updatedAt: user.updatedAt.toISOString(),
+        // Wallet information mapping
+        walletStatus: user.wallet ? (user.wallet.isFrozen ? 'FROZEN' : user.wallet.isActive ? 'ACTIVE' : 'INACTIVE') : undefined,
+        walletBalance: user.wallet ? user.wallet.balance : undefined,
+        virtualAccountNumber: user.wallet ? user.wallet.virtualAccountNumber : undefined,
+        walletProvider: user.wallet ? user.wallet.provider : undefined,
         hasWallet: !!user.wallet,
         walletCount: user.wallet ? 1 : 0,
         totalBalance: user.wallet ? user.wallet.balance : 0,
@@ -110,11 +128,11 @@ export class UserManagementService {
         page: Math.floor(offset / limit) + 1,
         stats: {
           total: total,
-          verified: formattedUsers.filter(u => u.isVerified).length,
+          verified: formattedUsers.filter((u) => u.isVerified).length,
           pending: 0, // Placeholder
           rejected: 0, // Placeholder
-          onboarded: formattedUsers.filter(u => u.isOnboarded).length,
-          withWallets: formattedUsers.filter(u => u.hasWallet).length,
+          onboarded: formattedUsers.filter((u) => u.isOnboarded).length,
+          withWallets: formattedUsers.filter((u) => u.hasWallet).length,
         },
       };
     } catch (error) {
@@ -154,7 +172,16 @@ export class UserManagementService {
         bvnVerifiedAt: user.bvnVerifiedAt?.toISOString() || null,
         isOnboarded: user.isOnboarded,
         updatedAt: user.updatedAt.toISOString(),
-        wallets: user.wallet,
+        // Wallet information mapping
+        wallet: user.wallet ? {
+          id: user.wallet.id,
+          balance: user.wallet.balance,
+          currency: user.wallet.currency,
+          virtualAccountNumber: user.wallet.virtualAccountNumber,
+          provider: user.wallet.provider,
+          isActive: user.wallet.isActive,
+          createdAt: user.wallet.createdAt.toISOString(),
+        } : undefined,
         recentTransactions: [], // Placeholder - implement transaction fetching
         totalBalance: user.wallet ? user.wallet.balance : 0,
         walletCount: user.wallet ? 1 : 0,
@@ -177,13 +204,25 @@ export class UserManagementService {
   }
 
   async deleteUser(deleteUserDto: DeleteUserDto): Promise<DeleteUserResponse> {
-    console.log('🗑️ [USER SERVICE] Deleting user:', deleteUserDto.email);
+    console.log('🗑️ [USER SERVICE] Deleting user:', deleteUserDto.email || deleteUserDto.userId);
 
     try {
+      // Find user by email or userId
+      const whereClause = deleteUserDto.email 
+        ? { email: deleteUserDto.email }
+        : { id: deleteUserDto.userId };
+
       const user = await this.prisma.user.findUnique({
-        where: { email: deleteUserDto.email },
+        where: whereClause,
         include: {
           wallet: true,
+          transactions: {
+            where: {
+              status: {
+                in: ['PENDING', 'PROCESSING']
+              }
+            }
+          }
         },
       });
 
@@ -191,40 +230,75 @@ export class UserManagementService {
         throw new NotFoundException('User not found');
       }
 
-      // Check if user has active transactions or wallets with balance
-      const hasActiveTransactions = false; // Placeholder - implement transaction check
-      const hasWalletBalance = false; // Placeholder - implement wallet balance check
+      // Check if user has active transactions
+      const hasActiveTransactions = user.transactions.length > 0;
+      
+      // Check if user has wallet with balance
+      const hasWalletBalance = user.wallet && user.wallet.balance > 0;
 
-      if (hasActiveTransactions) {
-        throw new BadRequestException(
-          'Cannot delete user with active transactions. Please wait for transactions to complete.',
-        );
+      console.log('🔍 [USER SERVICE] User data check:');
+      console.log(`- Has active transactions: ${hasActiveTransactions} (${user.transactions.length} transactions)`);
+      console.log(`- Has wallet balance: ${hasWalletBalance} (${user.wallet?.balance || 0} balance)`);
+      console.log(`- Wallet exists: ${!!user.wallet}`);
+
+      // If user has active transactions or wallet balance, perform soft delete (archive)
+      if (hasActiveTransactions || hasWalletBalance) {
+        console.log('📦 [USER SERVICE] User has active data - performing soft delete (archive)');
+        
+        // Archive the user (soft delete)
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            isActive: false,
+            metadata: {
+              ...(user.metadata as any || {}),
+              archivedAt: new Date().toISOString(),
+              archiveReason: 'Admin deletion - user has active transactions or wallet balance',
+              originalEmail: user.email,
+              originalPhone: user.phone,
+              originalBvn: user.bvn,
+            },
+          },
+        });
+
+        console.log('✅ [USER SERVICE] User archived successfully');
+
+        return {
+          success: true,
+          message: 'User archived successfully (soft delete) - user had active transactions or wallet balance',
+          deletedUserId: user.id,
+          deletedUserEmail: user.email,
+          walletDeleted: false,
+          transactionsDeleted: 0,
+          archived: true,
+        };
       }
 
-      if (hasWalletBalance) {
-        throw new BadRequestException(
-          'Cannot delete user with wallet balance. Please withdraw all funds first.',
-        );
-      }
-
-      // Delete user and all related data
+      // If no active data, perform hard delete
+      console.log('🗑️ [USER SERVICE] User has no active data - performing hard delete');
+      
+      // Delete user and all related data (cascade)
       await this.prisma.user.delete({
         where: { id: user.id },
       });
 
-      console.log('✅ [USER SERVICE] User deleted successfully');
+      console.log('✅ [USER SERVICE] User deleted successfully (hard delete)');
 
       return {
         success: true,
-        message: 'User deleted successfully',
+        message: 'User deleted successfully (hard delete)',
         deletedUserId: user.id,
         deletedUserEmail: user.email,
-        walletDeleted: true, // Placeholder
-        transactionsDeleted: 0, // Placeholder
+        walletDeleted: !!user.wallet,
+        transactionsDeleted: 0,
+        archived: false,
       };
     } catch (error) {
       console.error('❌ [USER SERVICE] Error deleting user:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to delete user');
@@ -248,7 +322,8 @@ export class UserManagementService {
       if (dto.firstName !== undefined) updateData.firstName = dto.firstName;
       if (dto.lastName !== undefined) updateData.lastName = dto.lastName;
       if (dto.phone !== undefined) updateData.phone = dto.phone;
-      if (dto.dateOfBirth !== undefined) updateData.dateOfBirth = dto.dateOfBirth;
+      if (dto.dateOfBirth !== undefined)
+        updateData.dateOfBirth = dto.dateOfBirth;
       if (dto.gender !== undefined) updateData.gender = dto.gender;
       if (dto.bvn !== undefined) updateData.bvn = dto.bvn;
       if (dto.kycStatus !== undefined) updateData.kycStatus = dto.kycStatus;
@@ -300,12 +375,16 @@ export class UserManagementService {
 
       const wallet = await this.walletService.createWallet(
         user.id,
+        user.firstName || 'User',
+        user.lastName || 'Name',
         user.email,
-        user.firstName,
-        user.lastName,
         user.phone,
+        user.dateOfBirth?.toISOString().split('T')[0] || '1990-01-01',
         user.gender === 'MALE' ? 'M' : 'F',
-        user.gender === 'MALE' ? 'M' : 'F',
+        undefined, // address
+        undefined, // city
+        undefined, // state
+        user.bvn,
       );
 
       console.log('✅ [USER SERVICE] Wallet created successfully');
@@ -322,10 +401,13 @@ export class UserManagementService {
       };
     } catch (error) {
       console.error('❌ [USER SERVICE] Error creating wallet:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
-      throw new BadRequestException('Failed to create wallet');
+      throw new BadRequestException('Failed to create wallet: ' + error.message);
     }
   }
 
@@ -333,25 +415,25 @@ export class UserManagementService {
     console.log('📊 [USER SERVICE] Getting user statistics');
 
     try {
-      const [
-        totalUsers,
-        verifiedUsers,
-        usersWithWallets,
-        newThisMonth,
-      ] = await Promise.all([
-        this.prisma.user.count(),
-        this.prisma.user.count({ where: { isVerified: true } }),
-        this.prisma.user.count({
-          where: { wallet: { isNot: null } },
-        }),
-        this.prisma.user.count({
-          where: {
-            createdAt: {
-              gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+      const [totalUsers, verifiedUsers, usersWithWallets, newThisMonth] =
+        await Promise.all([
+          this.prisma.user.count(),
+          this.prisma.user.count({ where: { isVerified: true } }),
+          this.prisma.user.count({
+            where: { wallet: { isNot: null } },
+          }),
+          this.prisma.user.count({
+            where: {
+              createdAt: {
+                gte: new Date(
+                  new Date().getFullYear(),
+                  new Date().getMonth(),
+                  1,
+                ),
+              },
             },
-          },
-        }),
-      ]);
+          }),
+        ]);
 
       return {
         total: totalUsers,
@@ -366,4 +448,4 @@ export class UserManagementService {
       throw new BadRequestException('Failed to get user statistics');
     }
   }
-} 
+}

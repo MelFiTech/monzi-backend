@@ -1,7 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
-import { WalletProvider, IWalletProvider, WalletCreationData, WalletCreationResult, WalletBalanceData, WalletBalanceResult, WalletTransactionData, WalletTransactionResult } from '../base/wallet-provider.interface';
+import {
+  WalletProvider,
+  IWalletProvider,
+  WalletCreationData,
+  WalletCreationResult,
+  WalletBalanceData,
+  WalletBalanceResult,
+  WalletTransactionData,
+  WalletTransactionResult,
+} from '../base/wallet-provider.interface';
 
 export interface NyraVirtualAccount {
   id: string;
@@ -49,7 +58,7 @@ export class NyraWalletProvider implements IWalletProvider {
   private getAuthHeaders(): { [key: string]: string } {
     return {
       'x-client-id': this.clientId,
-      'Authorization': `Bearer ${this.clientSecret}`,
+      Authorization: `Bearer ${this.clientSecret}`,
       'Content-Type': 'application/json',
     };
   }
@@ -70,7 +79,7 @@ export class NyraWalletProvider implements IWalletProvider {
   async createWallet(data: WalletCreationData): Promise<WalletCreationResult> {
     try {
       this.logger.log(`Creating wallet for user: ${data.email}`);
-      
+
       const requestBody: any = {
         first_name: data.firstName,
         last_name: data.lastName,
@@ -90,12 +99,18 @@ export class NyraWalletProvider implements IWalletProvider {
       // Add BVN if provided
       if (data.bvn) {
         requestBody.bvn = data.bvn;
-        this.logger.log(`Including BVN in wallet creation for user: ${data.email}`);
+        this.logger.log(
+          `Including BVN in wallet creation for user: ${data.email}`,
+        );
       }
 
-      const response = await this.axiosInstance.post('/business/wallets', requestBody, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.axiosInstance.post(
+        '/business/wallets',
+        requestBody,
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
 
       this.logger.log(`Wallet created successfully for user: ${data.email}`);
       return {
@@ -114,7 +129,10 @@ export class NyraWalletProvider implements IWalletProvider {
         },
       };
     } catch (error) {
-      this.logger.error(`Failed to create wallet for user ${data.email}:`, error.message);
+      this.logger.error(
+        `Failed to create wallet for user ${data.email}:`,
+        error.message,
+      );
       return {
         success: false,
         message: 'Wallet creation failed',
@@ -123,30 +141,42 @@ export class NyraWalletProvider implements IWalletProvider {
     }
   }
 
-  async getWalletBalance(data: WalletBalanceData): Promise<WalletBalanceResult> {
+  async getWalletBalance(
+    data: WalletBalanceData,
+  ): Promise<WalletBalanceResult> {
     try {
       this.logger.log(`Getting balance for account: ${data.accountNumber}`);
-      
+
       // Get wallet balance by account number - first get all wallets to find the wallet ID
-      const allWalletsResponse = await this.axiosInstance.get('/business/wallets/all', {
-        headers: this.getAuthHeaders(),
-      });
+      const allWalletsResponse = await this.axiosInstance.get(
+        '/business/wallets/all',
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
 
       // Find the wallet with matching account number
       const wallet = allWalletsResponse.data.data.find(
-        (w: any) => w.account_number === data.accountNumber
+        (w: any) => w.account_number === data.accountNumber,
       );
 
       if (!wallet) {
-        throw new Error(`Wallet with account number ${data.accountNumber} not found`);
+        throw new Error(
+          `Wallet with account number ${data.accountNumber} not found`,
+        );
       }
 
       // Get specific wallet details
-      const response = await this.axiosInstance.get(`/business/wallets/${wallet.wallet_id}`, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.axiosInstance.get(
+        `/business/wallets/${wallet.wallet_id}`,
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
 
-      this.logger.log(`Balance retrieved successfully for account: ${data.accountNumber}`);
+      this.logger.log(
+        `Balance retrieved successfully for account: ${data.accountNumber}`,
+      );
       return {
         success: true,
         balance: response.data.balance,
@@ -154,7 +184,10 @@ export class NyraWalletProvider implements IWalletProvider {
         accountNumber: data.accountNumber,
       };
     } catch (error) {
-      this.logger.error(`Failed to get balance for account ${data.accountNumber}:`, error.message);
+      this.logger.error(
+        `Failed to get balance for account ${data.accountNumber}:`,
+        error.message,
+      );
       return {
         success: false,
         balance: 0,
@@ -179,27 +212,37 @@ export class NyraWalletProvider implements IWalletProvider {
   }> {
     try {
       this.logger.log(`Getting wallet details for account: ${accountNumber}`);
-      
+
       // Get wallet details by account number - first get all wallets to find the wallet ID
-      const allWalletsResponse = await this.axiosInstance.get('/business/wallets/all', {
-        headers: this.getAuthHeaders(),
-      });
+      const allWalletsResponse = await this.axiosInstance.get(
+        '/business/wallets/all',
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
 
       // Find the wallet with matching account number
       const wallet = allWalletsResponse.data.data.find(
-        (w: any) => w.account_number === accountNumber
+        (w: any) => w.account_number === accountNumber,
       );
 
       if (!wallet) {
-        throw new Error(`Wallet with account number ${accountNumber} not found`);
+        throw new Error(
+          `Wallet with account number ${accountNumber} not found`,
+        );
       }
 
       // Get specific wallet details
-      const response = await this.axiosInstance.get(`/business/wallets/${wallet.wallet_id}`, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.axiosInstance.get(
+        `/business/wallets/${wallet.wallet_id}`,
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
 
-      this.logger.log(`Wallet details retrieved successfully for account: ${accountNumber}`);
+      this.logger.log(
+        `Wallet details retrieved successfully for account: ${accountNumber}`,
+      );
       return {
         success: true,
         data: {
@@ -214,14 +257,19 @@ export class NyraWalletProvider implements IWalletProvider {
     } catch (error: any) {
       // Handle rate limiting specifically
       if (error.response?.status === 429) {
-        this.logger.warn(`Rate limited by NYRA API for account ${accountNumber}. Using cached data.`);
+        this.logger.warn(
+          `Rate limited by NYRA API for account ${accountNumber}. Using cached data.`,
+        );
         return {
           success: false,
           error: 'Rate limited - using cached data',
         };
       }
-      
-      this.logger.error(`Failed to get wallet details for account ${accountNumber}:`, error.message);
+
+      this.logger.error(
+        `Failed to get wallet details for account ${accountNumber}:`,
+        error.message,
+      );
       return {
         success: false,
         error: error.message,
@@ -229,21 +277,27 @@ export class NyraWalletProvider implements IWalletProvider {
     }
   }
 
-  async processTransaction(data: WalletTransactionData): Promise<WalletTransactionResult> {
+  async processTransaction(
+    data: WalletTransactionData,
+  ): Promise<WalletTransactionResult> {
     try {
       this.logger.log(`Processing transaction: ${data.reference}`);
 
       // TODO: Replace with actual Nyra transfer endpoint
-      const response = await this.axiosInstance.post('/transfers', {
-        amount: data.amount,
-        from_account: data.fromAccountNumber,
-        to_account: data.toAccountNumber,
-        to_bank_code: data.toBankCode,
-        reference: data.reference,
-        description: data.description,
-      }, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.axiosInstance.post(
+        '/transfers',
+        {
+          amount: data.amount,
+          from_account: data.fromAccountNumber,
+          to_account: data.toAccountNumber,
+          to_bank_code: data.toBankCode,
+          reference: data.reference,
+          description: data.description,
+        },
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
 
       this.logger.log(`Transaction processed successfully: ${data.reference}`);
       return {
@@ -255,7 +309,10 @@ export class NyraWalletProvider implements IWalletProvider {
         fee: response.data.fee,
       };
     } catch (error) {
-      this.logger.error(`Failed to process transaction ${data.reference}:`, error.message);
+      this.logger.error(
+        `Failed to process transaction ${data.reference}:`,
+        error.message,
+      );
       return {
         success: false,
         message: 'Transaction processing failed',
@@ -271,4 +328,4 @@ export class NyraWalletProvider implements IWalletProvider {
   getProviderDisplayName(): string {
     return 'Nyra';
   }
-} 
+}

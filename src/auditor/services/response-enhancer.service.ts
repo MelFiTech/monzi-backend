@@ -14,7 +14,7 @@ export class ResponseEnhancerService {
   async enhanceResponseWithAI(
     structuredResponse: string,
     originalMessage: string,
-    userQuery: UserQuery
+    userQuery: UserQuery,
   ): Promise<string> {
     // If no API key, return structured response as is
     if (!this.geminiApiService.isConfigured()) {
@@ -27,7 +27,7 @@ export class ResponseEnhancerService {
       const messages: GeminiMessage[] = [
         {
           role: 'user',
-          parts: [{ text: structuredResponse }]
+          parts: [{ text: structuredResponse }],
         },
       ];
 
@@ -39,7 +39,9 @@ export class ResponseEnhancerService {
 
       return result.response || structuredResponse;
     } catch (error) {
-      this.logger.warn('⚠️ Failed to enhance response with AI, using structured response');
+      this.logger.warn(
+        '⚠️ Failed to enhance response with AI, using structured response',
+      );
       return structuredResponse;
     }
   }
@@ -47,7 +49,10 @@ export class ResponseEnhancerService {
   /**
    * Build system prompt for response enhancement
    */
-  private buildSystemPrompt(originalMessage: string, userQuery: UserQuery): string {
+  private buildSystemPrompt(
+    originalMessage: string,
+    userQuery: UserQuery,
+  ): string {
     return `You are Prime, a friendly AI assistant for the Monzi fintech platform. 
 
 Your job is to take a structured response and make it sound more natural and conversational while keeping all the important information.
@@ -75,12 +80,16 @@ Take the structured response below and make it sound more natural and friendly:`
       structuredResponse: string;
       originalMessage: string;
       userQuery: UserQuery;
-    }>
+    }>,
   ): Promise<string[]> {
     const enhancedResponses = await Promise.all(
       responses.map(({ structuredResponse, originalMessage, userQuery }) =>
-        this.enhanceResponseWithAI(structuredResponse, originalMessage, userQuery)
-      )
+        this.enhanceResponseWithAI(
+          structuredResponse,
+          originalMessage,
+          userQuery,
+        ),
+      ),
     );
 
     return enhancedResponses;
