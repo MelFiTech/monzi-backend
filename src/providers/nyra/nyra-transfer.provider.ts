@@ -300,16 +300,32 @@ export class NyraTransferProvider implements TransferProviderInterface {
         },
       );
 
+      // Check if we got a meaningful account name
+      const accountName = response.data.data.account.name;
+      const accountNumber = response.data.data.account.number;
+      
+      // If account name is null, undefined, empty string, or "Account Name Not Available", 
+      // treat it as a failed verification
+      if (!accountName || accountName.trim() === '' || accountName === 'Account Name Not Available') {
+        this.logger.warn(
+          `NYRA returned empty/null account name for: ${data.accountNumber} with bank: ${data.bankCode}`,
+        );
+        return {
+          success: false,
+          message: 'Account not found or name not available',
+          error: 'ACCOUNT_NOT_FOUND',
+        };
+      }
+
       this.logger.log(
-        `NYRA account verification successful for: ${data.accountNumber}`,
+        `NYRA account verification successful for: ${data.accountNumber} - Name: ${accountName}`,
       );
       return {
         success: true,
         message: 'Account verification successful',
         data: {
-          accountName:
-            response.data.data.account.name || 'Account Name Not Available',
-          accountNumber: response.data.data.account.number,
+          accountName: accountName,
+          accountNumber: accountNumber,
           bankName: response.data.data.bank_name || 'Bank Name Not Available',
           bankCode: data.bankCode,
         },

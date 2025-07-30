@@ -8,13 +8,19 @@ import {
   SuperResolveAccountResponseDto,
 } from './dto/accounts.dto';
 import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
+import { BudPayTransferProvider } from '../providers/budpay/budpay-transfer.provider';
 
 @Injectable()
 export class AccountsService {
   constructor(
     private readonly configService: ConfigService,
     private readonly transferProviderManager: TransferProviderManagerService,
+    private readonly budPayTransferProvider: BudPayTransferProvider,
   ) {}
+
+  // Cache for bank mappings to avoid repeated API calls
+  private bankMappingsCache: Map<string, string> = new Map();
+  private budpayBanksCache: any[] = [];
 
   // Common Nigerian banks to try first (most likely to have accounts)
   private readonly COMMON_BANKS = [
@@ -90,6 +96,71 @@ export class AccountsService {
   // Delay function for rate limiting
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Smart bank code conversion using bank name matching
+   * This approach is scalable for all 684+ banks
+   */
+  private async convertToBudPayBankCode(nyraBankCode: string, bankName: string): Promise<string> {
+    // Check cache first
+    const cacheKey = `${nyraBankCode}_${bankName}`;
+    if (this.bankMappingsCache.has(cacheKey)) {
+      return this.bankMappingsCache.get(cacheKey);
+    }
+
+    try {
+      // Get BudPay bank list if not cached
+      if (this.budpayBanksCache.length === 0) {
+        console.log('🔄 [SMART MAPPING] Fetching BudPay bank list for dynamic mapping...');
+        const budpayBanksResponse = await this.budPayTransferProvider.getBankList();
+        if (budpayBanksResponse.success) {
+          this.budpayBanksCache = budpayBanksResponse.data;
+          console.log(`✅ [SMART MAPPING] Cached ${this.budpayBanksCache.length} BudPay banks`);
+        }
+      }
+
+      // Find matching bank by name
+      const normalizedBankName = this.normalizeBankName(bankName);
+      const matchingBank = this.budpayBanksCache.find(bank => 
+        this.normalizeBankName(bank.bankName) === normalizedBankName ||
+        this.normalizeBankName(bank.bankName).includes(normalizedBankName) ||
+        normalizedBankName.includes(this.normalizeBankName(bank.bankName))
+      );
+
+      if (matchingBank) {
+        const budpayCode = matchingBank.bankCode;
+        console.log(`🔄 [SMART MAPPING] Found match: ${bankName} (${nyraBankCode}) -> ${matchingBank.bankName} (${budpayCode})`);
+        
+        // Cache the result
+        this.bankMappingsCache.set(cacheKey, budpayCode);
+        return budpayCode;
+      }
+
+      // If no match found, return original code (some banks might have same codes)
+      console.log(`⚠️ [SMART MAPPING] No match found for ${bankName} (${nyraBankCode}), using original code`);
+      this.bankMappingsCache.set(cacheKey, nyraBankCode);
+      return nyraBankCode;
+
+    } catch (error) {
+      console.log(`❌ [SMART MAPPING] Error converting bank code for ${bankName}:`, error.message);
+      // Fallback to original code
+      this.bankMappingsCache.set(cacheKey, nyraBankCode);
+      return nyraBankCode;
+    }
+  }
+
+  /**
+   * Normalize bank name for better matching
+   */
+  private normalizeBankName(bankName: string): string {
+    return bankName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+      .replace(/\s+/g, ' ') // Normalize spaces
+      .replace(/\b(plc|limited|ltd|inc|corporation|corp)\b/g, '') // Remove common suffixes
+      .trim();
   }
 
   /**
@@ -296,7 +367,7 @@ export class AccountsService {
   }
 
   /**
-   * Resolve bank account to get account holder name
+   * Resolve bank account to get account holder name using BudPay for better success rate
    */
   async resolveAccount(
     resolveAccountDto: ResolveAccountDto,
@@ -307,7 +378,7 @@ export class AccountsService {
         resolveAccountDto.bank_name,
       );
 
-      // First, find the bank code from the bank name
+      // First, find the bank code from the bank name using active provider
       const bank = await this.findBankByName(resolveAccountDto.bank_name);
 
       if (!bank) {
@@ -326,45 +397,80 @@ export class AccountsService {
         JSON.stringify(bank, null, 2),
       );
       console.log(
-        '🌐 [TRANSFER PROVIDER] Verifying account with active provider...',
+        '🌐 [HYBRID PROVIDER] Using BudPay for account verification (better success rate)...',
       );
 
-      // Now resolve the account using the found bank code
-      const response = await this.transferProviderManager.verifyAccount({
+      // Convert NYRA bank code to BudPay bank code using smart matching
+      const budpayBankCode = await this.convertToBudPayBankCode(bank.code, bank.name);
+      console.log(`🔄 [HYBRID PROVIDER] Converting bank code: ${bank.code} -> ${budpayBankCode}`);
+
+      // Use BudPay for account verification
+      const budpayResponse = await this.budPayTransferProvider.verifyAccount({
         accountNumber: resolveAccountDto.account_number,
-        bankCode: bank.code,
+        bankCode: budpayBankCode,
       });
 
       console.log(
-        '📥 [TRANSFER PROVIDER] Account verification response:',
-        JSON.stringify(response, null, 2),
+        '📥 [BUDPAY PROVIDER] Account verification response:',
+        JSON.stringify(budpayResponse, null, 2),
       );
 
-      if (!response.success) {
+      if (!budpayResponse.success) {
         console.log(
-          '❌ [TRANSFER PROVIDER] Account resolution failed:',
-          response.message || 'Unknown error',
+          '❌ [BUDPAY PROVIDER] Account resolution failed, trying fallback with active provider...',
+          budpayResponse.message || 'Unknown error',
         );
-        throw new HttpException(
-          response.message || 'Failed to resolve account',
-          HttpStatus.BAD_REQUEST,
+        
+        // Fallback to active provider if BudPay fails
+        const fallbackResponse = await this.transferProviderManager.verifyAccount({
+          accountNumber: resolveAccountDto.account_number,
+          bankCode: bank.code,
+        });
+
+        console.log(
+          '📥 [FALLBACK PROVIDER] Account verification response:',
+          JSON.stringify(fallbackResponse, null, 2),
         );
+
+        if (!fallbackResponse.success) {
+          console.log(
+            '❌ [FALLBACK PROVIDER] Account resolution failed:',
+            fallbackResponse.message || 'Unknown error',
+          );
+          throw new HttpException(
+            fallbackResponse.message || 'Account resolution failed',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+
+        console.log(
+          '✅ [FALLBACK PROVIDER] Final result:',
+          JSON.stringify(fallbackResponse.data, null, 2),
+        );
+
+        return {
+          status: true,
+          account_name: fallbackResponse.data.accountName,
+          account_number: resolveAccountDto.account_number,
+          bank_name: bank.name,
+          bank_code: bank.code,
+          message: 'Account resolved successfully (fallback)',
+        };
       }
 
-      const result = {
-        status: true,
-        account_name: response.data.accountName,
-        account_number: resolveAccountDto.account_number,
-        bank_name: bank.name, // Return the exact bank name from our search
-        bank_code: bank.code, // Include the bank code for reference
-        message: 'Account resolved successfully',
-      };
-
       console.log(
-        '✅ [ACCOUNTS SERVICE] Final result:',
-        JSON.stringify(result, null, 2),
+        '✅ [BUDPAY PROVIDER] Final result:',
+        JSON.stringify(budpayResponse.data, null, 2),
       );
-      return result;
+
+      return {
+        status: true,
+        account_name: budpayResponse.data.accountName,
+        account_number: resolveAccountDto.account_number,
+        bank_name: bank.name,
+        bank_code: bank.code,
+        message: 'Account resolved successfully (BudPay)',
+      };
     } catch (error) {
       console.log(
         '🚨 [ACCOUNTS SERVICE] Error in resolveAccount:',
