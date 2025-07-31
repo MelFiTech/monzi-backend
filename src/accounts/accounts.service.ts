@@ -12,15 +12,95 @@ import { BudPayTransferProvider } from '../providers/budpay/budpay-transfer.prov
 
 @Injectable()
 export class AccountsService {
+  // Cache for bank mappings to avoid repeated API calls
+  private bankMappingsCache: Map<string, string> = new Map();
+  private budpayBanksCache: any[] = [];
+
+  // Cache for resolved account numbers to prevent repeated API calls
+  private resolvedAccountsCache: Map<string, {
+    result: SuperResolveAccountResponseDto;
+    timestamp: number;
+    expiresAt: number;
+  }> = new Map();
+
+  // Request deduplication - prevent multiple simultaneous requests for same account
+  private pendingRequests: Map<string, Promise<SuperResolveAccountResponseDto>> = new Map();
+
+  // Cache configuration
+  private readonly CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  private readonly CACHE_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour cleanup interval
+
   constructor(
     private readonly configService: ConfigService,
     private readonly transferProviderManager: TransferProviderManagerService,
     private readonly budPayTransferProvider: BudPayTransferProvider,
-  ) {}
+  ) {
+    // Start cache cleanup scheduler
+    this.scheduleCacheCleanup();
+  }
 
-  // Cache for bank mappings to avoid repeated API calls
-  private bankMappingsCache: Map<string, string> = new Map();
-  private budpayBanksCache: any[] = [];
+  /**
+   * Schedule periodic cache cleanup to prevent memory leaks
+   */
+  private scheduleCacheCleanup() {
+    setInterval(() => {
+      this.cleanupExpiredCache();
+    }, this.CACHE_CLEANUP_INTERVAL);
+  }
+
+  /**
+   * Clean up expired cache entries
+   */
+  private cleanupExpiredCache() {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const [key, value] of this.resolvedAccountsCache.entries()) {
+      if (now > value.expiresAt) {
+        this.resolvedAccountsCache.delete(key);
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      console.log(`🧹 [ACCOUNTS CACHE] Cleaned up ${cleanedCount} expired cache entries`);
+    }
+  }
+
+  /**
+   * Get cached result for account number
+   */
+  private getCachedResult(accountNumber: string): SuperResolveAccountResponseDto | null {
+    const cached = this.resolvedAccountsCache.get(accountNumber);
+    
+    if (cached && Date.now() < cached.expiresAt) {
+      console.log(`💾 [ACCOUNTS CACHE] Cache HIT for account: ${accountNumber}`);
+      return cached.result;
+    }
+    
+    if (cached) {
+      console.log(`⏰ [ACCOUNTS CACHE] Cache EXPIRED for account: ${accountNumber}`);
+      this.resolvedAccountsCache.delete(accountNumber);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Cache resolved account result
+   */
+  private cacheResult(accountNumber: string, result: SuperResolveAccountResponseDto) {
+    const now = Date.now();
+    const expiresAt = now + this.CACHE_TTL;
+    
+    this.resolvedAccountsCache.set(accountNumber, {
+      result,
+      timestamp: now,
+      expiresAt,
+    });
+    
+    console.log(`💾 [ACCOUNTS CACHE] Cached result for account: ${accountNumber} (expires in ${this.CACHE_TTL / (60 * 60 * 1000)}h)`);
+  }
 
   // Common Nigerian banks to try first (most likely to have accounts)
   private readonly COMMON_BANKS = [
@@ -232,6 +312,50 @@ export class AccountsService {
         '🏦 [SUPER RESOLVE] Using transfer provider for reliable resolution...',
       );
 
+      // Check cache first
+      const cachedResult = this.getCachedResult(accountNumber);
+      if (cachedResult) {
+        console.log(`💾 [SUPER RESOLVE] Cache HIT for account: ${accountNumber}`);
+        return cachedResult;
+      }
+
+      // Check for pending requests to prevent duplicate API calls
+      if (this.pendingRequests.has(accountNumber)) {
+        console.log(`⏳ [SUPER RESOLVE] Waiting for pending request for account: ${accountNumber}`);
+        return await this.pendingRequests.get(accountNumber);
+      }
+
+      // Create a promise for this request and store it
+      const requestPromise = this.performSuperResolve(accountNumber, startTime);
+      this.pendingRequests.set(accountNumber, requestPromise);
+
+      try {
+        const result = await requestPromise;
+        return result;
+      } finally {
+        // Clean up pending request
+        this.pendingRequests.delete(accountNumber);
+      }
+    } catch (error) {
+      console.error(
+        '🚨 [SUPER RESOLVE] Error in superResolveAccount:',
+        error.message,
+      );
+      throw new HttpException(
+        'Error during super resolve process',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Perform the actual super resolve operation
+   */
+  private async performSuperResolve(
+    accountNumber: string,
+    startTime: number,
+  ): Promise<SuperResolveAccountResponseDto> {
+    try {
       // Get banks list from transfer provider
       const banksResponse = await this.getBanks();
       if (
@@ -334,10 +458,16 @@ export class AccountsService {
 
       // Try digital banks first
       let result = await tryBanks(digitalBanks);
-      if (result) return result;
+      if (result) {
+        this.cacheResult(accountNumber, result);
+        return result;
+      }
       // If not found, try commercial banks
       result = await tryBanks(commercialBanks);
-      if (result) return result;
+      if (result) {
+        this.cacheResult(accountNumber, result);
+        return result;
+      }
       // If not found in either, stop and return failure
       const executionTime = (Date.now() - startTime) / 1000;
       console.log(
@@ -346,6 +476,14 @@ export class AccountsService {
       console.log(
         `📊 [SUPER RESOLVE] Tested ${digitalBanks.length + commercialBanks.length} banks in ${executionTime.toFixed(2)}s`,
       );
+      this.cacheResult(accountNumber, {
+        success: false,
+        message: 'Account not found in digital or commercial banks',
+        banks_tested: digitalBanks.length + commercialBanks.length,
+        execution_time: executionTime,
+        error:
+          'Account number not found in digital or commercial banks. Please try with a specific bank.',
+      });
       return {
         success: false,
         message: 'Account not found in digital or commercial banks',
@@ -356,7 +494,7 @@ export class AccountsService {
       };
     } catch (error) {
       console.error(
-        '🚨 [SUPER RESOLVE] Error in superResolveAccount:',
+        '🚨 [SUPER RESOLVE] Error in performSuperResolve:',
         error.message,
       );
       throw new HttpException(
@@ -743,4 +881,5 @@ export class AccountsService {
       return null;
     }
   }
+
 }
