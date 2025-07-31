@@ -100,15 +100,22 @@ export class LocationTrackingService {
     longitude: number,
   ): Promise<ProximityResultDto> {
     try {
+      // Use a very small radius (20m) to ensure precise location matching
+      // This prevents cross-location contamination
+      const strictProximityRadius = 20; // 20 meters for very precise matching
+      
       // Get nearby locations with payment suggestions
       const nearbyLocations = await this.locationPrecisionService.getNearbyLocationsWithSuggestions(
         latitude,
         longitude,
-        this.PROXIMITY_RADIUS,
-        5, // Limit to 5 closest locations
+        strictProximityRadius, // Use strict radius instead of PROXIMITY_RADIUS
+        1, // Only get the closest location to prevent cross-location contamination
       );
 
       if (nearbyLocations.length === 0) {
+        this.logger.log(
+          `📍 [LOCATION TRACKING] No locations found within ${strictProximityRadius}m radius`,
+        );
         return { isNearby: false };
       }
 
@@ -116,8 +123,23 @@ export class LocationTrackingService {
       const closestLocation = nearbyLocations[0];
       
       if (!closestLocation || closestLocation.paymentSuggestions.length === 0) {
+        this.logger.log(
+          `📍 [LOCATION TRACKING] Closest location has no payment suggestions`,
+        );
         return { isNearby: false };
       }
+
+      // Double-check that the location is very close
+      if (closestLocation.distance > strictProximityRadius) {
+        this.logger.log(
+          `📍 [LOCATION TRACKING] Closest location too far: ${closestLocation.distance}m > ${strictProximityRadius}m`,
+        );
+        return { isNearby: false };
+      }
+
+      this.logger.log(
+        `🎯 [LOCATION TRACKING] Found closest location: ${closestLocation.name} (${closestLocation.distance}m) with ${closestLocation.paymentSuggestions.length} payment suggestions from this specific location`,
+      );
 
       return {
         isNearby: true,

@@ -403,7 +403,7 @@ export class LocationPrecisionService {
         });
       });
 
-      // Calculate distances and filter by radius
+      // Calculate distances and filter by radius with strict location matching
       const locationMatches: LocationMatch[] = [];
 
       for (const location of locations) {
@@ -414,22 +414,39 @@ export class LocationPrecisionService {
           location.longitude,
         );
 
+        // Only include locations that are very close (within the specified radius)
+        // and have payment suggestions from that specific location
         if (distance <= radius) {
           const confidence = this.calculateConfidence(distance);
           const paymentSuggestions = this.extractPaymentSuggestions(
             location.transactions,
           );
 
-          locationMatches.push({
-            locationId: location.id,
-            name: location.name,
-            address: location.address,
-            latitude: location.latitude,
-            longitude: location.longitude,
-            distance,
-            confidence,
-            paymentSuggestions,
-          });
+          // Only include locations that have payment suggestions from this specific location
+          if (paymentSuggestions.length > 0) {
+            locationMatches.push({
+              locationId: location.id,
+              name: location.name,
+              address: location.address,
+              latitude: location.latitude,
+              longitude: location.longitude,
+              distance,
+              confidence,
+              paymentSuggestions,
+            });
+
+            console.log(
+              `✅ [LOCATION PRECISION] Added location "${location.name}" with ${paymentSuggestions.length} payment suggestions from this specific location`,
+            );
+          } else {
+            console.log(
+              `❌ [LOCATION PRECISION] Skipping location "${location.name}" - no payment suggestions from this specific location`,
+            );
+          }
+        } else {
+          console.log(
+            `❌ [LOCATION PRECISION] Location "${location.name}" too far (${distance.toFixed(2)}m > ${radius}m)`,
+          );
         }
       }
 
@@ -445,17 +462,13 @@ export class LocationPrecisionService {
         })
         .slice(0, limit);
 
-      // Deduplicate payment suggestions across locations
-      const deduplicatedMatches =
-        this.deduplicatePaymentSuggestions(sortedMatches);
-
       console.log(
         '📍 [LOCATION PRECISION] Nearby locations found:',
-        deduplicatedMatches.length,
+        sortedMatches.length,
       );
 
       // Log the final results with payment suggestions
-      deduplicatedMatches.forEach((match, index) => {
+      sortedMatches.forEach((match, index) => {
         console.log(`🎯 [LOCATION PRECISION] Final Match ${index + 1}:`, {
           locationId: match.locationId,
           name: match.name,
@@ -472,7 +485,7 @@ export class LocationPrecisionService {
         });
       });
 
-      return deduplicatedMatches;
+      return sortedMatches;
     } catch (error) {
       console.error(
         '❌ [LOCATION PRECISION] Error in getNearbyLocationsWithSuggestions:',
@@ -695,7 +708,7 @@ export class LocationPrecisionService {
       console.log(
         '💳 [PAYMENT SUGGESTIONS] Extracting payment suggestions from',
         transactions.length,
-        'transactions',
+        'transactions for this specific location',
       );
 
       const suggestions = new Map<string, PaymentSuggestion>();
@@ -705,6 +718,7 @@ export class LocationPrecisionService {
           id: transaction.id,
           amount: transaction.amount,
           hasToAccount: !!transaction.toAccount,
+          locationId: transaction.locationId,
           toAccountData: transaction.toAccount
             ? {
                 accountNumber: transaction.toAccount.accountNumber,
@@ -738,6 +752,14 @@ export class LocationPrecisionService {
           continue;
         }
 
+        // Ensure this transaction is associated with the current location
+        if (!transaction.locationId) {
+          console.log(
+            '⚠️ [PAYMENT SUGGESTIONS] Transaction has no locationId, skipping to prevent cross-location contamination',
+          );
+          continue;
+        }
+
         const key = `${transaction.toAccount.accountNumber}-${transaction.toAccount.bankName}`;
 
         if (suggestions.has(key)) {
@@ -760,12 +782,13 @@ export class LocationPrecisionService {
           };
           suggestions.set(key, newSuggestion);
           console.log(
-            '✅ [PAYMENT SUGGESTIONS] Created new business suggestion:',
+            '✅ [PAYMENT SUGGESTIONS] Created new business suggestion for this specific location:',
             {
               accountNumber: newSuggestion.accountNumber,
               bankName: newSuggestion.bankName,
               accountName: newSuggestion.accountName,
               frequency: newSuggestion.frequency,
+              locationId: transaction.locationId,
             },
           );
         }
@@ -784,7 +807,7 @@ export class LocationPrecisionService {
       );
 
       console.log(
-        '🎯 [PAYMENT SUGGESTIONS] Final business suggestions:',
+        '🎯 [PAYMENT SUGGESTIONS] Final business suggestions for this specific location:',
         sortedSuggestions.map((s) => ({
           accountNumber: s.accountNumber,
           bankName: s.bankName,
@@ -831,65 +854,6 @@ export class LocationPrecisionService {
         error,
       );
       return Infinity; // Return large distance on error
-    }
-  }
-
-  /**
-   * Deduplicate payment suggestions across locations to prevent showing the same business multiple times
-   */
-  private deduplicatePaymentSuggestions(
-    locationMatches: LocationMatch[],
-  ): LocationMatch[] {
-    try {
-      console.log(
-        '🔄 [LOCATION PRECISION] Deduplicating payment suggestions across locations',
-      );
-
-      const seenBusinessAccounts = new Set<string>();
-      const deduplicatedMatches: LocationMatch[] = [];
-
-      for (const match of locationMatches) {
-        const uniqueSuggestions: PaymentSuggestion[] = [];
-
-        for (const suggestion of match.paymentSuggestions) {
-          const businessKey = `${suggestion.accountNumber}-${suggestion.bankName}`;
-
-          if (!seenBusinessAccounts.has(businessKey)) {
-            seenBusinessAccounts.add(businessKey);
-            uniqueSuggestions.push(suggestion);
-            console.log(
-              `✅ [LOCATION PRECISION] Added unique business suggestion: ${suggestion.accountName} (${suggestion.accountNumber})`,
-            );
-          } else {
-            console.log(
-              `🚫 [LOCATION PRECISION] Skipped duplicate business suggestion: ${suggestion.accountName} (${suggestion.accountNumber})`,
-            );
-          }
-        }
-
-        // Only include locations that have unique payment suggestions
-        if (uniqueSuggestions.length > 0) {
-          deduplicatedMatches.push({
-            ...match,
-            paymentSuggestions: uniqueSuggestions,
-          });
-        } else {
-          console.log(
-            `📍 [LOCATION PRECISION] Skipping location "${match.name}" - no unique payment suggestions`,
-          );
-        }
-      }
-
-      console.log(
-        `🔄 [LOCATION PRECISION] Deduplication complete: ${locationMatches.length} → ${deduplicatedMatches.length} locations`,
-      );
-      return deduplicatedMatches;
-    } catch (error) {
-      console.error(
-        '❌ [LOCATION PRECISION] Error in deduplicatePaymentSuggestions:',
-        error,
-      );
-      return locationMatches; // Return original on error
     }
   }
 }
