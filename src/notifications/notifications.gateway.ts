@@ -10,6 +10,8 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LocationTrackingService } from '../location/services/location-tracking.service';
+import { LocationUpdateDto, LocationSubscriptionDto } from '../location/dto/location-tracking.dto';
 
 @WebSocketGateway({
   cors: {
@@ -28,7 +30,10 @@ export class NotificationsGateway
   private readonly logger = new Logger(NotificationsGateway.name);
   private clientUserMap = new Map<string, string>(); // socketId -> userId
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private locationTrackingService: LocationTrackingService,
+  ) {}
 
   handleConnection(client: Socket) {
     this.logger.log(`🔌 Client connected: ${client.id}`);
@@ -45,7 +50,7 @@ export class NotificationsGateway
   }
 
   @SubscribeMessage('join_user_room')
-  handleJoinUserRoom(
+  async handleJoinUserRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { userId: string },
   ) {
@@ -58,6 +63,34 @@ export class NotificationsGateway
     this.clientUserMap.set(client.id, userId);
 
     this.logger.log(`👤 User ${userId} joined room (socket: ${client.id})`);
+
+    // Auto-subscribe to location tracking if user has it enabled
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          locationNotificationsEnabled: true,
+        },
+      });
+
+      if (user && user.locationNotificationsEnabled) {
+        // Auto-subscribe to location tracking
+        client.join(`location_${userId}`);
+        
+        this.logger.log(`📍 [WEBSOCKET] Auto-subscribed user ${userId} to location tracking`);
+        
+        client.emit('location:auto_subscribed', {
+          success: true,
+          message: 'Auto-subscribed to location tracking',
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `❌ [WEBSOCKET] Error auto-subscribing to location tracking:`,
+        error.message,
+      );
+    }
 
     // Send confirmation
     client.emit('joined_room', {
@@ -215,5 +248,224 @@ export class NotificationsGateway
   async getUsersInRoom(roomName: string): Promise<string[]> {
     const sockets = await this.server.in(roomName).fetchSockets();
     return sockets.map((socket) => socket.id);
+  }
+
+  // ==================== LOCATION TRACKING HANDLERS ====================
+
+  /**
+   * Handle location updates from frontend
+   */
+  @SubscribeMessage('location:update')
+  async handleLocationUpdate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: LocationUpdateDto & { userId: string },
+  ) {
+    const { userId, ...locationData } = data;
+
+    this.logger.log(
+      `📍 [WEBSOCKET] Location update from user ${userId}: ${locationData.latitude}, ${locationData.longitude}`,
+    );
+
+    try {
+      // Update user location and check for nearby payment locations
+      const proximityResult = await this.locationTrackingService.updateUserLocation(
+        userId,
+        locationData,
+      );
+
+      // Send proximity result back to client
+      client.emit('location:proximity_result', {
+        success: true,
+        proximityResult,
+        timestamp: new Date().toISOString(),
+      });
+
+      // If user is nearby a payment location, emit real-time notification
+      if (proximityResult.isNearby) {
+        this.server.to(`user_${userId}`).emit('location:nearby_payment_location', {
+          locationName: proximityResult.locationName,
+          distance: proximityResult.distance,
+          locationAddress: proximityResult.locationAddress,
+          locationId: proximityResult.locationId,
+          paymentSuggestions: proximityResult.paymentSuggestions,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `❌ [WEBSOCKET] Error handling location update:`,
+        error.message,
+      );
+
+      client.emit('location:error', {
+        success: false,
+        message: 'Failed to process location update',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Handle location tracking subscription
+   */
+  @SubscribeMessage('location:subscribe')
+  async handleLocationSubscription(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: LocationSubscriptionDto,
+  ) {
+    const { userId, enabled, updateFrequency = 30, proximityRadius = 40 } = data;
+
+    this.logger.log(
+      `📍 [WEBSOCKET] Location subscription request from user ${userId}: enabled=${enabled}`,
+    );
+
+    try {
+      // Check user's location notification preference
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          locationNotificationsEnabled: true,
+        },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Only allow subscription if user has location notifications enabled
+      if (enabled && !user.locationNotificationsEnabled) {
+        client.emit('location:error', {
+          success: false,
+          message: 'Location notifications are disabled in settings',
+          error: 'LOCATION_NOTIFICATIONS_DISABLED',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (enabled) {
+        // Join location tracking room
+        client.join(`location_${userId}`);
+        
+        this.logger.log(
+          `✅ [WEBSOCKET] User ${userId} subscribed to location tracking`,
+        );
+
+        client.emit('location:subscribed', {
+          success: true,
+          message: 'Location tracking enabled',
+          updateFrequency,
+          proximityRadius,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        // Leave location tracking room
+        client.leave(`location_${userId}`);
+        
+        // Remove user from location tracking
+        this.locationTrackingService.removeUserLocation(userId);
+
+        this.logger.log(
+          `❌ [WEBSOCKET] User ${userId} unsubscribed from location tracking`,
+        );
+
+        client.emit('location:unsubscribed', {
+          success: true,
+          message: 'Location tracking disabled',
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `❌ [WEBSOCKET] Error handling location subscription:`,
+        error.message,
+      );
+
+      client.emit('location:error', {
+        success: false,
+        message: 'Failed to update location subscription',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Handle location tracking unsubscription
+   */
+  @SubscribeMessage('location:unsubscribe')
+  async handleLocationUnsubscription(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { userId: string },
+  ) {
+    const { userId } = data;
+
+    this.logger.log(
+      `📍 [WEBSOCKET] Location unsubscription request from user ${userId}`,
+    );
+
+    try {
+      // Leave location tracking room
+      client.leave(`location_${userId}`);
+      
+      // Remove user from location tracking
+      this.locationTrackingService.removeUserLocation(userId);
+
+      this.logger.log(
+        `❌ [WEBSOCKET] User ${userId} unsubscribed from location tracking`,
+      );
+
+      client.emit('location:unsubscribed', {
+        success: true,
+        message: 'Location tracking disabled',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      this.logger.error(
+        `❌ [WEBSOCKET] Error handling location unsubscription:`,
+        error.message,
+      );
+
+      client.emit('location:error', {
+        success: false,
+        message: 'Failed to unsubscribe from location tracking',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Get user's current location
+   */
+  @SubscribeMessage('location:get_current')
+  async handleGetCurrentLocation(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { userId: string },
+  ) {
+    const { userId } = data;
+
+    try {
+      const userLocation = this.locationTrackingService.getUserLocation(userId);
+
+      client.emit('location:current_location', {
+        success: true,
+        location: userLocation,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      this.logger.error(
+        `❌ [WEBSOCKET] Error getting current location:`,
+        error.message,
+      );
+
+      client.emit('location:error', {
+        success: false,
+        message: 'Failed to get current location',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 }

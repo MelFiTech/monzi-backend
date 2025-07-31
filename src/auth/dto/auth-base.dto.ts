@@ -177,6 +177,16 @@ export class UpdateNotificationPreferencesDto {
   @IsOptional()
   @IsBoolean()
   promotionalNotificationsEnabled?: boolean;
+
+  @ApiProperty({
+    example: true,
+    description:
+      'Enable/disable location-based push notifications (does not affect real-time websocket notifications)',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  locationNotificationsEnabled?: boolean;
 }
 
 // Update Device Token on Login

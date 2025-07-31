@@ -193,6 +193,7 @@ export class AuthNotificationsService {
       notificationsEnabled,
       transactionNotificationsEnabled,
       promotionalNotificationsEnabled,
+      locationNotificationsEnabled,
     } = dto;
 
     console.log('🔍 [AUTH] Update notification preferences:', {
@@ -200,6 +201,7 @@ export class AuthNotificationsService {
       notificationsEnabled,
       transactionNotificationsEnabled,
       promotionalNotificationsEnabled,
+      locationNotificationsEnabled,
     });
 
     const updateData: any = {};
@@ -218,6 +220,10 @@ export class AuthNotificationsService {
         promotionalNotificationsEnabled;
     }
 
+    if (locationNotificationsEnabled !== undefined) {
+      updateData.locationNotificationsEnabled = locationNotificationsEnabled;
+    }
+
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: updateData,
@@ -234,6 +240,7 @@ export class AuthNotificationsService {
           updatedUser.transactionNotificationsEnabled,
         promotionalNotificationsEnabled:
           updatedUser.promotionalNotificationsEnabled,
+        locationNotificationsEnabled: updatedUser.locationNotificationsEnabled,
       },
     };
   }
@@ -250,6 +257,7 @@ export class AuthNotificationsService {
         notificationsEnabled: true,
         transactionNotificationsEnabled: true,
         promotionalNotificationsEnabled: true,
+        locationNotificationsEnabled: true,
       },
     });
 
@@ -266,6 +274,7 @@ export class AuthNotificationsService {
         notificationsEnabled: user.notificationsEnabled,
         transactionNotificationsEnabled: user.transactionNotificationsEnabled,
         promotionalNotificationsEnabled: user.promotionalNotificationsEnabled,
+        locationNotificationsEnabled: user.locationNotificationsEnabled,
       },
     };
   }

@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { LocationService } from './location.service';
 import { LocationPrecisionService } from './services/location-precision.service';
+import { LocationTrackingService } from './services/location-tracking.service';
 import {
   CreateLocationDto,
   UpdateLocationDto,
@@ -32,6 +33,7 @@ import {
   LocationResponseDto,
 } from './dto/location.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('Locations')
 @Controller('locations')
@@ -41,6 +43,8 @@ export class LocationController {
   constructor(
     private readonly locationService: LocationService,
     private readonly locationPrecisionService: LocationPrecisionService,
+    private readonly locationTrackingService: LocationTrackingService,
+    private readonly prismaService: PrismaService,
   ) {}
 
   @Post()
@@ -236,5 +240,100 @@ export class LocationController {
       message: 'Location statistics retrieved successfully',
       data: stats,
     };
+  }
+
+  @Put('settings/location-notifications')
+  @ApiOperation({
+    summary: 'Toggle location-based notifications',
+    description: 'Enable or disable location-based push notifications for the current user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Location notification preference updated successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async toggleLocationNotifications(
+    @Body() body: { enabled: boolean },
+    @Param('userId') userId: string,
+  ) {
+    console.log('🔔 [LOCATION API] PUT /locations/settings/location-notifications');
+    console.log('📝 Request Data:', JSON.stringify({ userId, ...body }, null, 2));
+
+    try {
+      // Update user's location notification preference
+      const updatedUser = await this.prismaService.user.update({
+        where: { id: userId },
+        data: {
+          locationNotificationsEnabled: body.enabled,
+        },
+        select: {
+          id: true,
+          locationNotificationsEnabled: true,
+        },
+      });
+
+      console.log('✅ [LOCATION API] Location notification preference updated');
+      console.log('📄 Response Data:', JSON.stringify(updatedUser, null, 2));
+
+      return {
+        success: true,
+        message: body.enabled 
+          ? 'Location notifications enabled successfully' 
+          : 'Location notifications disabled successfully',
+        data: {
+          userId: updatedUser.id,
+          locationNotificationsEnabled: updatedUser.locationNotificationsEnabled,
+        },
+      };
+    } catch (error) {
+      console.log('❌ [LOCATION API] Location notification preference update error:');
+      console.log('🚨 Error:', error.message);
+      throw error;
+    }
+  }
+
+  @Get('settings/location-notifications')
+  @ApiOperation({
+    summary: 'Get location notification preference',
+    description: 'Get current user location notification preference',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Location notification preference retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getLocationNotificationPreference(@Param('userId') userId: string) {
+    console.log('🔔 [LOCATION API] GET /locations/settings/location-notifications');
+
+    try {
+      const user = await this.prismaService.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          locationNotificationsEnabled: true,
+        },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      console.log('✅ [LOCATION API] Location notification preference retrieved');
+      console.log('📄 Response Data:', JSON.stringify(user, null, 2));
+
+      return {
+        success: true,
+        message: 'Location notification preference retrieved successfully',
+        data: {
+          userId: user.id,
+          locationNotificationsEnabled: user.locationNotificationsEnabled,
+        },
+      };
+    } catch (error) {
+      console.log('❌ [LOCATION API] Location notification preference retrieval error:');
+      console.log('🚨 Error:', error.message);
+      throw error;
+    }
   }
 }

@@ -249,12 +249,14 @@ export class NotificationPreferencesResponseDto {
       notificationsEnabled: { type: 'boolean', example: true },
       transactionNotificationsEnabled: { type: 'boolean', example: true },
       promotionalNotificationsEnabled: { type: 'boolean', example: true },
+      locationNotificationsEnabled: { type: 'boolean', example: true },
     },
   })
   preferences: {
     notificationsEnabled: boolean;
     transactionNotificationsEnabled: boolean;
     promotionalNotificationsEnabled: boolean;
+    locationNotificationsEnabled: boolean;
   };
 }
 

@@ -32,6 +32,7 @@ model User {
   notificationsEnabled            Boolean               @default(true)
   promotionalNotificationsEnabled Boolean               @default(true)
   transactionNotificationsEnabled Boolean               @default(true)
+  locationNotificationsEnabled    Boolean               @default(true)
   role                            UserRole              @default(USER)
   metadata                        Json?
   adminActionLogs                 AdminActionLog[]
