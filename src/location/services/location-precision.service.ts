@@ -16,6 +16,7 @@ export interface PaymentSuggestion {
   accountNumber: string;
   bankName: string;
   accountName: string;
+  bankCode: string;
   frequency: number;
   lastTransactionDate: Date;
 }
@@ -777,6 +778,7 @@ export class LocationPrecisionService {
             accountNumber: transaction.toAccount.accountNumber,
             bankName: transaction.toAccount.bankName,
             accountName: transaction.toAccount.accountName,
+            bankCode: transaction.toAccount.bankCode || '',
             frequency: 1,
             lastTransactionDate: transaction.createdAt,
           };
@@ -787,6 +789,7 @@ export class LocationPrecisionService {
               accountNumber: newSuggestion.accountNumber,
               bankName: newSuggestion.bankName,
               accountName: newSuggestion.accountName,
+              bankCode: newSuggestion.bankCode,
               frequency: newSuggestion.frequency,
               locationId: transaction.locationId,
             },

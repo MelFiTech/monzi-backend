@@ -287,7 +287,14 @@ export class NotificationsGateway
           distance: proximityResult.distance,
           locationAddress: proximityResult.locationAddress,
           locationId: proximityResult.locationId,
-          paymentSuggestions: proximityResult.paymentSuggestions,
+          paymentSuggestions: proximityResult.paymentSuggestions.map(suggestion => ({
+            accountNumber: suggestion.accountNumber,
+            bankName: suggestion.bankName,
+            accountName: suggestion.accountName,
+            bankCode: suggestion.bankCode,
+            frequency: suggestion.frequency,
+            lastTransactionDate: suggestion.lastTransactionDate,
+          })),
           timestamp: new Date().toISOString(),
         });
       }
