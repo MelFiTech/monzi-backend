@@ -732,7 +732,7 @@ export class WebhooksService {
       accountName:
         (actualData as any).credit_account_name ||
         (actualData as any).owners_fullname,
-      amount: (actualData as any).amount,
+      amount: parseFloat((actualData as any).amount) || 0,
       currency: (actualData as any).currency || 'NGN',
       status: (actualData as any).status,
       description:
