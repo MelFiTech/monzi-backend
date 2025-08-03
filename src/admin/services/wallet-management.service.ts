@@ -304,19 +304,56 @@ export class WalletManagementService {
     console.log('🔥 [WALLET SERVICE] Unfreezing wallet:', unfreezeWalletDto);
 
     try {
-      const wallet = await this.prisma.wallet.findUnique({
-        where: { virtualAccountNumber: unfreezeWalletDto.accountNumber },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
+      let wallet;
+
+      if (unfreezeWalletDto.userId) {
+        wallet = await this.prisma.wallet.findFirst({
+          where: { userId: unfreezeWalletDto.userId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
             },
           },
-        },
-      });
+        });
+      } else if (unfreezeWalletDto.email) {
+        const user = await this.prisma.user.findUnique({
+          where: { email: unfreezeWalletDto.email },
+        });
+        if (user) {
+          wallet = await this.prisma.wallet.findFirst({
+            where: { userId: user.id },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          });
+        }
+      } else if (unfreezeWalletDto.accountNumber) {
+        wallet = await this.prisma.wallet.findUnique({
+          where: { virtualAccountNumber: unfreezeWalletDto.accountNumber },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        });
+      }
 
       if (!wallet) {
         throw new NotFoundException('Wallet not found');
