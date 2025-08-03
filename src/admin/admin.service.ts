@@ -4,6 +4,7 @@ import { UserManagementService } from './services/user-management.service';
 import { TransactionManagementService } from './services/transaction-management.service';
 import { AdminManagementService } from './services/admin-management.service';
 import { WalletManagementService } from './services/wallet-management.service';
+import { LocationManagementService } from './services/location-management.service';
 import { ProviderManagerService } from '../providers/provider-manager.service';
 import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
 import { BusinessService } from '../business/business.service';
@@ -17,6 +18,7 @@ export class AdminService {
     private transactionManagementService: TransactionManagementService,
     private adminManagementService: AdminManagementService,
     private walletManagementService: WalletManagementService,
+    private locationManagementService: LocationManagementService,
     private providerManager: ProviderManagerService,
     private transferProviderManager: TransferProviderManagerService,
     private businessService: BusinessService,
@@ -436,6 +438,58 @@ export class AdminService {
       message: 'Report status updated',
       reportId,
     };
+  }
+
+  // ==================== LOCATION MANAGEMENT DELEGATION ====================
+
+  async getLocations(query: any) {
+    return this.locationManagementService.getLocations(query);
+  }
+
+  async getLocationById(locationId: string) {
+    return this.locationManagementService.getLocationById(locationId);
+  }
+
+  async updateLocationName(
+    locationId: string,
+    updateDto: any,
+    adminId: string,
+    adminEmail: string,
+  ) {
+    return this.locationManagementService.updateLocationName(
+      locationId,
+      updateDto,
+      adminId,
+      adminEmail,
+    );
+  }
+
+  async toggleLocationStatus(
+    locationId: string,
+    toggleDto: any,
+    adminId: string,
+    adminEmail: string,
+  ) {
+    return this.locationManagementService.toggleLocationStatus(
+      locationId,
+      toggleDto,
+      adminId,
+      adminEmail,
+    );
+  }
+
+  async deleteLocation(
+    locationId: string,
+    deleteDto: any,
+    adminId: string,
+    adminEmail: string,
+  ) {
+    return this.locationManagementService.deleteLocation(
+      locationId,
+      deleteDto,
+      adminId,
+      adminEmail,
+    );
   }
 
   // ==================== DASHBOARD STATS DELEGATION ====================

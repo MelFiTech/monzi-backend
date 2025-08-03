@@ -18,6 +18,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { FeeType } from '@prisma/client';
+import { LocationType, LocationResponseDto } from '../../location/dto/location.dto';
 
 export { FeeType } from '@prisma/client';
 
@@ -2439,6 +2440,247 @@ export class UpdateAdminReportStatusResponseDto {
 
   @ApiProperty({
     example: 'Report status updated successfully',
+    description: 'Response message',
+  })
+  message: string;
+}
+
+// ==================== LOCATION MANAGEMENT DTOs ====================
+
+export class GetLocationsQueryDto {
+  @ApiProperty({
+    example: 10,
+    description: 'Number of locations to return',
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  limit?: number;
+
+  @ApiProperty({
+    example: 0,
+    description: 'Number of locations to skip',
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  offset?: number;
+
+  @ApiProperty({
+    example: 'Lagos',
+    description: 'Filter by city',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiProperty({
+    example: 'Lagos State',
+    description: 'Filter by state',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiProperty({
+    example: 'RESTAURANT',
+    description: 'Filter by location type',
+    enum: LocationType,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(LocationType)
+  locationType?: LocationType;
+
+  @ApiProperty({
+    example: 'KFC',
+    description: 'Search by location name',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiProperty({
+    example: true,
+    description: 'Filter by active status',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiProperty({
+    example: '2024-01-01',
+    description: 'Filter by creation date (start)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @ApiProperty({
+    example: '2024-12-31',
+    description: 'Filter by creation date (end)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+}
+
+export class LocationStatsDto {
+  @ApiProperty({ example: 150, description: 'Total number of locations' })
+  total: number;
+
+  @ApiProperty({ example: 120, description: 'Active locations' })
+  active: number;
+
+  @ApiProperty({ example: 30, description: 'Inactive locations' })
+  inactive: number;
+
+  @ApiProperty({
+    example: { 'Lagos': 50, 'Abuja': 30, 'Port Harcourt': 20 },
+    description: 'Locations by city',
+  })
+  byCity: Record<string, number>;
+
+  @ApiProperty({
+    example: { 'RESTAURANT': 60, 'STORE': 40, 'BANK': 20 },
+    description: 'Locations by type',
+  })
+  byType: Record<string, number>;
+
+  @ApiProperty({
+    example: { 'Lagos State': 50, 'FCT': 30, 'Rivers State': 20 },
+    description: 'Locations by state',
+  })
+  byState: Record<string, number>;
+}
+
+export class GetLocationsResponseDto {
+  @ApiProperty({ example: true, description: 'Success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Locations retrieved successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    type: [LocationResponseDto],
+    description: 'Array of locations',
+  })
+  data: LocationResponseDto[];
+
+  @ApiProperty({ example: 150, description: 'Total number of locations' })
+  total: number;
+
+  @ApiProperty({ example: 10, description: 'Number of locations returned' })
+  limit: number;
+
+  @ApiProperty({ example: 0, description: 'Number of locations skipped' })
+  offset: number;
+
+  @ApiProperty({
+    type: LocationStatsDto,
+    description: 'Location statistics',
+  })
+  stats: LocationStatsDto;
+}
+
+export class UpdateLocationNameDto {
+  @ApiProperty({
+    example: 'KFC Victoria Island - Updated',
+    description: 'New location name',
+  })
+  @IsString()
+  name: string;
+
+  @ApiProperty({
+    example: 'Updated location name for better identification',
+    description: 'Reason for the update',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class UpdateLocationNameResponseDto {
+  @ApiProperty({ example: true, description: 'Success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Location name updated successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    type: LocationResponseDto,
+    description: 'Updated location data',
+  })
+  data: LocationResponseDto;
+}
+
+export class ToggleLocationStatusDto {
+  @ApiProperty({
+    example: true,
+    description: 'Whether to activate or deactivate the location',
+  })
+  @IsBoolean()
+  isActive: boolean;
+
+  @ApiProperty({
+    example: 'Location deactivated due to closure',
+    description: 'Reason for status change',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class ToggleLocationStatusResponseDto {
+  @ApiProperty({ example: true, description: 'Success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Location status updated successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    type: LocationResponseDto,
+    description: 'Updated location data',
+  })
+  data: LocationResponseDto;
+}
+
+export class DeleteLocationDto {
+  @ApiProperty({
+    example: 'Location removed due to closure',
+    description: 'Reason for deletion',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class DeleteLocationResponseDto {
+  @ApiProperty({ example: true, description: 'Success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Location deleted successfully',
     description: 'Response message',
   })
   message: string;

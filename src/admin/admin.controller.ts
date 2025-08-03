@@ -73,6 +73,14 @@ import {
   GetAdminTransactionReportsResponseDto,
   UpdateAdminReportStatusDto,
   UpdateAdminReportStatusResponseDto,
+  GetLocationsQueryDto,
+  GetLocationsResponseDto,
+  UpdateLocationNameDto,
+  UpdateLocationNameResponseDto,
+  ToggleLocationStatusDto,
+  ToggleLocationStatusResponseDto,
+  DeleteLocationDto,
+  DeleteLocationResponseDto,
 } from './dto/admin.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -2571,6 +2579,170 @@ export class AdminController {
       updateDto,
     );
     console.log('✅ [ADMIN API] Report status updated successfully');
+    return result;
+  }
+
+  // ==================== LOCATION MANAGEMENT ENDPOINTS ====================
+
+  @Get('locations')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
+  @ApiOperation({
+    summary: 'Get all locations',
+    description: 'Get all user-saved locations with filtering and pagination',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Locations retrieved successfully',
+    type: GetLocationsResponseDto,
+  })
+  async getLocations(
+    @Query(ValidationPipe) query: GetLocationsQueryDto,
+  ): Promise<GetLocationsResponseDto> {
+    console.log('🔍 [ADMIN API] GET /admin/locations - Getting locations');
+    console.log('📝 [ADMIN API] Query filters:', query);
+
+    const result = await this.adminService.getLocations(query);
+
+    console.log('✅ [ADMIN API] Locations retrieved successfully');
+    console.log('📊 [ADMIN API] Summary:', {
+      total: result.total,
+      returned: result.data.length,
+      stats: result.stats,
+    });
+
+    return result;
+  }
+
+  @Get('locations/:locationId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN, UserRole.CUSTOMER_REP)
+  @ApiOperation({
+    summary: 'Get location details',
+    description: 'Get detailed information about a specific location',
+  })
+  @ApiParam({ name: 'locationId', description: 'Location ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Location details retrieved successfully',
+  })
+  async getLocationDetail(@Param('locationId') locationId: string) {
+    console.log('🔍 [ADMIN API] GET /admin/locations/:locationId - Getting location details');
+    console.log('📍 [ADMIN API] Location ID:', locationId);
+
+    const result = await this.adminService.getLocationById(locationId);
+
+    console.log('✅ [ADMIN API] Location details retrieved successfully');
+
+    return result;
+  }
+
+  @Put('locations/:locationId/name')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Update location name',
+    description: 'Update the name of a specific location',
+  })
+  @ApiParam({ name: 'locationId', description: 'Location ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Location name updated successfully',
+    type: UpdateLocationNameResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Location not found' })
+  async updateLocationName(
+    @Request() req,
+    @Param('locationId') locationId: string,
+    @Body(ValidationPipe) updateDto: UpdateLocationNameDto,
+  ): Promise<UpdateLocationNameResponseDto> {
+    console.log('✏️ [ADMIN API] PUT /admin/locations/:locationId/name - Updating location name');
+    console.log('👤 [ADMIN API] Admin ID:', req.user.id);
+    console.log('📍 [ADMIN API] Location ID:', locationId);
+    console.log('📝 [ADMIN API] Update data:', updateDto);
+
+    const result = await this.adminService.updateLocationName(
+      locationId,
+      updateDto,
+      req.user.id,
+      req.user.email,
+    );
+
+    console.log('✅ [ADMIN API] Location name updated successfully');
+
+    return result;
+  }
+
+  @Put('locations/:locationId/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Toggle location status',
+    description: 'Activate or deactivate a location',
+  })
+  @ApiParam({ name: 'locationId', description: 'Location ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Location status updated successfully',
+    type: ToggleLocationStatusResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Location not found' })
+  async toggleLocationStatus(
+    @Request() req,
+    @Param('locationId') locationId: string,
+    @Body(ValidationPipe) toggleDto: ToggleLocationStatusDto,
+  ): Promise<ToggleLocationStatusResponseDto> {
+    console.log('🔄 [ADMIN API] PUT /admin/locations/:locationId/status - Toggling location status');
+    console.log('👤 [ADMIN API] Admin ID:', req.user.id);
+    console.log('📍 [ADMIN API] Location ID:', locationId);
+    console.log('📝 [ADMIN API] Toggle data:', toggleDto);
+
+    const result = await this.adminService.toggleLocationStatus(
+      locationId,
+      toggleDto,
+      req.user.id,
+      req.user.email,
+    );
+
+    console.log('✅ [ADMIN API] Location status updated successfully');
+
+    return result;
+  }
+
+  @Delete('locations/:locationId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Delete location',
+    description: 'Delete a location (only if no transactions are associated)',
+  })
+  @ApiParam({ name: 'locationId', description: 'Location ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Location deleted successfully',
+    type: DeleteLocationResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Location not found' })
+  @ApiResponse({ status: 400, description: 'Cannot delete location with transactions' })
+  async deleteLocation(
+    @Request() req,
+    @Param('locationId') locationId: string,
+    @Body(ValidationPipe) deleteDto: DeleteLocationDto,
+  ): Promise<DeleteLocationResponseDto> {
+    console.log('🗑️ [ADMIN API] DELETE /admin/locations/:locationId - Deleting location');
+    console.log('👤 [ADMIN API] Admin ID:', req.user.id);
+    console.log('📍 [ADMIN API] Location ID:', locationId);
+    console.log('📝 [ADMIN API] Delete reason:', deleteDto.reason);
+
+    const result = await this.adminService.deleteLocation(
+      locationId,
+      deleteDto,
+      req.user.id,
+      req.user.email,
+    );
+
+    console.log('✅ [ADMIN API] Location deleted successfully');
+
     return result;
   }
 
