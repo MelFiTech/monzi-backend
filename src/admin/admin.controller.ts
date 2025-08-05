@@ -2747,4 +2747,79 @@ export class AdminController {
   }
 
   // ==================== RESET AND MAINTENANCE ENDPOINTS ====================
+
+  @Post('reset-user-passcode')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Reset user passcode (ADMIN ONLY)',
+    description: 'Reset user passcode to a default value for testing/emergency purposes',
+  })
+  async resetUserPasscode(
+    @Body() dto: { userId: string; newPasscode: string },
+  ) {
+    try {
+      const result = await this.adminService.resetUserPasscode(dto);
+      return {
+        success: true,
+        ...result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+        error: error.name,
+      };
+    }
+  }
+
+  @Post('test-wallet-query')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Test wallet query (ADMIN ONLY)',
+    description: 'Test the exact same query used in transfer flow',
+  })
+  async testWalletQuery(
+    @Body() dto: { userId: string },
+  ) {
+    try {
+      const result = await this.adminService.testWalletQuery(dto);
+      return {
+        success: true,
+        ...result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+        error: error.name,
+      };
+    }
+  }
+
+  @Post('fix-wallet-link')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Fix wallet-user link (ADMIN ONLY)',
+    description: 'Fix wallet-user relationship if wallet exists but is not properly linked',
+  })
+  async fixWalletLink(
+    @Body() dto: { userId: string; walletId: string },
+  ) {
+    try {
+      const result = await this.adminService.fixWalletLink(dto);
+      return {
+        success: true,
+        ...result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+        error: error.name,
+      };
+    }
+  }
 }

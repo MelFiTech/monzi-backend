@@ -9,6 +9,8 @@ import { ProviderManagerService } from '../providers/provider-manager.service';
 import { TransferProviderManagerService } from '../providers/transfer-provider-manager.service';
 import { BusinessService } from '../business/business.service';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 @Injectable()
 export class AdminService {
@@ -23,6 +25,7 @@ export class AdminService {
     private transferProviderManager: TransferProviderManagerService,
     private businessService: BusinessService,
     private configService: ConfigService,
+    private prisma: PrismaService,
   ) {}
 
   // ==================== KYC MANAGEMENT DELEGATION ====================
@@ -72,6 +75,48 @@ export class AdminService {
 
   async getUserStats() {
     return this.userManagementService.getUserStats();
+  }
+
+  async resetUserPasscode(dto: { userId: string; newPasscode: string }) {
+    console.log('🔐 [ADMIN] Resetting user passcode:', dto.userId);
+    
+    try {
+      // Find user by ID
+      const user = await this.prisma.user.findUnique({
+        where: { id: dto.userId },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Validate new passcode format
+      if (!/^\d{6}$/.test(dto.newPasscode)) {
+        throw new BadRequestException('Passcode must be exactly 6 digits');
+      }
+
+      // Hash the new passcode
+      const bcrypt = require('bcrypt');
+      const hashedPasscode = await bcrypt.hash(dto.newPasscode, 10);
+
+      // Update user passcode
+      await this.prisma.user.update({
+        where: { id: dto.userId },
+        data: { passcode: hashedPasscode },
+      });
+
+      console.log('✅ [ADMIN] User passcode reset successfully');
+      return {
+        success: true,
+        message: 'User passcode reset successfully',
+        userId: dto.userId,
+        userEmail: user.email,
+        newPasscode: dto.newPasscode,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN] Error resetting user passcode:', error);
+      throw error;
+    }
   }
 
   // ==================== TRANSACTION MANAGEMENT DELEGATION ====================
@@ -513,5 +558,100 @@ export class AdminService {
       walletStats: walletStats,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  async testWalletQuery(dto: { userId: string }) {
+    console.log('🔍 [ADMIN] Testing wallet query for user:', dto.userId);
+    
+    try {
+      // Test the exact same query used in transfer flow
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { userId: dto.userId },
+        include: {
+          user: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+        },
+      });
+
+      console.log('✅ [ADMIN] Wallet query test completed');
+      return {
+        success: true,
+        walletFound: !!wallet,
+        userId: dto.userId,
+        walletUserId: wallet?.userId || null,
+        balance: wallet?.balance || 0,
+        virtualAccountNumber: wallet?.virtualAccountNumber || null,
+        isActive: wallet?.isActive || false,
+        isFrozen: wallet?.isFrozen || false,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN] Error testing wallet query:', error);
+      throw error;
+    }
+  }
+
+  async fixWalletLink(dto: { userId: string; walletId: string }) {
+    console.log('🔧 [ADMIN] Fixing wallet link:', dto);
+    
+    try {
+      // First, check if user exists
+      const user = await this.prisma.user.findUnique({
+        where: { id: dto.userId },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Check if wallet exists
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { id: dto.walletId },
+      });
+
+      if (!wallet) {
+        throw new NotFoundException('Wallet not found');
+      }
+
+      // Check if wallet is already linked to the correct user
+      if (wallet.userId === dto.userId) {
+        console.log('✅ [ADMIN] Wallet is already properly linked');
+        return {
+          success: true,
+          action: 'NO_CHANGE',
+          message: 'Wallet is already properly linked to user',
+          wallet: {
+            id: wallet.id,
+            userId: wallet.userId,
+            balance: wallet.balance,
+            virtualAccountNumber: wallet.virtualAccountNumber,
+            provider: wallet.provider,
+          },
+        };
+      }
+
+      // Fix the wallet-user link
+      const updatedWallet = await this.prisma.wallet.update({
+        where: { id: dto.walletId },
+        data: { userId: dto.userId },
+      });
+
+      console.log('✅ [ADMIN] Wallet link fixed successfully');
+      return {
+        success: true,
+        action: 'UPDATED',
+        message: 'Wallet successfully linked to user',
+        wallet: {
+          id: updatedWallet.id,
+          userId: updatedWallet.userId,
+          balance: updatedWallet.balance,
+          virtualAccountNumber: updatedWallet.virtualAccountNumber,
+          provider: updatedWallet.provider,
+        },
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN] Error fixing wallet link:', error);
+      throw error;
+    }
   }
 }
