@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 // Register Response
 export class RegisterResponseDto {
@@ -277,4 +278,64 @@ export class DeviceTokenUpdateResponseDto {
       'Whether the device was actually updated (different from previous)',
   })
   deviceUpdated: boolean;
+}
+
+// Refresh Token Request
+export class RefreshTokenDto {
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'Current access token that needs to be refreshed',
+  })
+  @IsNotEmpty()
+  @IsString()
+  access_token: string;
+}
+
+// Refresh Token Response
+export class RefreshTokenResponseDto {
+  @ApiProperty({ example: true, description: 'Token refresh success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Token refreshed successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'New JWT access token',
+  })
+  access_token: string;
+
+  @ApiProperty({
+    example: '2024-01-01T12:00:00Z',
+    description: 'Token expiration time',
+  })
+  expiresAt: string;
+
+  @ApiProperty({
+    description: 'User information',
+    type: 'object',
+    properties: {
+      id: { type: 'string', example: 'cuid123' },
+      email: { type: 'string', example: 'user@example.com' },
+      phone: { type: 'string', example: '+2348123456789' },
+      gender: { type: 'string', example: 'MALE' },
+      dateOfBirth: { type: 'string', example: '1990-01-15T00:00:00Z' },
+      isVerified: { type: 'boolean', example: true },
+      isOnboarded: { type: 'boolean', example: true },
+      role: { type: 'string', example: 'CUSTOMER', description: 'User role' },
+    },
+  })
+  user: {
+    id: string;
+    email: string;
+    phone: string;
+    gender: string;
+    dateOfBirth: string;
+    isVerified: boolean;
+    isOnboarded: boolean;
+    role: string;
+  };
 }

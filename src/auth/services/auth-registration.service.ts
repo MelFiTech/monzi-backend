@@ -236,6 +236,111 @@ export class AuthRegistrationService {
     };
   }
 
+  // Refresh Token
+  async refreshToken(accessToken: string): Promise<{
+    success: boolean;
+    message: string;
+    access_token: string;
+    expiresAt: string;
+    user: {
+      id: string;
+      email: string;
+      phone: string;
+      gender: string;
+      dateOfBirth: string;
+      isVerified: boolean;
+      isOnboarded: boolean;
+      role: string;
+    };
+  }> {
+    console.log('🔄 [AUTH] Token refresh request');
+
+    try {
+      // Verify the current token
+      const payload = this.jwtService.verify(accessToken);
+      
+      if (!payload || !payload.sub) {
+        throw new UnauthorizedException('Invalid token');
+      }
+
+      // Get user from database
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        include: {
+          wallet: true,
+          pushTokens: {
+            where: { isActive: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      // Check if user is active
+      if (!user.isActive) {
+        const archiveReason = (user.metadata as any)?.archiveReason || 'Account deactivated';
+        throw new UnauthorizedException(
+          `Account is archived. Reason: ${archiveReason}. Please contact support or register again to restore your account.`,
+        );
+      }
+
+      // Check if user is verified
+      if (!user.isVerified) {
+        throw new UnauthorizedException('Please verify your email first');
+      }
+
+      // Generate new JWT token
+      const newPayload = {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+      };
+
+      const newAccessToken = this.jwtService.sign(newPayload);
+
+      // Get token expiration time
+      const decodedToken = this.jwtService.decode(newAccessToken) as any;
+      const expiresAt = new Date(decodedToken.exp * 1000).toISOString();
+
+      // Update last activity
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { updatedAt: new Date() },
+      });
+
+      console.log('✅ [AUTH] Token refreshed successfully');
+
+      return {
+        success: true,
+        message: 'Token refreshed successfully',
+        access_token: newAccessToken,
+        expiresAt,
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+          gender: user.gender,
+          dateOfBirth: user.dateOfBirth.toISOString(),
+          isVerified: user.isVerified,
+          isOnboarded: user.isOnboarded,
+          role: user.role,
+        },
+      };
+    } catch (error) {
+      console.error('❌ [AUTH] Token refresh failed:', error.message);
+      
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+  }
+
   // Step 3: Verify Email OTP
   async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<AuthResponseDto> {
     const { email, otpCode } = verifyOtpDto;

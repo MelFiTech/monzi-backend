@@ -46,6 +46,8 @@ import {
   ReportTransactionDto,
   ReportTransactionResponseDto,
   GetTransactionReportsResponseDto,
+  RefreshTokenDto,
+  RefreshTokenResponseDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -189,6 +191,37 @@ export class AuthController {
       success: result.success,
       message: result.message,
       expiresAt: result.expiresAt,
+    });
+
+    return result;
+  }
+
+  @Post('refresh')
+  @ApiOperation({
+    summary: 'Refresh access token',
+    description: 'Refresh the current access token to get a new one with extended validity',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Token refreshed successfully',
+    type: RefreshTokenResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or expired token',
+  })
+  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto): Promise<RefreshTokenResponseDto> {
+    console.log('🔄 [AUTH API] POST /auth/refresh - Token refresh request');
+
+    const result = await this.authService.refreshToken(refreshTokenDto.access_token);
+
+    console.log('✅ [AUTH API] Token refreshed successfully');
+    console.log('📄 Response Data:', {
+      success: result.success,
+      message: result.message,
+      access_token: '***',
+      expiresAt: result.expiresAt,
+      user: result.user,
     });
 
     return result;

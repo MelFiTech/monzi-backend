@@ -51,6 +51,10 @@ export class AuthService {
     return this.authRegistrationService.resendOtp(resendOtpDto);
   }
 
+  async refreshToken(accessToken: string) {
+    return this.authRegistrationService.refreshToken(accessToken);
+  }
+
   // Profile and Transaction Methods
   async validateUser(userId: string) {
     return this.authProfileService.validateUser(userId);
