@@ -1,55 +1,140 @@
-const { PrismaClient } = require('@prisma/client');
+const fetch = require('node-fetch');
 
-const prisma = new PrismaClient();
-
-async function checkUsers() {
+async function loginAdmin() {
+  const baseUrl = 'http://localhost:3000';
+  
   try {
-    console.log('🔍 Checking users in database...\n');
+    console.log('🔐 Logging in as admin...');
     
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        passcode: true
+    const loginResponse = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      body: JSON.stringify({
+        email: 'talktomelfi@gmail.com',
+        passcode: '199699'
+      })
     });
 
-    console.log(`📊 Found ${users.length} users:\n`);
-    
-    users.forEach((user, index) => {
-      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A';
-      console.log(`${index + 1}. ${fullName} (${user.email})`);
-      console.log(`   Role: ${user.role}`);
-      console.log(`   Active: ${user.isActive}`);
-      console.log(`   Passcode: ${user.passcode}`);
-      console.log(`   Created: ${user.createdAt.toISOString()}`);
-      console.log('');
-    });
-
-    // Check admin users specifically
-    const adminUsers = users.filter(user => 
-      ['SUDO_ADMIN', 'ADMIN', 'CUSTOMER_REP', 'DEVELOPER'].includes(user.role)
-    );
-    
-    console.log(`👑 Admin users (${adminUsers.length}):`);
-    adminUsers.forEach(user => {
-      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A';
-      console.log(`   - ${user.email} (${user.role}) - ${fullName}`);
-    });
-
+    if (loginResponse.ok) {
+      const loginData = await loginResponse.json();
+      console.log('✅ Admin login successful');
+      return loginData.access_token;
+    } else {
+      console.log('❌ Admin login failed:', loginResponse.status);
+      const errorData = await loginResponse.text();
+      console.log('Error details:', errorData);
+      return null;
+    }
   } catch (error) {
-    console.error('❌ Error checking users:', error);
-  } finally {
-    await prisma.$disconnect();
+    console.error('❌ Login error:', error.message);
+    return null;
   }
 }
 
-checkUsers(); 
+async function getUsers(token) {
+  const baseUrl = 'http://localhost:3000';
+  
+  try {
+    console.log('\n👥 Getting all users...');
+    
+    const response = await fetch(`${baseUrl}/admin/users`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Users retrieved successfully');
+      console.log(`📊 Total users: ${data.users.length}`);
+      
+      // Show first 10 users
+      data.users.slice(0, 10).forEach((user, index) => {
+        console.log(`${index + 1}. ID: ${user.id}`);
+        console.log(`   Email: ${user.email}`);
+        console.log(`   Name: ${user.firstName || 'N/A'} ${user.lastName || 'N/A'}`);
+        console.log(`   Role: ${user.role}`);
+        console.log(`   Verified: ${user.isVerified}`);
+        console.log(`   Active: ${user.isActive}`);
+        console.log('---');
+      });
+      
+      return data.users;
+    } else {
+      console.log('❌ Failed to get users:', response.status);
+      const errorData = await response.text();
+      console.log('Error details:', errorData);
+      return [];
+    }
+  } catch (error) {
+    console.error('❌ Get users error:', error.message);
+    return [];
+  }
+}
+
+async function checkUserByEmail(token, email) {
+  const baseUrl = 'http://localhost:3000';
+  
+  try {
+    console.log(`\n🔍 Checking user by email: ${email}`);
+    
+    const response = await fetch(`${baseUrl}/admin/users/search?email=${encodeURIComponent(email)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ User found');
+      console.log('📄 User data:', {
+        id: data.id,
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role,
+        isVerified: data.isVerified,
+        isActive: data.isActive
+      });
+      return data;
+    } else {
+      console.log('❌ User not found:', response.status);
+      const errorData = await response.text();
+      console.log('Error details:', errorData);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ User search error:', error.message);
+    return null;
+  }
+}
+
+async function runUserChecks() {
+  console.log('🔍 Starting User Database Check');
+  console.log('=' .repeat(60));
+  
+  // Step 1: Login as admin
+  const token = await loginAdmin();
+  if (!token) {
+    console.log('❌ Cannot proceed without admin token');
+    return;
+  }
+  
+  // Step 2: Get all users
+  const users = await getUsers(token);
+  
+  // Step 3: Check specific user by email
+  await checkUserByEmail(token, 'ibrahimoyiza198@gmail.com');
+  
+  console.log('\n🎯 User checks completed!');
+  console.log('=' .repeat(60));
+}
+
+// Run the user checks
+runUserChecks().catch(console.error); 

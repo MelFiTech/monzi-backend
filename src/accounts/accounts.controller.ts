@@ -11,8 +11,6 @@ import {
   ResolveAccountDto,
   BanksListResponseDto,
   ResolveAccountResponseDto,
-  SuperResolveAccountDto,
-  SuperResolveAccountResponseDto,
 } from './dto/accounts.dto';
 
 @ApiTags('Accounts')
@@ -82,49 +80,5 @@ export class AccountsController {
     }
   }
 
-  @ApiOperation({
-    summary: 'Super resolve account number across multiple banks',
-    description:
-      'Automatically try to resolve an account number across multiple common Nigerian banks using the NUBAN API. This endpoint will test the account number against 15 major banks and return the first successful match.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Account resolved successfully',
-    type: SuperResolveAccountResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid account number or resolution failed',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 500,
-    description: 'Internal server error during resolution process',
-  })
-  @Post('super-resolve')
-  async superResolveAccount(@Body() superResolveDto: SuperResolveAccountDto) {
-    console.log(
-      '🔍 [ACCOUNTS API] POST /accounts/super-resolve - Request received:',
-    );
-    console.log('📝 Request Data:', JSON.stringify(superResolveDto, null, 2));
 
-    try {
-      const result =
-        await this.accountsService.superResolveAccount(superResolveDto);
-
-      if (result.success) {
-        console.log('✅ [ACCOUNTS API] Super resolve successful:');
-        console.log('📄 Response Data:', JSON.stringify(result, null, 2));
-      } else {
-        console.log('❌ [ACCOUNTS API] Super resolve failed:');
-        console.log('📄 Response Data:', JSON.stringify(result, null, 2));
-      }
-
-      return result;
-    } catch (error) {
-      console.log('❌ [ACCOUNTS API] Super resolve error:');
-      console.log('🚨 Error:', error.message);
-      throw error;
-    }
-  }
 }
