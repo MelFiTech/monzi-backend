@@ -172,7 +172,7 @@ export class UserManagementService {
         bvnVerifiedAt: user.bvnVerifiedAt?.toISOString() || null,
         isOnboarded: user.isOnboarded,
         updatedAt: user.updatedAt.toISOString(),
-        // Wallet information mapping
+        // Wallet information mapping - match the AdminUserDetailDto structure
         wallet: user.wallet ? {
           id: user.wallet.id,
           balance: user.wallet.balance,
@@ -182,10 +182,16 @@ export class UserManagementService {
           isActive: user.wallet.isActive,
           createdAt: user.wallet.createdAt.toISOString(),
         } : undefined,
-        recentTransactions: [], // Placeholder - implement transaction fetching
-        totalBalance: user.wallet ? user.wallet.balance : 0,
+        // Additional wallet-related fields for consistency with user list
+        walletStatus: user.wallet ? (user.wallet.isFrozen ? 'FROZEN' : user.wallet.isActive ? 'ACTIVE' : 'INACTIVE') : undefined,
+        walletBalance: user.wallet ? user.wallet.balance : undefined,
+        virtualAccountNumber: user.wallet ? user.wallet.virtualAccountNumber : undefined,
+        walletProvider: user.wallet ? user.wallet.provider : undefined,
+        hasWallet: !!user.wallet,
         walletCount: user.wallet ? 1 : 0,
+        totalBalance: user.wallet ? user.wallet.balance : 0,
         frozenWallets: user.wallet && user.wallet.isFrozen ? 1 : 0,
+        recentTransactions: [], // Placeholder - implement transaction fetching
       };
 
       console.log('✅ [USER SERVICE] User details retrieved successfully');
