@@ -2685,3 +2685,83 @@ export class DeleteLocationResponseDto {
   })
   message: string;
 }
+
+// ==================== PIN STATUS DTOs ====================
+
+export class UserPinStatusDto {
+  @ApiProperty({ example: 'cmcypf6hk00001gk3itv4ybwo', description: 'User ID' })
+  id: string;
+
+  @ApiProperty({ example: 'user@example.com', description: 'User email' })
+  email: string;
+
+  @ApiProperty({ example: 'John Doe', description: 'User full name' })
+  fullName: string;
+
+  @ApiProperty({ example: true, description: 'Whether user has wallet' })
+  hasWallet: boolean;
+
+  @ApiProperty({ example: true, description: 'Whether transaction PIN is set' })
+  hasPinSet: boolean;
+
+  @ApiProperty({ example: 1500.0, description: 'Wallet balance' })
+  walletBalance?: number;
+
+  @ApiProperty({ example: 'ACTIVE', description: 'Wallet status' })
+  walletStatus?: string;
+
+  @ApiProperty({ example: 'VERIFIED', description: 'KYC status' })
+  kycStatus: string;
+
+  @ApiProperty({ example: true, description: 'Whether user is verified' })
+  isVerified: boolean;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', description: 'Account creation date' })
+  createdAt: string;
+}
+
+export class GetPinStatusResponseDto {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'PIN status retrieved successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    type: UserPinStatusDto,
+    description: 'User PIN status information',
+  })
+  data: UserPinStatusDto;
+}
+
+export class BulkPinStatusResponseDto {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Bulk PIN status retrieved successfully',
+    description: 'Response message',
+  })
+  message: string;
+
+  @ApiProperty({
+    type: [UserPinStatusDto],
+    description: 'List of users with PIN status',
+  })
+  users: UserPinStatusDto[];
+
+  @ApiProperty({ example: 45, description: 'Total number of users' })
+  total: number;
+
+  @ApiProperty({ example: 30, description: 'Users with PIN set' })
+  usersWithPin: number;
+
+  @ApiProperty({ example: 15, description: 'Users without PIN set' })
+  usersWithoutPin: number;
+
+  @ApiProperty({ example: '66.7%', description: 'Percentage of users with PIN set' })
+  pinSetPercentage: string;
+}

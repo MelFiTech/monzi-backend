@@ -81,6 +81,8 @@ import {
   ToggleLocationStatusResponseDto,
   DeleteLocationDto,
   DeleteLocationResponseDto,
+  GetPinStatusResponseDto,
+  BulkPinStatusResponseDto,
 } from './dto/admin.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -2821,5 +2823,69 @@ export class AdminController {
         error: error.name,
       };
     }
+  }
+
+  // ==================== PIN STATUS ENDPOINTS ====================
+
+  @Get('users/:userId/pin-status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get user PIN status',
+    description: 'Get transaction PIN status for a specific user',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID',
+    example: 'cmcypf6hk00001gk3itv4ybwo',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'PIN status retrieved successfully',
+    type: GetPinStatusResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async getUserPinStatus(
+    @Param('userId') userId: string,
+  ) {
+    return await this.adminService.getUserPinStatus(userId);
+  }
+
+  @Get('users/pin-status/bulk')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get bulk PIN status',
+    description: 'Get transaction PIN status for all users',
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Number of users to return',
+    required: false,
+    type: Number,
+    example: 1000,
+  })
+  @ApiQuery({
+    name: 'offset',
+    description: 'Number of users to skip',
+    required: false,
+    type: Number,
+    example: 0,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Bulk PIN status retrieved successfully',
+    type: BulkPinStatusResponseDto,
+  })
+  async getBulkPinStatus(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const limitNum = limit ? parseInt(limit, 10) : 1000;
+    const offsetNum = offset ? parseInt(offset, 10) : 0;
+    return await this.adminService.getBulkPinStatus(limitNum, offsetNum);
   }
 }

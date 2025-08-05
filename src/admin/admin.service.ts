@@ -77,6 +77,14 @@ export class AdminService {
     return this.userManagementService.getUserStats();
   }
 
+  async getUserPinStatus(userId: string) {
+    return this.userManagementService.getUserPinStatus(userId);
+  }
+
+  async getBulkPinStatus(limit?: number, offset?: number) {
+    return this.userManagementService.getBulkPinStatus(limit, offset);
+  }
+
   async resetUserPasscode(dto: { userId: string; newPasscode: string }) {
     console.log('🔐 [ADMIN] Resetting user passcode:', dto.userId);
     

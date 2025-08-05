@@ -15,6 +15,9 @@ import {
   CreateWalletDto,
   CreateWalletResponse,
   AdminUserStatsDto,
+  GetPinStatusResponseDto,
+  BulkPinStatusResponseDto,
+  UserPinStatusDto,
 } from '../dto/admin.dto';
 
 @Injectable()
@@ -80,6 +83,7 @@ export class UserManagementService {
                 provider: true,
                 isActive: true,
                 currency: true,
+                pin: true,
               },
             },
           },
@@ -114,6 +118,17 @@ export class UserManagementService {
         walletCount: user.wallet ? 1 : 0,
         totalBalance: user.wallet ? user.wallet.balance : 0,
         frozenWallets: user.wallet && user.wallet.isFrozen ? 1 : 0,
+        // Include complete wallet object for PIN checking
+        wallet: user.wallet ? {
+          id: user.wallet.id,
+          balance: user.wallet.balance,
+          currency: user.wallet.currency,
+          virtualAccountNumber: user.wallet.virtualAccountNumber,
+          provider: user.wallet.provider,
+          isActive: user.wallet.isActive,
+          isFrozen: user.wallet.isFrozen,
+          pin: user.wallet.pin,
+        } : undefined,
       }));
 
       console.log('✅ [USER SERVICE] Users retrieved successfully');
@@ -453,6 +468,112 @@ export class UserManagementService {
     } catch (error) {
       console.error('❌ [USER SERVICE] Error getting user statistics:', error);
       throw new BadRequestException('Failed to get user statistics');
+    }
+  }
+
+  async getUserPinStatus(userId: string): Promise<GetPinStatusResponseDto> {
+    console.log('🔒 [USER SERVICE] Getting PIN status for user:', userId);
+
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          wallet: {
+            select: {
+              id: true,
+              balance: true,
+              isActive: true,
+              isFrozen: true,
+              pin: true,
+              virtualAccountNumber: true,
+              provider: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const userPinStatus: UserPinStatusDto = {
+        id: user.id,
+        email: user.email,
+        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
+        hasWallet: !!user.wallet,
+        hasPinSet: user.wallet ? !!user.wallet.pin : false,
+        walletBalance: user.wallet?.balance,
+        walletStatus: user.wallet ? (user.wallet.isFrozen ? 'FROZEN' : user.wallet.isActive ? 'ACTIVE' : 'INACTIVE') : undefined,
+        kycStatus: user.kycStatus,
+        isVerified: user.isVerified,
+        createdAt: user.createdAt.toISOString(),
+      };
+
+      console.log('✅ [USER SERVICE] PIN status retrieved successfully');
+      return {
+        success: true,
+        message: 'PIN status retrieved successfully',
+        data: userPinStatus,
+      };
+    } catch (error) {
+      console.error('❌ [USER SERVICE] Error getting PIN status:', error);
+      throw new BadRequestException('Failed to get PIN status');
+    }
+  }
+
+  async getBulkPinStatus(limit: number = 1000, offset: number = 0): Promise<BulkPinStatusResponseDto> {
+    console.log('🔒 [USER SERVICE] Getting bulk PIN status');
+
+    try {
+      const users = await this.prisma.user.findMany({
+        include: {
+          wallet: {
+            select: {
+              id: true,
+              balance: true,
+              isActive: true,
+              isFrozen: true,
+              pin: true,
+              virtualAccountNumber: true,
+              provider: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      });
+
+      const userPinStatuses: UserPinStatusDto[] = users.map(user => ({
+        id: user.id,
+        email: user.email,
+        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
+        hasWallet: !!user.wallet,
+        hasPinSet: user.wallet ? !!user.wallet.pin : false,
+        walletBalance: user.wallet?.balance,
+        walletStatus: user.wallet ? (user.wallet.isFrozen ? 'FROZEN' : user.wallet.isActive ? 'ACTIVE' : 'INACTIVE') : undefined,
+        kycStatus: user.kycStatus,
+        isVerified: user.isVerified,
+        createdAt: user.createdAt.toISOString(),
+      }));
+
+      const usersWithPin = userPinStatuses.filter(user => user.hasPinSet).length;
+      const usersWithoutPin = userPinStatuses.filter(user => !user.hasPinSet).length;
+      const pinSetPercentage = userPinStatuses.length > 0 ? ((usersWithPin / userPinStatuses.length) * 100).toFixed(1) + '%' : '0%';
+
+      console.log('✅ [USER SERVICE] Bulk PIN status retrieved successfully');
+      return {
+        success: true,
+        message: 'Bulk PIN status retrieved successfully',
+        users: userPinStatuses,
+        total: userPinStatuses.length,
+        usersWithPin,
+        usersWithoutPin,
+        pinSetPercentage,
+      };
+    } catch (error) {
+      console.error('❌ [USER SERVICE] Error getting bulk PIN status:', error);
+      throw new BadRequestException('Failed to get bulk PIN status');
     }
   }
 }
