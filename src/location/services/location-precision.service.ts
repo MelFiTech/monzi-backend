@@ -26,6 +26,14 @@ export class LocationPrecisionService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Public helper to check if an account name represents a business.
+   * Wraps the internal heuristic used by precision matching.
+   */
+  public isBusinessAccountName(accountName: string): boolean {
+    return this.isBusinessAccount(accountName);
+  }
+
+  /**
    * Find exact location match with high precision
    */
   async findExactLocationMatch(

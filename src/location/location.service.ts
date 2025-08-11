@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LocationPrecisionService } from './services/location-precision.service';
 import {
   CreateLocationDto,
   UpdateLocationDto,
@@ -16,7 +17,10 @@ import {
 
 @Injectable()
 export class LocationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly locationPrecisionService: LocationPrecisionService,
+  ) {}
 
   /**
    * Create a new location
@@ -354,6 +358,18 @@ export class LocationService {
     const toAccount = lastTransaction.toAccount;
 
     if (!toAccount) {
+      return null;
+    }
+
+    // Only return business account details. If user hasn't tagged, use heuristic.
+    const isBusiness =
+      toAccount.isBusiness !== null && toAccount.isBusiness !== undefined
+        ? toAccount.isBusiness
+        : this.locationPrecisionService.isBusinessAccountName(
+            toAccount.accountName,
+          );
+
+    if (!isBusiness) {
       return null;
     }
 
