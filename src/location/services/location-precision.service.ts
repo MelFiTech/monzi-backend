@@ -32,7 +32,7 @@ export class LocationPrecisionService {
     latitude: number,
     longitude: number,
     name?: string,
-    radius: number = 50, // 50 meters for exact match
+    radius: number = 10, // 10 meters for exact match
   ): Promise<LocationMatch | null> {
     try {
       console.log('🎯 [LOCATION PRECISION] Finding exact location match:', {

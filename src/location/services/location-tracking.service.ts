@@ -102,7 +102,7 @@ export class LocationTrackingService {
     try {
       // Use a very small radius (20m) to ensure precise location matching
       // This prevents cross-location contamination
-      const strictProximityRadius = 20; // 20 meters for very precise matching
+      const strictProximityRadius = 15; // 15 meters for very precise matching
       
       // Get nearby locations with payment suggestions
       const nearbyLocations = await this.locationPrecisionService.getNearbyLocationsWithSuggestions(
