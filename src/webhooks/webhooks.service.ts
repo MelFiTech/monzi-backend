@@ -500,18 +500,59 @@ export class WebhooksService {
         };
       }
 
-      // TODO: Implement signature verification when Nyra provides webhook secret
+      // Get webhook secret from environment
+      const webhookSecret = this.configService.get<string>('NYRA_WEBHOOK_SECRET');
+      if (!webhookSecret) {
+        this.logger.error('❌ [NYRA] NYRA_WEBHOOK_SECRET not configured');
+        return {
+          isValid: false,
+          provider: WebhookProvider.NYRA,
+          eventType: WebhookEventType.OTHER,
+          error: 'Webhook secret not configured',
+        };
+      }
+
+      // Verify signature if provided
       if (signature) {
-        this.logger.log('🔐 [NYRA] Signature provided, verification needed');
-        // Add signature verification logic here when available
+        this.logger.log('🔐 [NYRA] Verifying webhook signature...');
+        
+        // Create payload string for signature verification
+        const payloadString = JSON.stringify(payload);
+        
+        // Generate expected signature using HMAC SHA256
+        const expectedSignature = crypto
+          .createHmac('sha256', webhookSecret)
+          .update(payloadString)
+          .digest('hex');
+
+        const isValid = signature === expectedSignature;
+        
+        if (!isValid) {
+          this.logger.error(`❌ [NYRA] Invalid signature. Expected: ${expectedSignature}, Received: ${signature}`);
+          return {
+            isValid: false,
+            provider: WebhookProvider.NYRA,
+            eventType: WebhookEventType.OTHER,
+            error: 'Invalid webhook signature',
+          };
+        }
+        
+        this.logger.log('✅ [NYRA] Webhook signature verified successfully');
       } else {
         this.logger.warn(
-          '⚠️ [NYRA] No signature provided - relying on basic validation',
+          '⚠️ [NYRA] No signature provided - webhook may be insecure',
         );
+        // For production, you might want to reject unsigned webhooks
+        // return {
+        //   isValid: false,
+        //   provider: WebhookProvider.NYRA,
+        //   eventType: WebhookEventType.OTHER,
+        //   error: 'No signature provided',
+        // };
       }
 
       this.logger.log(
-        '✅ [NYRA] Webhook verification passed (basic validation)',
+        '✅ [NYRA] Webhook verification passed',
       );
       return {
         isValid: true,

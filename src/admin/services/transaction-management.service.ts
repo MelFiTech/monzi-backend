@@ -294,29 +294,73 @@ export class TransactionManagementService {
         throw new BadRequestException('Cannot fund frozen wallet');
       }
 
-      // Create credit transaction
-      const transaction = await this.prisma.transaction.create({
-        data: {
-          userId: wallet.userId,
-          type: 'DEPOSIT',
-          amount: dto.amount,
-          currency: wallet.currency,
-          status: 'COMPLETED',
-          reference: `ADMIN_FUND_${Date.now()}`,
-          description: dto.description || 'Admin wallet funding',
-          metadata: {
-            adminFunding: true,
-            adminId: 'admin', // Placeholder
+      // Generate unique reference
+      const reference = `ADMIN_FUND_${Date.now()}_${Math.random().toString(36).substring(7).toUpperCase()}`;
+
+      // ==================== ATOMIC DATABASE TRANSACTION ====================
+      const result = await this.prisma.$transaction(async (tx) => {
+        // 1. Create wallet transaction record
+        const walletTransaction = await tx.walletTransaction.create({
+          data: {
+            amount: dto.amount,
+            type: 'FUNDING',
+            status: 'COMPLETED',
+            reference,
+            description: dto.description || 'Admin wallet funding',
+            fee: 0,
+            receiverWalletId: wallet.id,
+            receiverBalanceBefore: wallet.balance,
+            receiverBalanceAfter: wallet.balance + dto.amount,
+            metadata: {
+              adminFunding: true,
+              adminId: 'admin', // Placeholder
+              operationType: 'ADMIN_FUNDING',
+            },
           },
-        },
+        });
+
+        // 2. Create main transaction record for admin queries
+        const mainTransaction = await tx.transaction.create({
+          data: {
+            userId: wallet.userId,
+            type: 'DEPOSIT',
+            amount: dto.amount,
+            currency: wallet.currency,
+            status: 'COMPLETED',
+            reference,
+            description: dto.description || 'Admin wallet funding',
+            metadata: {
+              adminFunding: true,
+              adminId: 'admin', // Placeholder
+              walletTransactionId: walletTransaction.id,
+              operationType: 'ADMIN_FUNDING',
+              previousBalance: wallet.balance,
+              newBalance: wallet.balance + dto.amount,
+            },
+          },
+        });
+
+        // 3. Update wallet balance
+        const updatedWallet = await tx.wallet.update({
+          where: { id: wallet.id },
+          data: { 
+            balance: { increment: dto.amount },
+            lastTransactionAt: new Date(),
+          },
+          include: { user: true },
+        });
+
+        return {
+          walletTransaction,
+          mainTransaction,
+          updatedWallet,
+          oldBalance: wallet.balance,
+          newBalance: updatedWallet.balance,
+        };
       });
 
-      // Update wallet balance
-      const updatedWallet = await this.prisma.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: { increment: dto.amount } },
-        include: { user: true },
-      });
+      // Extract results from transaction
+      const { walletTransaction, mainTransaction, updatedWallet } = result;
 
       console.log('✅ [TRANSACTION SERVICE] Wallet funded successfully');
 
@@ -333,8 +377,8 @@ export class TransactionManagementService {
           grossAmount: dto.amount,
           fundingFee: 0,
           netAmount: dto.amount,
-          transactionId: transaction.id,
-          reference: transaction.reference,
+          transactionId: mainTransaction.id,
+          reference: mainTransaction.reference,
         });
 
         // Transaction notification
@@ -345,8 +389,8 @@ export class TransactionManagementService {
           fee: 0,
           currency: wallet.currency,
           description: dto.description || 'Admin wallet funding',
-          reference: transaction.reference,
-          transactionId: transaction.id,
+          reference: mainTransaction.reference,
+          transactionId: mainTransaction.id,
           provider: 'ADMIN',
           status: 'COMPLETED',
           timestamp: new Date().toISOString(),
@@ -358,9 +402,9 @@ export class TransactionManagementService {
           message: `₦${dto.amount.toLocaleString()} has been credited to your wallet by an administrator.`,
           type: 'success',
           data: {
-            transactionId: transaction.id,
+            transactionId: mainTransaction.id,
             amount: dto.amount,
-            reference: transaction.reference,
+            reference: mainTransaction.reference,
             adminFunding: true,
           },
         });
@@ -374,8 +418,8 @@ export class TransactionManagementService {
         previousBalance: wallet.balance,
         newBalance: wallet.balance + dto.amount,
         amount: dto.amount,
-        reference: transaction.reference,
-        timestamp: transaction.createdAt.toISOString(),
+        reference: mainTransaction.reference,
+        timestamp: mainTransaction.createdAt.toISOString(),
       };
     } catch (error) {
       console.error('❌ [TRANSACTION SERVICE] Error funding wallet:', error);
@@ -459,29 +503,73 @@ export class TransactionManagementService {
         throw new BadRequestException('Insufficient balance');
       }
 
-      // Create debit transaction
-      const transaction = await this.prisma.transaction.create({
-        data: {
-          userId: wallet.userId,
-          type: 'WITHDRAWAL',
-          amount: dto.amount,
-          currency: wallet.currency,
-          status: 'COMPLETED',
-          reference: `ADMIN_DEBIT_${Date.now()}`,
-          description: dto.description || 'Admin wallet debit',
-          metadata: {
-            adminDebit: true,
-            adminId: 'admin', // Placeholder
+      // Generate unique reference
+      const reference = `ADMIN_DEBIT_${Date.now()}_${Math.random().toString(36).substring(7).toUpperCase()}`;
+
+      // ==================== ATOMIC DATABASE TRANSACTION ====================
+      const result = await this.prisma.$transaction(async (tx) => {
+        // 1. Create wallet transaction record
+        const walletTransaction = await tx.walletTransaction.create({
+          data: {
+            amount: dto.amount,
+            type: 'WITHDRAWAL',
+            status: 'COMPLETED',
+            reference,
+            description: dto.description || 'Admin wallet debit',
+            fee: 0,
+            senderWalletId: wallet.id,
+            senderBalanceBefore: wallet.balance,
+            senderBalanceAfter: wallet.balance - dto.amount,
+            metadata: {
+              adminDebit: true,
+              adminId: 'admin', // Placeholder
+              operationType: 'ADMIN_DEBIT',
+            },
           },
-        },
+        });
+
+        // 2. Create main transaction record for admin queries
+        const mainTransaction = await tx.transaction.create({
+          data: {
+            userId: wallet.userId,
+            type: 'WITHDRAWAL',
+            amount: dto.amount,
+            currency: wallet.currency,
+            status: 'COMPLETED',
+            reference,
+            description: dto.description || 'Admin wallet debit',
+            metadata: {
+              adminDebit: true,
+              adminId: 'admin', // Placeholder
+              walletTransactionId: walletTransaction.id,
+              operationType: 'ADMIN_DEBIT',
+              previousBalance: wallet.balance,
+              newBalance: wallet.balance - dto.amount,
+            },
+          },
+        });
+
+        // 3. Update wallet balance
+        const updatedWallet = await tx.wallet.update({
+          where: { id: wallet.id },
+          data: { 
+            balance: { decrement: dto.amount },
+            lastTransactionAt: new Date(),
+          },
+          include: { user: true },
+        });
+
+        return {
+          walletTransaction,
+          mainTransaction,
+          updatedWallet,
+          oldBalance: wallet.balance,
+          newBalance: updatedWallet.balance,
+        };
       });
 
-      // Update wallet balance
-      const updatedWallet = await this.prisma.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: { decrement: dto.amount } },
-        include: { user: true },
-      });
+      // Extract results from transaction
+      const { walletTransaction, mainTransaction, updatedWallet } = result;
 
       console.log('✅ [TRANSACTION SERVICE] Wallet debited successfully');
 
@@ -498,8 +586,8 @@ export class TransactionManagementService {
           grossAmount: dto.amount,
           fundingFee: 0,
           netAmount: -dto.amount,
-          transactionId: transaction.id,
-          reference: transaction.reference,
+          transactionId: mainTransaction.id,
+          reference: mainTransaction.reference,
         });
 
         // Transaction notification
@@ -510,8 +598,8 @@ export class TransactionManagementService {
           fee: 0,
           currency: wallet.currency,
           description: dto.description || 'Admin wallet debit',
-          reference: transaction.reference,
-          transactionId: transaction.id,
+          reference: mainTransaction.reference,
+          transactionId: mainTransaction.id,
           provider: 'ADMIN',
           status: 'COMPLETED',
           timestamp: new Date().toISOString(),
@@ -523,9 +611,9 @@ export class TransactionManagementService {
           message: `₦${dto.amount.toLocaleString()} has been debited from your wallet by an administrator.`,
           type: 'warning',
           data: {
-            transactionId: transaction.id,
+            transactionId: mainTransaction.id,
             amount: dto.amount,
-            reference: transaction.reference,
+            reference: mainTransaction.reference,
             adminDebit: true,
           },
         });
@@ -539,8 +627,8 @@ export class TransactionManagementService {
         previousBalance: wallet.balance,
         newBalance: wallet.balance - dto.amount,
         amount: dto.amount,
-        reference: transaction.reference,
-        timestamp: transaction.createdAt.toISOString(),
+        reference: mainTransaction.reference,
+        timestamp: mainTransaction.createdAt.toISOString(),
       };
     } catch (error) {
       console.error('❌ [TRANSACTION SERVICE] Error debiting wallet:', error);
