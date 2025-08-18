@@ -33,3 +33,56 @@ generate-jwt-secret.js
 # Test files with sensitive data
 test-*.js
 generate-test-token.js
+
+# ===== DEBUG SCRIPTS - NEVER COMMIT THESE =====
+# All debugging and investigation scripts
+check-*.js
+audit-*.js
+fix-*.js
+investigate-*.js
+cleanup-*.js
+reset-*.js
+sync-*.js
+verify-*.js
+analyze-*.js
+final-*.js
+debug-*.js
+test-*.js
+
+# Specific debug script patterns
+*debug*.js
+*investigation*.js
+*analysis*.js
+*fix*.js
+*check*.js
+*audit*.js
+*cleanup*.js
+*reset*.js
+*sync*.js
+*verify*.js
+*analyze*.js
+*final*.js
+
+# Database and wallet debugging scripts
+*wallet*.js
+*database*.js
+*transaction*.js
+*kyc*.js
+*bank*.js
+*webhook*.js
+*balance*.js
+*corruption*.js
+*integrity*.js
+*orphaned*.js
+*missing*.js
+
+# Mariam-specific debug scripts (if any)
+*mariam*.js
+*nyra*.js
+*opay*.js
+*kuda*.js
+*budpay*.js
+*smeplug*.js
+*polaris*.js
+
+# ===== END DEBUG SCRIPTS =====
