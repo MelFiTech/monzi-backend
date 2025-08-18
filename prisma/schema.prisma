@@ -32,17 +32,17 @@ model User {
   notificationsEnabled            Boolean               @default(true)
   promotionalNotificationsEnabled Boolean               @default(true)
   transactionNotificationsEnabled Boolean               @default(true)
-  locationNotificationsEnabled    Boolean               @default(true)
   role                            UserRole              @default(USER)
   metadata                        Json?
+  locationNotificationsEnabled    Boolean               @default(true)
   adminActionLogs                 AdminActionLog[]
   aiApprovals                     AiApproval[]
   aiQueries                       AiQuery[]
   notificationHistory             NotificationHistory[]
   ocrScans                        OcrScan[]
   pushTokens                      PushToken[]
-  transactions                    Transaction[]
   transactionReports              TransactionReport[]
+  transactions                    Transaction[]
   wallet                          Wallet?
 
   @@map("users")
@@ -60,13 +60,13 @@ model Wallet {
   bankName             String?
   pin                  String?
   isActive             Boolean             @default(true)
-  isFrozen             Boolean             @default(false)
   dailyLimit           Float               @default(100000)
   monthlyLimit         Float               @default(1000000)
   lastTransactionAt    DateTime?
-  metadata             Json?               // For storing additional account info and migration data
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
+  isFrozen             Boolean             @default(false)
+  metadata             Json?
   receivedTransactions WalletTransaction[] @relation("ReceiverWallet")
   sentTransactions     WalletTransaction[] @relation("SenderWallet")
   user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -108,9 +108,9 @@ model Account {
   bankName           String
   bankCode           String?
   routingNumber      String?
-  isBusiness         Boolean?            // User-provided business flag
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  isBusiness         Boolean?
   fromTransactions   Transaction[]       @relation("FromAccount")
   toTransactions     Transaction[]       @relation("ToAccount")
   walletTransactions WalletTransaction[]
@@ -120,47 +120,46 @@ model Account {
 }
 
 model Transaction {
-  id            String            @id @default(cuid())
+  id            String              @id @default(cuid())
   amount        Float
-  currency      String            @default("NGN")
+  currency      String              @default("NGN")
   description   String?
-  reference     String            @unique
-  status        TransactionStatus @default(PENDING)
+  reference     String              @unique
+  status        TransactionStatus   @default(PENDING)
   type          TransactionType
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   userId        String
   fromAccountId String?
   toAccountId   String?
   ocrScanId     String?
-  locationId    String?
   metadata      Json?
-  fromAccount   Account?          @relation("FromAccount", fields: [fromAccountId], references: [id])
-  ocrScan       OcrScan?          @relation(fields: [ocrScanId], references: [id])
-  toAccount     Account?          @relation("ToAccount", fields: [toAccountId], references: [id])
-  location      Location?         @relation(fields: [locationId], references: [id])
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  locationId    String?
   reports       TransactionReport[]
+  fromAccount   Account?            @relation("FromAccount", fields: [fromAccountId], references: [id])
+  location      Location?           @relation(fields: [locationId], references: [id])
+  ocrScan       OcrScan?            @relation(fields: [ocrScanId], references: [id])
+  toAccount     Account?            @relation("ToAccount", fields: [toAccountId], references: [id])
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("transactions")
 }
 
 model Location {
-  id          String        @id @default(cuid())
-  name        String        // Store/merchant name
-  address     String        // Full address
-  city        String?
-  state       String?
-  country     String        @default("Nigeria")
-  latitude    Float         // GPS coordinates
-  longitude   Float         // GPS coordinates
-  locationType LocationType @default(STORE)
-  isActive    Boolean       @default(true)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id           String        @id @default(cuid())
+  name         String
+  address      String
+  city         String?
+  state        String?
+  country      String        @default("Nigeria")
+  latitude     Float
+  longitude    Float
+  locationType LocationType  @default(STORE)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   transactions Transaction[]
 
-  // Location-based indexing for efficient queries
   @@index([latitude, longitude])
   @@index([city, state])
   @@index([locationType])
@@ -228,31 +227,30 @@ model WebhookLog {
 
 model FeeConfiguration {
   id          String   @id @default(cuid())
-  feeType     FeeType
+  feeType     FeeType  @unique
   percentage  Float?
   fixedAmount Float?
   minAmount   Float?
   maxAmount   Float?
-  description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  description String?
 
-  @@unique([feeType])
   @@map("fee_configurations")
 }
 
 model TransferFeeTier {
-  id           String   @id @default(cuid())
-  name         String   // e.g., "Small Transfer", "Medium Transfer", "Large Transfer"
-  minAmount    Float    // Minimum amount for this tier (inclusive)
-  maxAmount    Float?   // Maximum amount for this tier (inclusive), null for unlimited
-  feeAmount    Float    // Fixed fee amount for this tier
-  provider     String?  // Optional: provider-specific tier (null for global)
-  isActive     Boolean  @default(true)
-  description  String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  minAmount   Float
+  maxAmount   Float?
+  feeAmount   Float
+  provider    String?
+  isActive    Boolean  @default(true)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([minAmount, maxAmount, provider])
   @@map("transfer_fee_tiers")
@@ -428,19 +426,19 @@ model AuditorMetrics {
 }
 
 model TransactionReport {
-  id          String                    @id @default(cuid())
-  userId      String
+  id            String                  @id @default(cuid())
+  userId        String
   transactionId String
-  reason      TransactionReportReason
-  description String
-  status      TransactionReportStatus   @default(PENDING)
-  adminNotes  String?
-  resolvedAt  DateTime?
-  resolvedBy  String?
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
-  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transaction Transaction               @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  reason        TransactionReportReason
+  description   String
+  status        TransactionReportStatus @default(PENDING)
+  adminNotes    String?
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  transaction   Transaction             @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([transactionId])
@@ -626,6 +624,7 @@ enum UserRole {
   DEVELOPER
   SUDO_ADMIN
 }
+
 enum LocationType {
   STORE
   RESTAURANT
@@ -637,4 +636,3 @@ enum LocationType {
   ATM
   OTHER
 }
-

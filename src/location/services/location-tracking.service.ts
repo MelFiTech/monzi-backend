@@ -265,7 +265,7 @@ export class LocationTrackingService {
     const truncatedLocationName = this.truncateLocationName(locationName, 20);
 
     return {
-      title: `Back at ${truncatedLocationName}? 👀`,
+      title: `You are at ${truncatedLocationName}? 👀`,
       body: 'Account details available, Tap to pay now',
       type: 'location',
       locationId: proximityResult.locationId!,
