@@ -35,7 +35,7 @@ test-*.js
 generate-test-token.js
 
 # ===== DEBUG SCRIPTS - NEVER COMMIT THESE =====
-# All debugging and investigation scripts
+# All debugging and investigation scripts - these patterns will catch most debug scripts
 check-*.js
 audit-*.js
 fix-*.js
@@ -47,9 +47,8 @@ verify-*.js
 analyze-*.js
 final-*.js
 debug-*.js
-test-*.js
 
-# Specific debug script patterns
+# Additional debug script patterns
 *debug*.js
 *investigation*.js
 *analysis*.js
@@ -76,7 +75,7 @@ test-*.js
 *orphaned*.js
 *missing*.js
 
-# Mariam-specific debug scripts (if any)
+# Mariam-specific debug scripts
 *mariam*.js
 *nyra*.js
 *opay*.js
