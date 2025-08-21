@@ -913,12 +913,17 @@ export class WebhooksService {
         };
       }
 
-      // Validate wallet balance against transaction history BEFORE processing
+                  // Validate wallet balance against transaction history BEFORE processing
       this.logger.log(
         `🔍 [WEBHOOK] Validating wallet balance before processing update...`,
       );
       const preUpdateValidation =
-        await this.walletService.validateWalletBalance(wallet.id);
+        await this.walletService.validateWalletBalance(wallet.id, {
+          autoReconcile: false, // Don't auto-reconcile during webhook processing
+          gracePeriodMinutes: 10, // Allow 10-minute grace period for recent transactions
+          strictMode: false, // Use lenient floating-point precision
+          includeProviderCheck: false, // Skip provider check for performance
+        });
 
       if (!preUpdateValidation.isValid) {
         this.logger.error(`❌ [WEBHOOK] Wallet balance validation failed!`);

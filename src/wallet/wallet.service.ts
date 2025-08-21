@@ -1363,26 +1363,60 @@ export class WalletService {
     }
   }
 
-  /**
+    /**
    * Validate wallet balance against transaction history
-   * This ensures the wallet balance always matches the sum of all transactions
+   * Enhanced version with comprehensive validation and automatic reconciliation
    */
-  async validateWalletBalance(walletId: string): Promise<{
+  async validateWalletBalance(walletId: string, options?: {
+    autoReconcile?: boolean;
+    gracePeriodMinutes?: number;
+    strictMode?: boolean;
+    includeProviderCheck?: boolean;
+  }): Promise<{
     isValid: boolean;
     currentBalance: number;
     calculatedBalance: number;
     discrepancy: number;
     message: string;
+    details?: {
+      totalCredits: number;
+      totalDebits: number;
+      totalFees: number;
+      transactionCount: number;
+      adminFundingCount: number;
+      lastTransactionAt?: Date;
+      providerBalance?: number;
+      reconciliationApplied?: boolean;
+    };
+    recommendations?: string[];
   }> {
+    const opts = {
+      autoReconcile: false,
+      gracePeriodMinutes: 5,
+      strictMode: false,
+      includeProviderCheck: false,
+      ...options,
+    };
+
     console.log(
       '🔍 [BALANCE VALIDATION] Validating wallet balance for wallet:',
       walletId,
     );
+    console.log('⚙️ [BALANCE VALIDATION] Options:', opts);
 
     try {
-      // Get current wallet
+      // Get current wallet with user info
       const wallet = await this.prisma.wallet.findUnique({
         where: { id: walletId },
+        include: {
+          user: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
       });
 
       if (!wallet) {
@@ -1394,17 +1428,192 @@ export class WalletService {
         '💰 [BALANCE VALIDATION] Current wallet balance:',
         currentBalance,
       );
-
-      // Calculate balance from transaction history
-      const calculatedBalance =
-        await this.calculateBalanceFromTransactions(walletId);
       console.log(
-        '🧮 [BALANCE VALIDATION] Calculated balance from transactions:',
+        '👤 [BALANCE VALIDATION] Wallet owner:',
+        `${wallet.user.firstName} ${wallet.user.lastName} (${wallet.user.email})`,
+      );
+
+      // Get all completed transactions with detailed analysis
+      const transactions = await this.prisma.walletTransaction.findMany({
+        where: {
+          AND: [
+            {
+              OR: [{ senderWalletId: walletId }, { receiverWalletId: walletId }],
+            },
+            {
+              status: 'COMPLETED',
+            },
+          ],
+        },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          amount: true,
+          fee: true,
+          type: true,
+          status: true,
+          reference: true,
+          description: true,
+          senderWalletId: true,
+          receiverWalletId: true,
+          createdAt: true,
+          metadata: true,
+        },
+      });
+
+      console.log(
+        `🧮 [BALANCE VALIDATION] Found ${transactions.length} completed transactions`,
+      );
+
+      // Enhanced balance calculation with categorization
+      let calculatedBalance = 0;
+      let totalCredits = 0;
+      let totalDebits = 0;
+      let totalFees = 0;
+      let adminFundingCount = 0;
+      let lastTransactionAt: Date | undefined;
+
+      const transactionCategories = {
+        funding: 0,
+        withdrawal: 0,
+        transfer: 0,
+        adminFunding: 0,
+        other: 0,
+      };
+
+      for (const transaction of transactions) {
+        if (transaction.createdAt > (lastTransactionAt || new Date(0))) {
+          lastTransactionAt = transaction.createdAt;
+        }
+
+        if (transaction.senderWalletId === walletId) {
+          // This wallet sent money (debit)
+          const totalDebit = transaction.amount + (transaction.fee || 0);
+          calculatedBalance -= totalDebit;
+          totalDebits += transaction.amount;
+          totalFees += transaction.fee || 0;
+
+          // Categorize transaction
+          if (transaction.type === 'WITHDRAWAL') {
+            transactionCategories.withdrawal += totalDebit;
+          } else if (transaction.type === 'TRANSFER') {
+            transactionCategories.transfer += totalDebit;
+          } else {
+            transactionCategories.other += totalDebit;
+          }
+
+          console.log(
+            `➖ [BALANCE VALIDATION] Debit: -₦${totalDebit} (Amount: ₦${transaction.amount}, Fee: ₦${transaction.fee || 0}) | ${transaction.type} | ${transaction.reference}`,
+          );
+        } else if (transaction.receiverWalletId === walletId) {
+          // This wallet received money (credit)
+          calculatedBalance += transaction.amount;
+          totalCredits += transaction.amount;
+
+          // Check if this is admin funding
+          const isAdminFunding = 
+            transaction.type === 'FUNDING' && 
+            (transaction.metadata as any)?.adminFunding === true;
+
+          if (isAdminFunding) {
+            adminFundingCount++;
+            transactionCategories.adminFunding += transaction.amount;
+            console.log(
+              `➕ [BALANCE VALIDATION] Admin Funding: +₦${transaction.amount} | ${transaction.reference} | ${transaction.description}`,
+            );
+          } else if (transaction.type === 'FUNDING') {
+            transactionCategories.funding += transaction.amount;
+            console.log(
+              `➕ [BALANCE VALIDATION] Funding: +₦${transaction.amount} | ${transaction.reference}`,
+            );
+          } else {
+            transactionCategories.other += transaction.amount;
+            console.log(
+              `➕ [BALANCE VALIDATION] Credit: +₦${transaction.amount} | ${transaction.type} | ${transaction.reference}`,
+            );
+          }
+        }
+      }
+
+      console.log('📊 [BALANCE VALIDATION] Transaction Summary:');
+      console.log(`   💰 Total Credits: ₦${totalCredits}`);
+      console.log(`   💸 Total Debits: ₦${totalDebits}`);
+      console.log(`   💸 Total Fees: ₦${totalFees}`);
+      console.log(`   🏦 Funding: ₦${transactionCategories.funding}`);
+      console.log(`   👤 Admin Funding: ₦${transactionCategories.adminFunding} (${adminFundingCount} transactions)`);
+      console.log(`   📤 Withdrawals: ₦${transactionCategories.withdrawal}`);
+      console.log(`   🔄 Transfers: ₦${transactionCategories.transfer}`);
+
+      console.log(
+        '🧮 [BALANCE VALIDATION] Final calculated balance:',
         calculatedBalance,
       );
 
+      // Enhanced discrepancy calculation with floating-point precision
       const discrepancy = Math.abs(currentBalance - calculatedBalance);
-      const isValid = discrepancy < 0.01; // Allow for minor floating point differences
+      const precisionThreshold = opts.strictMode ? 0.001 : 0.01; // Allow for floating point differences
+      
+      // Time-based grace period for recent transactions
+      const gracePeriodMs = opts.gracePeriodMinutes * 60 * 1000;
+      const withinGracePeriod = lastTransactionAt && 
+        (Date.now() - lastTransactionAt.getTime()) < gracePeriodMs;
+
+      let isValid = discrepancy < precisionThreshold;
+      let reconciliationApplied = false;
+      let providerBalance: number | undefined;
+
+      // Provider balance check if requested
+      if (opts.includeProviderCheck && wallet.virtualAccountNumber) {
+        try {
+          // This would need to be implemented to check with the actual provider
+          // providerBalance = await this.getProviderBalance(wallet);
+          console.log('⚠️ [BALANCE VALIDATION] Provider balance check requested but not implemented');
+        } catch (error) {
+          console.log('⚠️ [BALANCE VALIDATION] Provider balance check failed:', error.message);
+        }
+      }
+
+      // Auto-reconciliation logic
+      if (!isValid && opts.autoReconcile && discrepancy < 100) { // Only auto-reconcile small discrepancies
+        console.log(`🔧 [BALANCE VALIDATION] Auto-reconciling small discrepancy of ₦${discrepancy}`);
+        
+        try {
+          await this.prisma.wallet.update({
+            where: { id: walletId },
+            data: { 
+              balance: calculatedBalance,
+              lastTransactionAt: new Date(),
+            },
+          });
+          
+          reconciliationApplied = true;
+          isValid = true;
+          
+          console.log('✅ [BALANCE VALIDATION] Auto-reconciliation completed successfully');
+        } catch (error) {
+          console.log('❌ [BALANCE VALIDATION] Auto-reconciliation failed:', error.message);
+        }
+      }
+
+      // Generate recommendations
+      const recommendations: string[] = [];
+      
+      if (!isValid) {
+        if (discrepancy > 100) {
+          recommendations.push('Large discrepancy detected - requires manual investigation');
+        }
+        if (adminFundingCount > 0) {
+          recommendations.push(`Found ${adminFundingCount} admin funding transactions - verify legitimacy`);
+        }
+        if (withinGracePeriod) {
+          recommendations.push('Recent transaction detected - discrepancy might resolve automatically');
+        } else {
+          recommendations.push('Consider running manual balance reconciliation');
+        }
+        if (opts.includeProviderCheck) {
+          recommendations.push('Verify balance with payment provider');
+        }
+      }
 
       const result = {
         isValid,
@@ -1412,25 +1621,33 @@ export class WalletService {
         calculatedBalance,
         discrepancy,
         message: isValid
-          ? 'Wallet balance is valid and matches transaction history'
+          ? (reconciliationApplied 
+              ? `Wallet balance reconciled automatically (was ₦${discrepancy} off)`
+              : 'Wallet balance is valid and matches transaction history')
           : `Wallet balance discrepancy detected! Current: ₦${currentBalance}, Expected: ₦${calculatedBalance}, Difference: ₦${discrepancy}`,
+        details: {
+          totalCredits,
+          totalDebits,
+          totalFees,
+          transactionCount: transactions.length,
+          adminFundingCount,
+          lastTransactionAt,
+          providerBalance,
+          reconciliationApplied,
+        },
+        recommendations,
       };
 
       if (isValid) {
-        console.log('✅ [BALANCE VALIDATION] Wallet balance is valid');
+        console.log('✅ [BALANCE VALIDATION] Wallet balance validation passed');
       } else {
-        console.error('❌ [BALANCE VALIDATION] Balance discrepancy detected!');
-        console.error(
-          `❌ [BALANCE VALIDATION] Current: ₦${currentBalance}, Expected: ₦${calculatedBalance}, Difference: ₦${discrepancy}`,
-        );
+        console.log('❌ [BALANCE VALIDATION] Wallet balance validation failed');
+        console.log('💡 [BALANCE VALIDATION] Recommendations:', recommendations.join(', '));
       }
 
       return result;
     } catch (error) {
-      console.error(
-        '❌ [BALANCE VALIDATION] Error validating wallet balance:',
-        error,
-      );
+      console.error('❌ [BALANCE VALIDATION] Error during validation:', error);
       throw error;
     }
   }
