@@ -295,11 +295,17 @@ export class KycManagementService {
         : user.firstName || user.lastName || 'N/A';
 
       // Generate full image URL - handle both Cloudinary and local URLs correctly
-      const selfieImageUrl = user.selfieUrl 
-        ? (user.selfieUrl.startsWith('http') 
-            ? user.selfieUrl  // Already a full URL (Cloudinary)
-            : `${process.env.BASE_URL || 'http://localhost:3000'}${user.selfieUrl}`)  // Local path
-        : undefined;
+      let selfieImageUrl = undefined;
+      if (user.selfieUrl) {
+        if (user.selfieUrl.startsWith('http')) {
+          // Cloudinary URL - add transformation parameters for better resolution and quality
+          const baseUrl = user.selfieUrl.split('?')[0]; // Remove any existing query params
+          selfieImageUrl = `${baseUrl}?q_auto,f_auto,w_800,h_800,c_limit`;
+        } else {
+          // Local path - prepend base URL
+          selfieImageUrl = `${process.env.BASE_URL || 'http://localhost:3000'}${user.selfieUrl}`;
+        }
+      }
 
       // Extract Identity Pass data from metadata
       let bvnProviderResponse = null;
