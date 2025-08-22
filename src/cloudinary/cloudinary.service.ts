@@ -21,6 +21,10 @@ export class CloudinaryService {
         {
           folder,
           resource_type: 'auto',
+          transformation: [
+            { quality: 'auto:good', fetch_format: 'auto' }
+          ],
+          format: 'auto'
         },
         (error, result) => {
           if (error) {
@@ -46,6 +50,10 @@ export class CloudinaryService {
           folder,
           public_id: publicId,
           resource_type: 'auto',
+          transformation: [
+            { quality: 'auto:good', fetch_format: 'auto' }
+          ],
+          format: 'auto'
         },
         (error, result) => {
           if (error) {
@@ -67,6 +75,10 @@ export class CloudinaryService {
     return cloudinary.uploader.upload(filePath, {
       folder,
       resource_type: 'auto',
+      transformation: [
+        { quality: 'auto:good', fetch_format: 'auto' }
+      ],
+      format: 'auto'
     });
   }
 

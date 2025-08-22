@@ -294,9 +294,11 @@ export class KycManagementService {
         ? `${user.firstName} ${user.lastName}`
         : user.firstName || user.lastName || 'N/A';
 
-      // Generate full image URL
+      // Generate full image URL - handle both Cloudinary and local URLs correctly
       const selfieImageUrl = user.selfieUrl 
-        ? `${process.env.BASE_URL || 'http://localhost:3000'}${user.selfieUrl}`
+        ? (user.selfieUrl.startsWith('http') 
+            ? user.selfieUrl  // Already a full URL (Cloudinary)
+            : `${process.env.BASE_URL || 'http://localhost:3000'}${user.selfieUrl}`)  // Local path
         : undefined;
 
       // Extract Identity Pass data from metadata
