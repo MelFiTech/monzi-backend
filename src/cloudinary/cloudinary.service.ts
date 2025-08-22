@@ -23,8 +23,7 @@ export class CloudinaryService {
           resource_type: 'auto',
           transformation: [
             { quality: 'auto:good', fetch_format: 'auto' }
-          ],
-          format: 'auto'
+          ]
         },
         (error, result) => {
           if (error) {
@@ -52,8 +51,7 @@ export class CloudinaryService {
           resource_type: 'auto',
           transformation: [
             { quality: 'auto:good', fetch_format: 'auto' }
-          ],
-          format: 'auto'
+          ]
         },
         (error, result) => {
           if (error) {
@@ -77,8 +75,7 @@ export class CloudinaryService {
       resource_type: 'auto',
       transformation: [
         { quality: 'auto:good', fetch_format: 'auto' }
-      ],
-      format: 'auto'
+      ]
     });
   }
 
