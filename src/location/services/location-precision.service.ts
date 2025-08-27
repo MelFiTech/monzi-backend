@@ -698,8 +698,9 @@ export class LocationPrecisionService {
         return false;
       }
 
-      // Default to business if unclear
-      return true;
+      // Default to individual/personal if unclear - be conservative
+      // Only mark as business if we're confident it's a business
+      return false;
     } catch (error) {
       console.error(
         '❌ [LOCATION PRECISION] Error in isBusinessAccount:',

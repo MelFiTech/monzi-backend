@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location.service';
+import { LocationPrecisionService } from './location-precision.service';
 import { CreateLocationDto } from '../dto/location.dto';
 
 export interface TransactionLocationData {
@@ -19,7 +20,15 @@ export class LocationTransactionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly locationService: LocationService,
+    private readonly locationPrecisionService: LocationPrecisionService,
   ) {}
+
+  /**
+   * Helper method to check if an account name represents a business
+   */
+  private isBusinessAccount(accountName: string): boolean {
+    return this.locationPrecisionService.isBusinessAccountName(accountName);
+  }
 
   /**
    * Associate location with transaction
@@ -108,9 +117,25 @@ export class LocationTransactionService {
       return null;
     }
 
-    // Extract unique payment details
+    // Extract unique payment details - only include business accounts
     const paymentSuggestions = location.transactions
-      .filter((tx) => tx.toAccount)
+      .filter((tx) => {
+        if (!tx.toAccount) {
+          return false;
+        }
+        
+        // Check if this is a business account
+        const isBusiness = tx.toAccount.isBusiness !== null && tx.toAccount.isBusiness !== undefined
+          ? tx.toAccount.isBusiness
+          : this.isBusinessAccount(tx.toAccount.accountName);
+        
+        console.log(
+          `🏢 [LOCATION TRANSACTION SERVICE] Account "${tx.toAccount.accountName}" is ${isBusiness ? 'BUSINESS' : 'INDIVIDUAL'} (${tx.toAccount.isBusiness !== null ? 'user-tagged' : 'auto-detected'})`
+        );
+        
+        // Only include business accounts in suggestions
+        return isBusiness;
+      })
       .map((tx) => ({
         accountNumber: tx.toAccount.accountNumber,
         bankName: tx.toAccount.bankName,
@@ -120,6 +145,7 @@ export class LocationTransactionService {
         frequency: location.transactions.filter(
           (t) => t.toAccount?.accountNumber === tx.toAccount.accountNumber,
         ).length,
+        isBusiness: tx.toAccount.isBusiness !== null ? tx.toAccount.isBusiness : true, // Mark as business since we filtered for it
       }))
       .filter(
         (suggestion, index, self) =>
@@ -178,11 +204,20 @@ export class LocationTransactionService {
       reference: tx.reference,
       createdAt: tx.createdAt,
       paymentDetails: tx.toAccount
-        ? {
-            accountNumber: tx.toAccount.accountNumber,
-            bankName: tx.toAccount.bankName,
-            accountName: tx.toAccount.accountName,
-          }
+        ? (() => {
+            const account = tx.toAccount;
+            const isBusiness = account.isBusiness !== null && account.isBusiness !== undefined
+              ? account.isBusiness
+              : this.isBusinessAccount(account.accountName);
+            
+            // Only return payment details for business accounts
+            return isBusiness ? {
+              accountNumber: account.accountNumber,
+              bankName: account.bankName,
+              accountName: account.accountName,
+              isBusiness: true,
+            } : null;
+          })()
         : null,
       user: tx.user
         ? {
@@ -253,12 +288,21 @@ export class LocationTransactionService {
       visitCount: location._count.transactions,
       lastVisit: location.transactions[0]?.createdAt,
       lastPaymentDetails: location.transactions[0]?.toAccount
-        ? {
-            accountNumber: location.transactions[0].toAccount.accountNumber,
-            bankName: location.transactions[0].toAccount.bankName,
-            accountName: location.transactions[0].toAccount.accountName,
-            amount: location.transactions[0].amount,
-          }
+        ? (() => {
+            const account = location.transactions[0].toAccount;
+            const isBusiness = account.isBusiness !== null && account.isBusiness !== undefined
+              ? account.isBusiness
+              : this.isBusinessAccount(account.accountName);
+            
+            // Only return payment details for business accounts
+            return isBusiness ? {
+              accountNumber: account.accountNumber,
+              bankName: account.bankName,
+              accountName: account.accountName,
+              amount: location.transactions[0].amount,
+              isBusiness: true,
+            } : null;
+          })()
         : null,
     }));
   }
