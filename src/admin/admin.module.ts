@@ -7,6 +7,7 @@ import { TransactionManagementService } from './services/transaction-management.
 import { AdminManagementService } from './services/admin-management.service';
 import { WalletManagementService } from './services/wallet-management.service';
 import { LocationManagementService } from './services/location-management.service';
+import { FeeStatisticsService } from './services/fee-statistics.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletModule } from '../wallet/wallet.module';
 import { ProvidersModule } from '../providers/providers.module';
@@ -33,6 +34,7 @@ import { BusinessModule } from '../business/business.module';
     AdminManagementService,
     WalletManagementService,
     LocationManagementService,
+    FeeStatisticsService,
     PrismaService,
   ],
   exports: [AdminService],

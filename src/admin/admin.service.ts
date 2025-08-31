@@ -11,6 +11,7 @@ import { BusinessService } from '../business/business.service';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { FeeStatisticsService } from './services/fee-statistics.service';
 
 @Injectable()
 export class AdminService {
@@ -26,6 +27,7 @@ export class AdminService {
     private businessService: BusinessService,
     private configService: ConfigService,
     private prisma: PrismaService,
+    private feeStatisticsService: FeeStatisticsService,
   ) {}
 
   // ==================== KYC MANAGEMENT DELEGATION ====================
@@ -543,6 +545,32 @@ export class AdminService {
       adminId,
       adminEmail,
     );
+  }
+
+  // ==================== FEE STATISTICS DELEGATION ====================
+
+  async getOverallFeeStatistics() {
+    return this.feeStatisticsService.getOverallFeeStatistics();
+  }
+
+  async getTodayFeeStatistics() {
+    return this.feeStatisticsService.getTodayFeeStatistics();
+  }
+
+  async getThisWeekFeeStatistics() {
+    return this.feeStatisticsService.getThisWeekFeeStatistics();
+  }
+
+  async getThisMonthFeeStatistics() {
+    return this.feeStatisticsService.getThisMonthFeeStatistics();
+  }
+
+  async getLast30DaysFeeStatistics() {
+    return this.feeStatisticsService.getLast30DaysFeeStatistics();
+  }
+
+  async getPeriodFeeStatistics(startDate: Date, endDate: Date, period: string = 'custom') {
+    return this.feeStatisticsService.getPeriodFeeStatistics(startDate, endDate, period);
   }
 
   // ==================== DASHBOARD STATS DELEGATION ====================

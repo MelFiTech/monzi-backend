@@ -84,6 +84,10 @@ import {
   GetPinStatusResponseDto,
   BulkPinStatusResponseDto,
 } from './dto/admin.dto';
+import {
+  GetFeeStatisticsResponseDto,
+  GetPeriodFeeStatisticsResponseDto,
+} from './dto/fee-statistics.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -2887,5 +2891,201 @@ export class AdminController {
     const limitNum = limit ? parseInt(limit, 10) : 1000;
     const offsetNum = offset ? parseInt(offset, 10) : 0;
     return await this.adminService.getBulkPinStatus(limitNum, offsetNum);
+  }
+
+  // ==================== FEE STATISTICS ENDPOINTS ====================
+
+  @Get('fees/statistics/overall')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get overall fee statistics',
+    description: 'Get comprehensive fee statistics for all time',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Overall fee statistics retrieved successfully',
+    type: GetFeeStatisticsResponseDto,
+  })
+  async getOverallFeeStatistics(): Promise<GetFeeStatisticsResponseDto> {
+    console.log(
+      '💰 [ADMIN API] GET /admin/fees/statistics/overall - Getting overall fee statistics',
+    );
+    const result = await this.adminService.getOverallFeeStatistics();
+    console.log('✅ [ADMIN API] Overall fee statistics retrieved successfully');
+    console.log('💰 Total fees:', result.totalFees);
+    return {
+      success: true,
+      message: 'Overall fee statistics retrieved successfully',
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('fees/statistics/today')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get today\'s fee statistics',
+    description: 'Get fee statistics for today',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Today\'s fee statistics retrieved successfully',
+    type: GetPeriodFeeStatisticsResponseDto,
+  })
+  async getTodayFeeStatistics(): Promise<GetPeriodFeeStatisticsResponseDto> {
+    console.log(
+      '💰 [ADMIN API] GET /admin/fees/statistics/today - Getting today\'s fee statistics',
+    );
+    const result = await this.adminService.getTodayFeeStatistics();
+    console.log('✅ [ADMIN API] Today\'s fee statistics retrieved successfully');
+    console.log('💰 Today\'s fees:', result.totalFees);
+    return {
+      success: true,
+      message: 'Today\'s fee statistics retrieved successfully',
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('fees/statistics/this-week')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get this week\'s fee statistics',
+    description: 'Get fee statistics for this week',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'This week\'s fee statistics retrieved successfully',
+    type: GetPeriodFeeStatisticsResponseDto,
+  })
+  async getThisWeekFeeStatistics(): Promise<GetPeriodFeeStatisticsResponseDto> {
+    console.log(
+      '💰 [ADMIN API] GET /admin/fees/statistics/this-week - Getting this week\'s fee statistics',
+    );
+    const result = await this.adminService.getThisWeekFeeStatistics();
+    console.log('✅ [ADMIN API] This week\'s fee statistics retrieved successfully');
+    console.log('💰 This week\'s fees:', result.totalFees);
+    return {
+      success: true,
+      message: 'This week\'s fee statistics retrieved successfully',
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('fees/statistics/this-month')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get this month\'s fee statistics',
+    description: 'Get fee statistics for this month',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'This month\'s fee statistics retrieved successfully',
+    type: GetPeriodFeeStatisticsResponseDto,
+  })
+  async getThisMonthFeeStatistics(): Promise<GetPeriodFeeStatisticsResponseDto> {
+    console.log(
+      '💰 [ADMIN API] GET /admin/fees/statistics/this-month - Getting this month\'s fee statistics',
+    );
+    const result = await this.adminService.getThisMonthFeeStatistics();
+    console.log('✅ [ADMIN API] This month\'s fee statistics retrieved successfully');
+    console.log('💰 This month\'s fees:', result.totalFees);
+    return {
+      success: true,
+      message: 'This month\'s fee statistics retrieved successfully',
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('fees/statistics/last-30-days')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get last 30 days fee statistics',
+    description: 'Get fee statistics for the last 30 days',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Last 30 days fee statistics retrieved successfully',
+    type: GetPeriodFeeStatisticsResponseDto,
+  })
+  async getLast30DaysFeeStatistics(): Promise<GetPeriodFeeStatisticsResponseDto> {
+    console.log(
+      '💰 [ADMIN API] GET /admin/fees/statistics/last-30-days - Getting last 30 days fee statistics',
+    );
+    const result = await this.adminService.getLast30DaysFeeStatistics();
+    console.log('✅ [ADMIN API] Last 30 days fee statistics retrieved successfully');
+    console.log('💰 Last 30 days fees:', result.totalFees);
+    return {
+      success: true,
+      message: 'Last 30 days fee statistics retrieved successfully',
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('fees/statistics/period')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get custom period fee statistics',
+    description: 'Get fee statistics for a custom date range',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    description: 'Start date (YYYY-MM-DD)',
+    required: true,
+    example: '2024-01-01',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    description: 'End date (YYYY-MM-DD)',
+    required: true,
+    example: '2024-01-31',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Custom period fee statistics retrieved successfully',
+    type: GetPeriodFeeStatisticsResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid date parameters',
+  })
+  async getPeriodFeeStatistics(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ): Promise<GetPeriodFeeStatisticsResponseDto> {
+    console.log(
+      `💰 [ADMIN API] GET /admin/fees/statistics/period - Getting custom period fee statistics from ${startDate} to ${endDate}`,
+    );
+
+    // Validate date parameters
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new BadRequestException('Invalid date format. Use YYYY-MM-DD');
+    }
+
+    if (start > end) {
+      throw new BadRequestException('Start date cannot be after end date');
+    }
+
+    const result = await this.adminService.getPeriodFeeStatistics(start, end);
+    console.log('✅ [ADMIN API] Custom period fee statistics retrieved successfully');
+    console.log('💰 Custom period fees:', result.totalFees);
+    return {
+      success: true,
+      message: 'Custom period fee statistics retrieved successfully',
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
   }
 }
