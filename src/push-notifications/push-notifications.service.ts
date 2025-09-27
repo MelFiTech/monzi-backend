@@ -1094,7 +1094,7 @@ export class PushNotificationsService {
       }
 
       return this.sendPushNotificationToUser(userId, {
-        title: '💰 Wallet Funded',
+        title: 'Wallet Funded',
         body: `Your wallet has been funded with ₦${amount.toLocaleString()}`,
         data: {
           type: 'funding',
@@ -1145,12 +1145,10 @@ export class PushNotificationsService {
         };
       }
 
-      const statusEmoji =
-        status === 'COMPLETED' ? '✅' : status === 'FAILED' ? '❌' : '⏳';
       const typeText = type.toLowerCase();
 
       return this.sendPushNotificationToUser(userId, {
-        title: `${statusEmoji} ${type} ${status}`,
+        title: `${type} ${status}`,
         body: `₦${amount.toLocaleString()} ${typeText} ${status.toLowerCase()}. Ref: ${reference}`,
         data: {
           type: 'transaction',

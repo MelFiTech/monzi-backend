@@ -37,6 +37,7 @@ export enum WebhookEventType {
   // Nyra specific events
   NYRA_WALLET_CREDITED = 'wallet.credited',
   NYRA_WALLET_DEBITED = 'wallet.debited',
+  NYRA_WALLET_REVERSED = 'wallet.reversed',
   NYRA_TRANSFER_SUCCESSFUL = 'transfer.successful',
   NYRA_TRANSFER_FAILED = 'transfer.failed',
   NYRA_TRANSFER_PENDING = 'transfer.pending',

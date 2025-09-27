@@ -17,7 +17,7 @@ import {
   WebhookProcessingResult,
   BaseWebhookPayload,
 } from './dto/webhook.dto';
-import { WalletTransactionType, TransactionStatus } from '@prisma/client';
+import { WalletTransactionType, TransactionStatus, TransactionType } from '@prisma/client';
 
 @Injectable()
 export class WebhooksService {
@@ -767,7 +767,7 @@ export class WebhooksService {
 
     return {
       provider: WebhookProvider.NYRA,
-      eventType: this.mapNyraEvent(event),
+      eventType: this.mapNyraEvent(event, payload),
       transactionReference: (actualData as any).reference || '',
       accountNumber: (actualData as any).account_number,
       accountName:
@@ -887,7 +887,13 @@ export class WebhooksService {
         data.provider,
         data.amount,
       );
-      const netAmount = data.amount - fundingFee;
+      
+      // For reversals, we refund the original amount + our original fee (ignore Nyra's charge)
+      let netAmount = data.amount - fundingFee;
+      if (data.eventType === WebhookEventType.NYRA_WALLET_REVERSED) {
+        // We'll add the original transfer fee later after we find it
+        netAmount = data.amount; // Start with the amount from Nyra
+      }
 
       this.logger.log(`💰 [WEBHOOK] Gross amount: ₦${data.amount}`);
       this.logger.log(
@@ -972,16 +978,58 @@ export class WebhooksService {
 
       // ==================== ATOMIC DATABASE TRANSACTION ====================
       const result = await this.prisma.$transaction(async (tx) => {
+        // Determine transaction type based on event type
+        let walletTransactionType: WalletTransactionType = WalletTransactionType.FUNDING;
+        let mainTransactionType: TransactionType = TransactionType.DEPOSIT;
+        
+        // Handle REVERSAL transactions specially
+        let originalTransferFee = 0;
+        if (data.eventType === WebhookEventType.NYRA_WALLET_REVERSED) {
+          walletTransactionType = WalletTransactionType.REVERSAL;
+          mainTransactionType = TransactionType.DEPOSIT; // REVERSAL is still a deposit to user's wallet
+          
+          // Find the original transfer transaction to get the fee we charged
+          try {
+            const originalTransaction = await tx.walletTransaction.findFirst({
+              where: {
+                reference: data.transactionReference,
+                type: WalletTransactionType.WITHDRAWAL,
+                status: TransactionStatus.COMPLETED,
+              },
+              orderBy: { createdAt: 'desc' },
+            });
+            
+            if (originalTransaction) {
+              originalTransferFee = originalTransaction.fee || 0;
+              this.logger.log(`🔄 [REVERSAL] Found original transfer with fee: ₦${originalTransferFee}`);
+              
+              // Update netAmount to include the original fee we charged
+              netAmount = data.amount + originalTransferFee;
+              this.logger.log(`💰 [REVERSAL] Refunding amount: ₦${data.amount} + original fee: ₦${originalTransferFee} = ₦${netAmount}`);
+            } else {
+              this.logger.warn(`⚠️ [REVERSAL] Original transfer not found for reference: ${data.transactionReference}`);
+              // If we can't find the original transfer, just refund the amount from Nyra
+              netAmount = data.amount;
+            }
+          } catch (error) {
+            this.logger.error(`❌ [REVERSAL] Error finding original transfer:`, error);
+          }
+        } else if (data.eventType === WebhookEventType.NYRA_WALLET_DEBITED) {
+          walletTransactionType = WalletTransactionType.WITHDRAWAL;
+          mainTransactionType = TransactionType.WITHDRAWAL;
+        }
+
         // Create transaction record first
         const transaction = await tx.walletTransaction.create({
           data: {
             amount: netAmount, // Use netAmount for the transaction record
-            type: WalletTransactionType.FUNDING,
+            type: walletTransactionType,
             status: TransactionStatus.COMPLETED,
             reference: data.transactionReference,
-            description:
-              data.description || `Wallet funding via ${data.provider}`,
-            fee: fundingFee, // Store our funding fee
+            description: data.eventType === WebhookEventType.NYRA_WALLET_REVERSED 
+              ? `REVERSAL: Failed transfer refunded via ${data.provider}`
+              : data.description || `Wallet funding via ${data.provider}`,
+            fee: data.eventType === WebhookEventType.NYRA_WALLET_REVERSED ? 0 : fundingFee, // No fee for reversals (we're refunding)
             senderBalanceBefore: null, // External funding has no sender
             senderBalanceAfter: null,
             receiverWalletId: wallet.id,
@@ -995,9 +1043,15 @@ export class WebhooksService {
               accountNumber: data.accountNumber,
               webhookProcessedAt: new Date().toISOString(),
               grossAmount: data.amount, // Original amount from provider
-              fundingFee: fundingFee, // Our funding fee
+              fundingFee: data.eventType === WebhookEventType.NYRA_WALLET_REVERSED ? 0 : fundingFee, // Our funding fee
               netAmount: netAmount, // Amount credited to user
-              feeType: `FUNDING_${data.provider}`, // Fee type used
+              feeType: data.eventType === WebhookEventType.NYRA_WALLET_REVERSED ? 'REVERSAL_REFUND' : `FUNDING_${data.provider}`, // Fee type used
+              // Reversal specific metadata
+              ...(data.eventType === WebhookEventType.NYRA_WALLET_REVERSED && {
+                originalTransferFee: originalTransferFee,
+                reversalType: 'TRANSFER_FAILED_REFUND',
+                nyraCharge: data.rawPayload?.data?.charge || 0, // Store Nyra's charge for reference
+              }),
               // Sender information for inflow transactions
               sender_name: data.metadata?.sender_name,
               sender_account_number: data.metadata?.sender_account_number,
@@ -1012,11 +1066,12 @@ export class WebhooksService {
           data: {
             amount: netAmount,
             currency: 'NGN',
-            type: 'DEPOSIT',
+            type: mainTransactionType,
             status: TransactionStatus.COMPLETED,
             reference: data.transactionReference,
-            description:
-              data.description || `Wallet funding via ${data.provider}`,
+            description: data.eventType === WebhookEventType.NYRA_WALLET_REVERSED 
+              ? `REVERSAL: Failed transfer refunded via ${data.provider}`
+              : data.description || `Wallet funding via ${data.provider}`,
             userId: wallet.userId,
             metadata: {
               provider: data.provider,
@@ -1024,10 +1079,16 @@ export class WebhooksService {
               accountNumber: data.accountNumber,
               webhookProcessedAt: new Date().toISOString(),
               grossAmount: data.amount, // Original amount from provider
-              fundingFee: fundingFee, // Our funding fee
+              fundingFee: data.eventType === WebhookEventType.NYRA_WALLET_REVERSED ? 0 : fundingFee, // Our funding fee
               netAmount: netAmount, // Amount credited to user
-              feeType: `FUNDING_${data.provider}`, // Fee type used
+              feeType: data.eventType === WebhookEventType.NYRA_WALLET_REVERSED ? 'REVERSAL_REFUND' : `FUNDING_${data.provider}`, // Fee type used
               walletTransactionId: transaction.id,
+              // Reversal specific metadata
+              ...(data.eventType === WebhookEventType.NYRA_WALLET_REVERSED && {
+                originalTransferFee: originalTransferFee,
+                reversalType: 'TRANSFER_FAILED_REFUND',
+                nyraCharge: data.rawPayload?.data?.charge || 0, // Store Nyra's charge for reference
+              }),
               // Sender information for inflow transactions
               sender_name: data.metadata?.sender_name,
               sender_account_number: data.metadata?.sender_account_number,
@@ -1171,19 +1232,43 @@ export class WebhooksService {
       // Send push notification
       if (this.pushNotificationsService) {
         try {
-          await this.pushNotificationsService.sendWalletFundingNotification(
-            wallet.user.id,
-            data.amount, // gross amount
-            netAmount, // net amount
-            fundingFee, // fee
-            data.provider, // provider
-          );
-          this.logger.log(
-            `📱 [WEBHOOK] Push notification sent for wallet funding`,
-          );
+          if (data.eventType === WebhookEventType.NYRA_WALLET_REVERSED) {
+            // Send reversal-specific notification
+            await this.pushNotificationsService.sendPushNotificationToUser(
+              wallet.user.id,
+              {
+                title: 'Reversal',
+                body: `Your ₦${netAmount.toLocaleString()} transfer has been reversed. Apologies`,
+                data: {
+                  type: 'reversal',
+                  amount: netAmount,
+                  originalAmount: data.amount,
+                  provider: data.provider,
+                  reference: data.transactionReference,
+                },
+                priority: 'high',
+                sound: 'default',
+              },
+            );
+            this.logger.log(
+              `[WEBHOOK] Push notification sent for transfer reversal`,
+            );
+          } else {
+            // Send regular funding notification
+            await this.pushNotificationsService.sendWalletFundingNotification(
+              wallet.user.id,
+              data.amount, // gross amount
+              netAmount, // net amount
+              fundingFee, // fee
+              data.provider, // provider
+            );
+            this.logger.log(
+              `[WEBHOOK] Push notification sent for wallet funding`,
+            );
+          }
         } catch (pushError) {
           this.logger.error(
-            `❌ [WEBHOOK] Failed to send push notification:`,
+            `[WEBHOOK] Failed to send push notification:`,
             pushError,
           );
           // Don't fail the webhook if push notification fails
@@ -1241,6 +1326,7 @@ export class WebhooksService {
       WebhookEventType.SMEPLUG_WALLET_CREDITED,
       WebhookEventType.POLARIS_ACCOUNT_FUNDED,
       WebhookEventType.NYRA_WALLET_CREDITED,
+      WebhookEventType.NYRA_WALLET_REVERSED, // REVERSAL = REFUND = CREDIT to user
       WebhookEventType.TRANSFER_SUCCESSFUL,
     ];
 
@@ -1591,7 +1677,7 @@ export class WebhooksService {
   /**
    * Map Nyra events to standard event types
    */
-  private mapNyraEvent(event: string): WebhookEventType {
+  private mapNyraEvent(event: string, payload?: any): WebhookEventType {
     const eventMap: Record<string, WebhookEventType> = {
       'wallet.credited': WebhookEventType.NYRA_WALLET_CREDITED,
       'wallet.debited': WebhookEventType.NYRA_WALLET_DEBITED,
@@ -1600,8 +1686,24 @@ export class WebhooksService {
       'transfer.pending': WebhookEventType.NYRA_TRANSFER_PENDING,
       'account.credited': WebhookEventType.ACCOUNT_CREDITED,
       'account.debited': WebhookEventType.ACCOUNT_DEBITED,
-      'managed_wallet.funded': WebhookEventType.NYRA_WALLET_CREDITED,
     };
+
+    // Handle managed_wallet.funded with transaction_type consideration
+    if (event === 'managed_wallet.funded') {
+      const transactionType = payload?.data?.transaction_type || payload?.data?.data?.transaction_type;
+      
+      switch (transactionType) {
+        case 'CREDIT':
+          return WebhookEventType.NYRA_WALLET_CREDITED;
+        case 'DEBIT':
+          return WebhookEventType.NYRA_WALLET_DEBITED;
+        case 'REVERSAL':
+          return WebhookEventType.NYRA_WALLET_REVERSED;
+        default:
+          // Default to CREDITED for backward compatibility
+          return WebhookEventType.NYRA_WALLET_CREDITED;
+      }
+    }
 
     return eventMap[event] || WebhookEventType.OTHER;
   }
