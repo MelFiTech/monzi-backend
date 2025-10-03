@@ -83,6 +83,8 @@ import {
   DeleteLocationResponseDto,
   GetPinStatusResponseDto,
   BulkPinStatusResponseDto,
+  GetAutoReversalsResponseDto,
+  GetReversalStatsResponseDto,
 } from './dto/admin.dto';
 import {
   GetFeeStatisticsResponseDto,
@@ -3087,5 +3089,123 @@ export class AdminController {
       data: result,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  // ==================== AUTO REVERSAL ENDPOINTS ====================
+
+  @Get('reversals')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get auto reversal transactions',
+    description: 'Get all auto-reversed transactions with filtering and pagination',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Auto reversals retrieved successfully',
+    type: GetAutoReversalsResponseDto,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of reversals to return (default: 20)',
+    example: 20,
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    description: 'Number of reversals to skip (default: 0)',
+    example: 0,
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    description: 'Filter by specific user ID',
+    example: 'user123',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Filter reversals from this date (ISO format)',
+    example: '2024-01-01T00:00:00Z',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'Filter reversals until this date (ISO format)',
+    example: '2024-12-31T23:59:59Z',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by transaction status',
+    example: 'COMPLETED',
+  })
+  async getAutoReversals(
+    @Query('limit') limit: string = '20',
+    @Query('offset') offset: string = '0',
+    @Query('userId') userId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('status') status?: string,
+  ): Promise<GetAutoReversalsResponseDto> {
+    console.log('📊 [ADMIN API] GET /admin/reversals - Getting auto reversals');
+    console.log('🔍 Filters:', { limit, offset, userId, startDate, endDate, status });
+
+    const limitNum = parseInt(limit, 10);
+    const offsetNum = parseInt(offset, 10);
+
+    const result = await this.adminService.getAutoReversals({
+      limit: limitNum,
+      offset: offsetNum,
+      userId,
+      startDate,
+      endDate,
+      status,
+    });
+
+    console.log('✅ [ADMIN API] Auto reversals retrieved successfully');
+    console.log(`📊 Found ${result.data.length} reversals out of ${result.total} total`);
+
+    return result;
+  }
+
+  @Get('reversals/stats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUDO_ADMIN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Get auto reversal statistics',
+    description: 'Get statistics about auto reversals including totals, amounts, and status breakdown',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reversal statistics retrieved successfully',
+    type: GetReversalStatsResponseDto,
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Filter statistics from this date (ISO format)',
+    example: '2024-01-01T00:00:00Z',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'Filter statistics until this date (ISO format)',
+    example: '2024-12-31T23:59:59Z',
+  })
+  async getReversalStats(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<GetReversalStatsResponseDto> {
+    console.log('📊 [ADMIN API] GET /admin/reversals/stats - Getting reversal statistics');
+    console.log('🔍 Filters:', { startDate, endDate });
+
+    const result = await this.adminService.getReversalStats({ startDate, endDate });
+
+    console.log('✅ [ADMIN API] Reversal statistics retrieved successfully');
+    console.log(`📊 Stats: ${result.data.totalReversals} reversals, ₦${result.data.totalAmount} total`);
+
+    return result;
   }
 }

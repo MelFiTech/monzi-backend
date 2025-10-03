@@ -690,4 +690,136 @@ export class AdminService {
       throw error;
     }
   }
+
+  // ==================== AUTO REVERSAL METHODS ====================
+
+  async getAutoReversals(filters: {
+    limit: number;
+    offset: number;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+  }) {
+    console.log('📊 [ADMIN SERVICE] Getting auto reversals with filters:', filters);
+
+    const where: any = {
+      type: 'REVERSAL',
+    };
+
+    if (filters.userId) {
+      where.senderWallet = { userId: filters.userId };
+    }
+
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = new Date(filters.endDate);
+      }
+    }
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    try {
+      const [reversals, total] = await Promise.all([
+        this.prisma.walletTransaction.findMany({
+          where,
+          include: {
+            senderWallet: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: filters.limit,
+          skip: filters.offset,
+        }),
+        this.prisma.walletTransaction.count({ where }),
+      ]);
+
+      console.log(`✅ [ADMIN SERVICE] Found ${reversals.length} reversals out of ${total} total`);
+
+      return {
+        success: true,
+        data: reversals,
+        total,
+        limit: filters.limit,
+        offset: filters.offset,
+        page: Math.floor(filters.offset / filters.limit) + 1,
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error getting auto reversals:', error);
+      throw error;
+    }
+  }
+
+  async getReversalStats(filters: { startDate?: string; endDate?: string }) {
+    console.log('📊 [ADMIN SERVICE] Getting reversal statistics with filters:', filters);
+
+    const where: any = {
+      type: 'REVERSAL',
+    };
+
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = new Date(filters.endDate);
+      }
+    }
+
+    try {
+      const [totalReversals, totalAmount, statusBreakdown] = await Promise.all([
+        this.prisma.walletTransaction.count({ where }),
+        this.prisma.walletTransaction.aggregate({
+          where,
+          _sum: { amount: true },
+        }),
+        this.prisma.walletTransaction.groupBy({
+          by: ['status'],
+          where,
+          _count: { id: true },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      const averageReversalAmount = totalReversals > 0 
+        ? (totalAmount._sum.amount || 0) / totalReversals 
+        : 0;
+
+      console.log(`✅ [ADMIN SERVICE] Reversal stats: ${totalReversals} reversals, ₦${totalAmount._sum.amount || 0} total`);
+
+      return {
+        success: true,
+        data: {
+          totalReversals,
+          totalAmount: totalAmount._sum.amount || 0,
+          statusBreakdown: statusBreakdown.map(item => ({
+            status: item.status,
+            count: item._count.id,
+            totalAmount: item._sum.amount || 0,
+          })),
+          averageReversalAmount,
+        },
+      };
+    } catch (error) {
+      console.error('❌ [ADMIN SERVICE] Error getting reversal stats:', error);
+      throw error;
+    }
+  }
 }

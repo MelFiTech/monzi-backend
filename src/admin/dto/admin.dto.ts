@@ -2765,3 +2765,68 @@ export class BulkPinStatusResponseDto {
   @ApiProperty({ example: '66.7%', description: 'Percentage of users with PIN set' })
   pinSetPercentage: string;
 }
+
+// ==================== AUTO REVERSAL DTOs ====================
+
+export class GetAutoReversalsResponseDto {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    type: [Object],
+    description: 'List of auto reversal transactions',
+  })
+  data: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    reference: string;
+    description: string;
+    fee: number;
+    createdAt: Date;
+    senderBalanceBefore: number;
+    senderBalanceAfter: number;
+    metadata: any;
+    senderWallet: {
+      id: string;
+      virtualAccountNumber: string;
+      user: {
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+      };
+    };
+  }>;
+
+  @ApiProperty({ example: 150, description: 'Total number of reversals' })
+  total: number;
+
+  @ApiProperty({ example: 20, description: 'Number of items per page' })
+  limit: number;
+
+  @ApiProperty({ example: 0, description: 'Number of items to skip' })
+  offset: number;
+
+  @ApiProperty({ example: 1, description: 'Current page number' })
+  page: number;
+}
+
+export class GetReversalStatsResponseDto {
+  @ApiProperty({ example: true, description: 'Operation success status' })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Reversal statistics data',
+  })
+  data: {
+    totalReversals: number;
+    totalAmount: number;
+    statusBreakdown: Array<{
+      status: string;
+      count: number;
+      totalAmount: number;
+    }>;
+    averageReversalAmount: number;
+  };
+}
