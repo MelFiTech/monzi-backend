@@ -754,8 +754,12 @@ export class WalletService {
     // Verify PIN
     await this.verifyWalletPin(userId, transferDto.pin);
 
-    // Calculate fee using dynamic fee configuration
-    const fee = await this.calculateFee(FeeType.TRANSFER, transferDto.amount);
+    // Check if user has free transfers available
+    const hasFreeTransfers = await this.checkUserFreeTransfers(userId);
+    const isFreeTransfer = hasFreeTransfers;
+    
+    // Calculate fee (will be 0 if free transfer)
+    const fee = isFreeTransfer ? 0 : await this.calculateFee(FeeType.TRANSFER, transferDto.amount);
     const totalDeduction = transferDto.amount + fee;
 
     // Check sufficient balance with enhanced validation
@@ -1051,6 +1055,9 @@ export class WalletService {
           // Don't fail the operation if push notification fails
         }
       }
+
+      // Update daily transfer quota after successful transfer
+      await this.updateDailyTransferQuota(userId, isFreeTransfer);
 
       return {
         success: true,
@@ -2347,6 +2354,94 @@ export class WalletService {
     } catch (error) {
       console.error('❌ [TAG TRANSACTION] Error tagging transaction:', error);
       throw error;
+    }
+  }
+
+  // ==================== DAILY FREE TRANSFER METHODS ====================
+
+  /**
+   * Check if user has free transfers available
+   */
+  private async checkUserFreeTransfers(userId: string): Promise<boolean> {
+    try {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      // Get user's wallet to check metadata
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { userId },
+        select: { metadata: true }
+      });
+
+      if (!wallet) {
+        console.log('⚠️ [FREE TRANSFER] No wallet found for user:', userId);
+        return false;
+      }
+
+      const metadata = wallet.metadata as any || {};
+      const dailyQuota = metadata.dailyQuota || {};
+
+      // Reset if different day
+      if (dailyQuota.date !== today) {
+        console.log('🔄 [FREE TRANSFER] New day detected, resetting quota for user:', userId);
+        return true; // User has free transfers for new day
+      }
+
+      const freeTransfersUsed = dailyQuota.freeTransfersUsed || 0;
+      const hasFreeTransfers = freeTransfersUsed < 3;
+
+      console.log(`📊 [FREE TRANSFER] User ${userId} - Used: ${freeTransfersUsed}/3, Available: ${hasFreeTransfers}`);
+      return hasFreeTransfers;
+    } catch (error) {
+      console.error('❌ [FREE TRANSFER] Error checking user free transfers:', error);
+      return false; // Default to no free transfers on error
+    }
+  }
+
+  /**
+   * Update daily transfer quota after successful transfer
+   */
+  private async updateDailyTransferQuota(userId: string, isFreeTransfer: boolean): Promise<void> {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { userId },
+        select: { metadata: true }
+      });
+
+      if (!wallet) return;
+
+      const metadata = wallet.metadata as any || {};
+      const dailyQuota = metadata.dailyQuota || {};
+
+      // Reset if different day
+      if (dailyQuota.date !== today) {
+        dailyQuota.date = today;
+        dailyQuota.freeTransfersUsed = 0;
+        dailyQuota.totalTransfersUsed = 0;
+      }
+
+      // Increment counters
+      dailyQuota.totalTransfersUsed = (dailyQuota.totalTransfersUsed || 0) + 1;
+      if (isFreeTransfer) {
+        dailyQuota.freeTransfersUsed = (dailyQuota.freeTransfersUsed || 0) + 1;
+      }
+
+      // Update wallet metadata
+      await this.prisma.wallet.update({
+        where: { userId },
+        data: {
+          metadata: {
+            ...metadata,
+            dailyQuota
+          }
+        }
+      });
+
+      console.log(`✅ [FREE TRANSFER] Updated quota for user ${userId} - Free: ${dailyQuota.freeTransfersUsed}/3, Total: ${dailyQuota.totalTransfersUsed}`);
+    } catch (error) {
+      console.error('❌ [FREE TRANSFER] Error updating daily transfer quota:', error);
+      // Don't throw error - quota tracking failure shouldn't break transfers
     }
   }
 }

@@ -15,14 +15,39 @@ export class TransactionsService {
   /**
    * Calculate transaction fee for a given amount and transaction type
    */
-  async calculateFee(dto: CalculateFeeDto): Promise<FeeCalculationResponseDto> {
-    console.log('💰 [TRANSACTIONS SERVICE] Calculating fee for:', dto);
+  async calculateFee(dto: CalculateFeeDto, userId?: string): Promise<FeeCalculationResponseDto> {
+    console.log('💰 [TRANSACTIONS SERVICE] Calculating fee for:', dto, 'userId:', userId);
 
     const { amount, transactionType, provider } = dto;
 
     // Validate amount
     if (amount <= 0) {
       throw new BadRequestException('Amount must be greater than 0');
+    }
+
+    // Check for free transfers if user is authenticated and transaction type is TRANSFER
+    if (userId && transactionType === 'TRANSFER') {
+      const hasFreeTransfers = await this.checkUserFreeTransfers(userId);
+      if (hasFreeTransfers) {
+        console.log('🎉 [FREE TRANSFER] User has free transfers available, returning 0 fee');
+        return {
+          success: true,
+          message: 'Free transfer available (3 free transfers daily)',
+          data: {
+            amount: amount,
+            transactionType: transactionType,
+            provider: provider,
+            feeAmount: 0,
+            feeType: 'FIXED',
+            totalAmount: amount,
+            breakdown: {
+              transferAmount: amount,
+              fee: 0,
+              total: amount,
+            },
+          },
+        };
+      }
     }
 
     // First, try to find provider-specific fee configuration
@@ -259,5 +284,43 @@ export class TransactionsService {
         },
       },
     };
+  }
+
+  /**
+   * Check if user has free transfers available
+   */
+  private async checkUserFreeTransfers(userId: string): Promise<boolean> {
+    try {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      // Get user's wallet to check metadata
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { userId },
+        select: { metadata: true }
+      });
+
+      if (!wallet) {
+        console.log('⚠️ [FREE TRANSFER] No wallet found for user:', userId);
+        return false;
+      }
+
+      const metadata = wallet.metadata as any || {};
+      const dailyQuota = metadata.dailyQuota || {};
+
+      // Reset if different day
+      if (dailyQuota.date !== today) {
+        console.log('🔄 [FREE TRANSFER] New day detected, resetting quota for user:', userId);
+        return true; // User has free transfers for new day
+      }
+
+      const freeTransfersUsed = dailyQuota.freeTransfersUsed || 0;
+      const hasFreeTransfers = freeTransfersUsed < 3;
+
+      console.log(`📊 [FREE TRANSFER] User ${userId} - Used: ${freeTransfersUsed}/3, Available: ${hasFreeTransfers}`);
+      return hasFreeTransfers;
+    } catch (error) {
+      console.error('❌ [FREE TRANSFER] Error checking user free transfers:', error);
+      return false; // Default to no free transfers on error
+    }
   }
 }

@@ -6,8 +6,11 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TransactionsService } from './transactions.service';
 import {
   CalculateFeeDto,
@@ -21,11 +24,13 @@ export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
   @Post('calculate-fee')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Calculate transaction fee',
     description:
-      'Calculate the fee for a transaction based on amount, type, and provider',
+      'Calculate the fee for a transaction based on amount, type, and provider. Returns 0 fee for free transfers.',
   })
   @ApiResponse({
     status: 200,
@@ -37,9 +42,11 @@ export class TransactionsController {
     description: 'Invalid request parameters',
   })
   async calculateFee(
+    @Request() req: any,
     @Body() dto: CalculateFeeDto,
   ): Promise<FeeCalculationResponseDto> {
-    return this.transactionsService.calculateFee(dto);
+    const userId = req.user.id;
+    return this.transactionsService.calculateFee(dto, userId);
   }
 
   @Get('fee-tiers')

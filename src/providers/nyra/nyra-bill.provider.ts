@@ -60,7 +60,7 @@ export class NyraBillProvider {
 
     this.httpClient = axios.create({
       baseURL: this.baseUrl,
-      timeout: 30000,
+      timeout: 60000, // Increased to 60 seconds to match transfer provider
       headers: {
         'Content-Type': 'application/json',
         'x-client-id': this.clientId,
@@ -144,75 +144,115 @@ export class NyraBillProvider {
    * Purchase data bundle
    */
   async purchaseData(request: DataPurchaseRequest): Promise<DataPurchaseResponse> {
-    try {
-      this.logger.log(`Purchasing data bundle for ${request.phone_number}, amount: ${request.amount}`);
-      
-      // Validate phone number format
-      if (!this.isValidPhoneNumber(request.phone_number)) {
-        throw new Error('Invalid phone number format. Use Nigerian format (e.g., 08012345678)');
-      }
+    const maxRetries = 3;
+    let lastError: any;
 
-      // Validate amount
-      if (request.amount < 100) {
-        throw new Error('Minimum amount for data purchase is ₦100');
-      }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.log(`Purchasing data bundle for ${request.phone_number}, amount: ${request.amount} (attempt ${attempt}/${maxRetries})`);
+        
+        // Validate phone number format
+        if (!this.isValidPhoneNumber(request.phone_number)) {
+          throw new Error('Invalid phone number format. Use Nigerian format (e.g., 08012345678)');
+        }
 
-      const response = await this.httpClient.post('/business/vas/data/purchase', request);
-      
-      if (response.data.success) {
-        this.logger.log(`Data purchase successful. Reference: ${response.data.data.reference}`);
-        return response.data;
-      } else {
-        throw new Error(response.data.message || 'Data purchase failed');
+        // Validate amount
+        if (request.amount < 100) {
+          throw new Error('Minimum amount for data purchase is ₦100');
+        }
+
+        const response = await this.httpClient.post('/business/vas/data/purchase', request);
+        
+        if (response.data.success) {
+          this.logger.log(`Data purchase successful. Reference: ${response.data.data.reference}`);
+          return response.data;
+        } else {
+          throw new Error(response.data.message || 'Data purchase failed');
+        }
+      } catch (error) {
+        lastError = error;
+        this.logger.warn(`Attempt ${attempt}/${maxRetries} failed to purchase data:`, error.message);
+
+        // Don't retry on validation errors
+        if (error.message.includes('Invalid phone number') || error.message.includes('Minimum amount')) {
+          throw error;
+        }
+
+        if (attempt < maxRetries) {
+          // Wait before retrying (exponential backoff)
+          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          this.logger.log(`Retrying in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
-    } catch (error) {
-      this.logger.error('Error purchasing data:', error);
-      throw new Error(`Data purchase failed: ${error.message}`);
     }
+
+    this.logger.error('Failed to purchase data after all retries:', lastError.message);
+    throw new Error(`Data purchase failed: ${lastError.message}`);
   }
 
   /**
    * Purchase airtime
    */
   async purchaseAirtime(request: AirtimePurchaseRequest): Promise<AirtimePurchaseResponse> {
-    try {
-      this.logger.log(`Purchasing airtime for ${request.phone_number}, amount: ${request.amount}`);
-      
-      // Validate phone number format
-      if (!this.isValidPhoneNumber(request.phone_number)) {
-        throw new Error('Invalid phone number format. Use Nigerian format (e.g., 08012345678)');
-      }
+    const maxRetries = 3;
+    let lastError: any;
 
-      // Validate amount
-      if (request.amount < 50) {
-        throw new Error('Minimum amount for airtime purchase is ₦50');
-      }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.log(`Purchasing airtime for ${request.phone_number}, amount: ${request.amount} (attempt ${attempt}/${maxRetries})`);
+        
+        // Validate phone number format
+        if (!this.isValidPhoneNumber(request.phone_number)) {
+          throw new Error('Invalid phone number format. Use Nigerian format (e.g., 08012345678)');
+        }
 
-      // Detect network from phone number
-      const network = this.detectNetwork(request.phone_number);
-      if (!network) {
-        throw new Error('Unable to detect network from phone number');
-      }
+        // Validate amount
+        if (request.amount < 50) {
+          throw new Error('Minimum amount for airtime purchase is ₦50');
+        }
 
-      // Prepare airtime purchase request with network
-      const airtimeRequest = {
-        phone_number: request.phone_number,
-        amount: request.amount,
-        network: network
-      };
+        // Detect network from phone number
+        const network = this.detectNetwork(request.phone_number);
+        if (!network) {
+          throw new Error('Unable to detect network from phone number');
+        }
 
-      const response = await this.httpClient.post('/business/vas/airtime/purchase', airtimeRequest);
-      
-      if (response.data.success) {
-        this.logger.log(`Airtime purchase successful. Reference: ${response.data.data.reference}`);
-        return response.data;
-      } else {
-        throw new Error(response.data.message || 'Airtime purchase failed');
+        // Prepare airtime purchase request with network
+        const airtimeRequest = {
+          phone_number: request.phone_number,
+          amount: request.amount,
+          network: network
+        };
+
+        const response = await this.httpClient.post('/business/vas/airtime/purchase', airtimeRequest);
+        
+        if (response.data.success) {
+          this.logger.log(`Airtime purchase successful. Reference: ${response.data.data.reference}`);
+          return response.data;
+        } else {
+          throw new Error(response.data.message || 'Airtime purchase failed');
+        }
+      } catch (error) {
+        lastError = error;
+        this.logger.warn(`Attempt ${attempt}/${maxRetries} failed to purchase airtime:`, error.message);
+
+        // Don't retry on validation errors
+        if (error.message.includes('Invalid phone number') || error.message.includes('Minimum amount') || error.message.includes('Unable to detect network')) {
+          throw error;
+        }
+
+        if (attempt < maxRetries) {
+          // Wait before retrying (exponential backoff)
+          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          this.logger.log(`Retrying in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
-    } catch (error) {
-      this.logger.error('Error purchasing airtime:', error);
-      throw new Error(`Airtime purchase failed: ${error.message}`);
     }
+
+    this.logger.error('Failed to purchase airtime after all retries:', lastError.message);
+    throw new Error(`Airtime purchase failed: ${lastError.message}`);
   }
 
   /**
