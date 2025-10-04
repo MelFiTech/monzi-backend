@@ -56,6 +56,8 @@ export class NyraBillController {
       purchaseDataDto.phoneNumber,
       purchaseDataDto.bundleId,
       purchaseDataDto.amount,
+      purchaseDataDto.pin,
+      purchaseDataDto.network,
     );
 
     return {
@@ -78,6 +80,8 @@ export class NyraBillController {
       userId,
       purchaseAirtimeDto.phoneNumber,
       purchaseAirtimeDto.amount,
+      purchaseAirtimeDto.pin,
+      purchaseAirtimeDto.network,
     );
 
     return {

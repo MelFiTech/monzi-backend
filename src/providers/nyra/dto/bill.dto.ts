@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsEnum, IsOptional, Min, MaxLength, IsNumberString } from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsOptional, Min, MaxLength, MinLength, IsNumberString } from 'class-validator';
 
 export enum NetworkProvider {
   MTN = 'MTN',
@@ -23,6 +23,15 @@ export class PurchaseDataDto {
   @IsNumber()
   @Min(100)
   amount: number;
+
+  @IsOptional()
+  @IsEnum(NetworkProvider)
+  network?: NetworkProvider;
+
+  @IsString()
+  @MaxLength(4)
+  @MinLength(4)
+  pin: string;
 }
 
 export class PurchaseAirtimeDto {
@@ -31,8 +40,17 @@ export class PurchaseAirtimeDto {
   phoneNumber: string;
 
   @IsNumber()
-  @Min(50)
+  @Min(100)
   amount: number;
+
+  @IsOptional()
+  @IsEnum(NetworkProvider)
+  network?: NetworkProvider;
+
+  @IsString()
+  @MaxLength(4)
+  @MinLength(4)
+  pin: string;
 }
 
 export class BillHistoryDto {

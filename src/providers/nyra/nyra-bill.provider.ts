@@ -18,6 +18,7 @@ export interface DataPurchaseRequest {
   phone_number: string;
   bundle_id: string;
   amount: number;
+  // Network not needed - Nyra knows it from bundle_id
 }
 
 export interface DataPurchaseResponse {
@@ -33,6 +34,7 @@ export interface DataPurchaseResponse {
 export interface AirtimePurchaseRequest {
   phone_number: string;
   amount: number;
+  network?: string;
 }
 
 export interface AirtimePurchaseResponse {
@@ -208,14 +210,17 @@ export class NyraBillProvider {
         }
 
         // Validate amount
-        if (request.amount < 50) {
-          throw new Error('Minimum amount for airtime purchase is ₦50');
+        if (request.amount < 100) {
+          throw new Error('Minimum amount for airtime purchase is ₦100');
         }
 
-        // Detect network from phone number
-        const network = this.detectNetwork(request.phone_number);
+        // Use provided network or detect from phone number
+        let network = request.network;
         if (!network) {
-          throw new Error('Unable to detect network from phone number');
+          network = this.detectNetwork(request.phone_number);
+          if (!network) {
+            throw new Error('Unable to detect network from phone number. Please provide network parameter.');
+          }
         }
 
         // Prepare airtime purchase request with network
@@ -292,7 +297,7 @@ export class NyraBillProvider {
     const formatted = this.formatPhoneNumber(phoneNumber);
     
     // Nigerian mobile network prefixes
-    const mtnPrefixes = ['0803', '0806', '0703', '0706', '0813', '0816', '0810', '0814', '0903', '0906'];
+    const mtnPrefixes = ['0803', '0806', '0703', '0706', '0813', '0816', '0810', '0814', '0903', '0906', '0913'];
     const airtelPrefixes = ['0802', '0808', '0708', '0812', '0901', '0902', '0904', '0907'];
     const gloPrefixes = ['0805', '0807', '0811', '0815', '0705', '0905'];
     const nineMobilePrefixes = ['0809', '0817', '0818', '0908', '0909'];

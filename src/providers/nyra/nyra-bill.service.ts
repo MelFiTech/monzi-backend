@@ -58,6 +58,8 @@ export class NyraBillService {
     phoneNumber: string,
     bundleId: string,
     amount: number,
+    pin: string,
+    network?: string,
   ): Promise<BillPurchaseResult> {
     try {
       this.logger.log(`Processing data purchase for user ${userId}, phone: ${phoneNumber}, amount: ${amount}`);
@@ -72,6 +74,9 @@ export class NyraBillService {
         throw new NotFoundException('Wallet not found');
       }
 
+      // Verify transaction PIN
+      await this.verifyWalletPin(userId, pin);
+
       // Check if user has sufficient balance
       if (wallet.balance < amount) {
         throw new BadRequestException('Insufficient wallet balance');
@@ -80,14 +85,15 @@ export class NyraBillService {
       // Format phone number
       const formattedPhone = this.nyraBillProvider.formatPhoneNumber(phoneNumber);
 
-      // Detect network to validate the bundle
-      const network = this.detectNetworkFromPhone(formattedPhone);
-      if (!network) {
-        throw new BadRequestException('Unable to detect network from phone number');
-      }
+      // Network detection commented out - Nyra knows which network the bundle belongs to
+      // const network = this.detectNetworkFromPhone(formattedPhone);
+      // if (!network) {
+      //   throw new BadRequestException('Unable to detect network from phone number');
+      // }
 
-      // Get available data plans for this network
-      const dataPlans = await this.nyraBillProvider.getDataPlans(network);
+      // Get available data plans for the provided network or use MTN as default
+      const networkToUse = (network as 'MTN' | 'AIRTEL' | 'GLO' | '9MOBILE') || 'MTN';
+      const dataPlans = await this.nyraBillProvider.getDataPlans(networkToUse);
       
       // Find the specific bundle and validate its cost
       const selectedPlan = dataPlans.find(plan => plan.bundle_id === bundleId);
@@ -112,6 +118,7 @@ export class NyraBillService {
         phone_number: formattedPhone,
         bundle_id: bundleId,
         amount: planCost, // Use actual plan cost, not user input
+        // Network not sent to Nyra - they know it from bundle_id
       };
 
       this.logger.log(`Purchasing ${selectedPlan.data_bundle} for ₦${planCost.toLocaleString()}`);
@@ -276,6 +283,8 @@ export class NyraBillService {
     userId: string,
     phoneNumber: string,
     amount: number,
+    pin: string,
+    network?: string,
   ): Promise<BillPurchaseResult> {
     try {
       this.logger.log(`Processing airtime purchase for user ${userId}, phone: ${phoneNumber}, amount: ${amount}`);
@@ -290,6 +299,9 @@ export class NyraBillService {
         throw new NotFoundException('Wallet not found');
       }
 
+      // Verify transaction PIN
+      await this.verifyWalletPin(userId, pin);
+
       // Check if user has sufficient balance
       if (wallet.balance < amount) {
         throw new BadRequestException('Insufficient wallet balance');
@@ -302,6 +314,7 @@ export class NyraBillService {
       const request: AirtimePurchaseRequest = {
         phone_number: formattedPhone,
         amount: amount,
+        network: network, // Include network parameter
       };
 
       // Make the purchase
@@ -329,6 +342,7 @@ export class NyraBillService {
                 provider: 'NYRA',
                 transactionType: 'AIRTIME_PURCHASE',
                 originalAmount: amount,
+                network: network,
               },
             },
           });
@@ -349,6 +363,7 @@ export class NyraBillService {
                 provider: 'NYRA',
                 transactionType: 'AIRTIME_PURCHASE',
                 originalAmount: amount,
+                network: network,
                 walletTransactionId: walletTransaction.id,
                 providerReference: response.data.reference,
                 providerStatus: response.data.status,
@@ -540,5 +555,26 @@ export class NyraBillService {
     }
     
     return null;
+  }
+
+  /**
+   * Verify wallet PIN for transaction authorization
+   */
+  private async verifyWalletPin(userId: string, pin: string): Promise<void> {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+      select: { pin: true }
+    });
+
+    if (!wallet || !wallet.pin) {
+      throw new BadRequestException('Wallet PIN not set. Please set your transaction PIN first.');
+    }
+
+    const bcrypt = require('bcrypt');
+    const isValidPin = await bcrypt.compare(pin, wallet.pin);
+    
+    if (!isValidPin) {
+      throw new BadRequestException('Invalid transaction PIN');
+    }
   }
 }
